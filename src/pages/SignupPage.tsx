@@ -3,18 +3,30 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield } from 'lucide-react';
+import { Shield, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signUp } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/app');
+    setLoading(true);
+    const { error } = await signUp(email, password, name);
+    setLoading(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Account created! Check your email to confirm, or sign in if email confirmation is disabled.');
+      navigate('/app');
+    }
   };
 
   return (
@@ -32,17 +44,20 @@ export default function SignupPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" placeholder="John Doe" value={name} onChange={e => setName(e.target.value)} required />
+              <Input id="name" placeholder="John Doe" value={name} onChange={e => setName(e.target.value)} required disabled={loading} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Work Email</Label>
-              <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required />
+              <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="Min 8 characters" value={password} onChange={e => setPassword(e.target.value)} required />
+              <Input id="password" type="password" placeholder="Min 8 characters" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} disabled={loading} />
             </div>
-            <Button type="submit" className="w-full">Start Free Trial</Button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Start Free Trial
+            </Button>
           </form>
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{' '}
