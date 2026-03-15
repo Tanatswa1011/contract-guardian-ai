@@ -15,12 +15,12 @@ export default function NotificationSettingsPage() {
       </div>
 
       {/* Email */}
-      <Card className="shadow-sm">
+      <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Mail className="h-5 w-5 text-primary" />
+              <div className="w-10 h-10 bg-muted flex items-center justify-center">
+                <Mail className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
                 <CardTitle className="text-base">Email Notifications</CardTitle>
@@ -28,8 +28,8 @@ export default function NotificationSettingsPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-success" />
-              <span className="text-xs text-success font-medium">Connected</span>
+              <CheckCircle className="h-4 w-4 text-foreground" />
+              <span className="text-xs text-muted-foreground font-medium">Connected</span>
             </div>
           </div>
         </CardHeader>
@@ -43,7 +43,7 @@ export default function NotificationSettingsPage() {
       </Card>
 
       {/* Reminder Schedule */}
-      <Card className="shadow-sm">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Reminder Schedule</CardTitle>
           <CardDescription>Choose when to receive reminders before deadlines</CardDescription>
@@ -67,11 +67,11 @@ export default function NotificationSettingsPage() {
 
       {/* Coming Soon channels */}
       {['Slack', 'Telegram', 'WhatsApp'].map(channel => (
-        <Card key={channel} className="shadow-sm opacity-60">
+        <Card key={channel} className="opacity-60">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <div className="w-10 h-10 bg-muted flex items-center justify-center">
                   <MessageSquare className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>

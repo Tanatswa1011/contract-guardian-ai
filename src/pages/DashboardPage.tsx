@@ -50,9 +50,9 @@ export default function DashboardPage() {
   );
 
   const summaryCards = [
-    { label: 'Expiring Soon', value: expiringThisMonth, icon: CalendarClock, color: 'text-warning' },
-    { label: 'Next Deadline', value: nextDeadlineDays != null ? `${nextDeadlineDays}d` : '—', icon: CalendarClock, color: 'text-primary' },
-    { label: 'Active Contracts', value: activeContracts, icon: FileText, color: 'text-success' },
+    { label: 'Expiring Soon', value: expiringThisMonth, icon: CalendarClock, color: 'text-muted-foreground' },
+    { label: 'Next Deadline', value: nextDeadlineDays != null ? `${nextDeadlineDays}d` : '—', icon: CalendarClock, color: 'text-foreground' },
+    { label: 'Active Contracts', value: activeContracts, icon: FileText, color: 'text-muted-foreground' },
     { label: 'Risk Alerts', value: riskAlerts, icon: AlertTriangle, color: 'text-destructive' },
   ];
 
@@ -81,7 +81,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Contract Command Center</h1>
+          <h1 className="text-2xl font-semibold">Contract Command Center</h1>
           <p className="text-muted-foreground text-sm">Track, manage, and protect your business contracts.</p>
         </div>
         <Link to="/app/upload">
@@ -91,7 +91,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {summaryCards.map(card => (
-          <Card key={card.label} className="shadow-sm">
+          <Card key={card.label}>
             <CardContent className="pt-5 pb-4 px-5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</span>
@@ -111,7 +111,7 @@ export default function DashboardPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-16 text-center">
             <FileText className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
             <h3 className="font-semibold mb-1">No contracts found</h3>
@@ -124,7 +124,7 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="hidden md:block">
-            <Card className="shadow-sm overflow-hidden">
+            <Card className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -163,7 +163,7 @@ export default function DashboardPage() {
           <div className="md:hidden space-y-3">
             {filtered.map(contract => (
               <Link key={contract.id} to={`/app/contracts/${contract.id}`}>
-                <Card className="shadow-sm hover:shadow-md transition-shadow">
+                <Card className="hover:border-foreground/20 transition-colors">
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <p className="font-medium text-sm leading-tight">{contract.title}</p>

@@ -30,11 +30,11 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="py-20 md:py-32">
         <div className="container text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-sm font-medium mb-6 animate-fade-in">
+          <div className="inline-flex items-center gap-2 bg-muted text-foreground px-4 py-1.5 text-sm font-medium mb-6 animate-fade-in">
             <Shield className="h-4 w-4" />
             Trusted by 500+ businesses
           </div>
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <h1 className="text-4xl md:text-6xl font-semibold tracking-tight mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             Stop Losing Money on Missed Contract Deadlines
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: '0.2s' }}>
@@ -56,18 +56,18 @@ export default function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="py-20 bg-muted/40 border-y">
+      <section id="how-it-works" className="py-20 bg-muted/50 border-y border-border">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-4">How It Works</h2>
+          <h2 className="text-3xl font-semibold text-center mb-4">How It Works</h2>
           <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Three simple steps to never miss a contract deadline again.</p>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {steps.map((step, i) => (
-              <Card key={i} className="text-center border-0 shadow-md bg-card">
+              <Card key={i} className="text-center">
                 <CardContent className="pt-8 pb-6 px-6">
-                  <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
-                    <step.icon className="h-7 w-7 text-primary" />
+                  <div className="mx-auto w-14 h-14 bg-muted flex items-center justify-center mb-5">
+                    <step.icon className="h-7 w-7 text-muted-foreground" />
                   </div>
-                  <div className="text-xs font-semibold text-primary mb-2">STEP {i + 1}</div>
+                  <div className="text-xs font-medium text-muted-foreground mb-2">STEP {i + 1}</div>
                   <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
                   <p className="text-sm text-muted-foreground">{step.desc}</p>
                 </CardContent>
@@ -80,14 +80,14 @@ export default function LandingPage() {
       {/* Features */}
       <section className="py-20">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-4">Everything You Need</h2>
+          <h2 className="text-3xl font-semibold text-center mb-4">Everything You Need</h2>
           <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Built for teams who take their contracts seriously.</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {features.map((f, i) => (
-              <Card key={i} className="border shadow-sm hover:shadow-md transition-shadow">
+              <Card key={i} className="hover:border-foreground/20 transition-colors">
                 <CardContent className="pt-6 pb-5 px-6">
                   <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="h-5 w-5 text-primary" />
+                    <CheckCircle className="h-5 w-5 text-muted-foreground" />
                     <h3 className="font-semibold">{f.title}</h3>
                   </div>
                   <p className="text-sm text-muted-foreground">{f.desc}</p>
@@ -101,14 +101,14 @@ export default function LandingPage() {
       {/* Testimonials */}
       <section className="py-20 bg-muted/40 border-y">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-12">Loved by Teams Everywhere</h2>
+          <h2 className="text-3xl font-semibold text-center mb-12">Loved by Teams Everywhere</h2>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {testimonials.map((t, i) => (
-              <Card key={i} className="border-0 shadow-md">
+              <Card key={i}>
                 <CardContent className="pt-6 pb-5 px-6">
                   <div className="flex gap-0.5 mb-3">
                     {Array.from({ length: t.stars }).map((_, j) => (
-                      <Star key={j} className="h-4 w-4 fill-warning text-warning" />
+                      <Star key={j} className="h-4 w-4 fill-muted-foreground text-muted-foreground" />
                     ))}
                   </div>
                   <p className="text-sm mb-4 text-foreground">"{t.text}"</p>
@@ -126,7 +126,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="py-20">
         <div className="container text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">Ready to Protect Your Contracts?</h2>
+          <h2 className="text-3xl font-semibold mb-4">Ready to Protect Your Contracts?</h2>
           <p className="text-muted-foreground mb-8">Join hundreds of businesses that trust ContractGuardAI to track their critical deadlines.</p>
           <Link to="/signup">
             <Button size="lg" className="text-base px-8 gap-2">

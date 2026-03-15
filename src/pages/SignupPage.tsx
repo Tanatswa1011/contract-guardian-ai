@@ -31,10 +31,10 @@ export default function SignupPage() {
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
-      <Card className="w-full max-w-md mx-4 shadow-lg">
+      <Card className="w-full max-w-md mx-4">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex items-center gap-2 font-bold text-xl">
-            <Shield className="h-6 w-6 text-primary" />
+          <div className="mx-auto mb-4 flex items-center gap-2 font-semibold text-xl">
+            <Shield className="h-6 w-6 text-foreground" />
             ContractGuardAI
           </div>
           <CardTitle className="text-2xl">Create your account</CardTitle>
@@ -61,7 +61,7 @@ export default function SignupPage() {
           </form>
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary font-medium hover:underline">Sign in</Link>
+            <Link to="/login" className="text-foreground font-medium hover:underline">Sign in</Link>
           </p>
         </CardContent>
       </Card>

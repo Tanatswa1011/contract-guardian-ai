@@ -8,11 +8,11 @@ export default function PublicLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-border bg-background">
         <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl">
-            <Shield className="h-6 w-6 text-primary" />
-            <span>ContractGuard<span className="text-primary">AI</span></span>
+          <Link to="/" className="flex items-center gap-2 font-semibold text-xl">
+            <Shield className="h-6 w-6 text-foreground" />
+            <span>ContractGuard<span className="text-foreground">AI</span></span>
           </Link>
           {!isAuthPage && (
             <nav className="flex items-center gap-6">
@@ -32,7 +32,7 @@ export default function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
-      <footer className="border-t py-12 bg-muted/30">
+      <footer className="border-t border-border py-12 bg-muted/50">
         <div className="container grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
           <div>
             <div className="flex items-center gap-2 font-bold mb-4">

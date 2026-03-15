@@ -140,10 +140,10 @@ export default function ContractDetailPage() {
   }
 
   const typeColors: Record<string, string> = {
-    renewal: 'bg-primary/10 text-primary',
-    notice: 'bg-warning/10 text-warning',
-    payment: 'bg-success/10 text-success',
-    custom: 'bg-muted text-muted-foreground',
+    renewal: 'bg-secondary text-foreground border-border',
+    notice: 'bg-secondary text-foreground border-border',
+    payment: 'bg-secondary text-foreground border-border',
+    custom: 'bg-muted text-muted-foreground border-border',
   };
 
   const formatFileSize = (bytes: number | null) => {
@@ -209,10 +209,10 @@ export default function ContractDetailPage() {
       </div>
 
       {extraction?.needs_review && (
-        <Card className="border-warning/50 bg-warning/5 shadow-sm">
+        <Card className="border-border bg-muted/50">
           <CardContent className="py-4 px-5">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
                 <p className="font-medium text-sm">This contract needs manual review</p>
                 <p className="text-xs text-muted-foreground mt-1">Missing fields:</p>
@@ -228,7 +228,7 @@ export default function ContractDetailPage() {
       )}
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader><CardTitle className="text-base">Contract Information</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -256,7 +256,7 @@ export default function ContractDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader><CardTitle className="text-base">Deadlines</CardTitle></CardHeader>
           <CardContent>
             {dates.length === 0 ? (
@@ -264,7 +264,7 @@ export default function ContractDetailPage() {
             ) : (
               <div className="space-y-3">
                 {dates.map(d => (
-                  <div key={d.id} className="flex items-start justify-between p-3 rounded-lg border bg-card">
+                  <div key={d.id} className="flex items-start justify-between p-3 border border-border bg-muted/30">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Badge className={`text-xs capitalize ${typeColors[d.type] || ''}`}>{d.type}</Badge>
@@ -285,12 +285,12 @@ export default function ContractDetailPage() {
       </div>
 
       {files.length > 0 && (
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader><CardTitle className="text-base">Files</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-2">
               {files.map(f => (
-                <div key={f.id} className="flex items-center justify-between p-3 rounded-lg border">
+                <div key={f.id} className="flex items-center justify-between p-3 border border-border">
                   <div className="flex items-center gap-3">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <div>
@@ -309,7 +309,7 @@ export default function ContractDetailPage() {
       )}
 
       {notifications.length > 0 && (
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader><CardTitle className="text-base">Notification History</CardTitle></CardHeader>
           <CardContent>
             <Table>

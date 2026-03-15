@@ -95,7 +95,7 @@ export default function UploadPage() {
 
       {state === 'idle' && (
         <Card
-          className="border-2 border-dashed hover:border-primary/50 transition-colors cursor-pointer"
+          className="border-2 border-dashed border-border hover:border-foreground/30 transition-colors cursor-pointer"
           onDragOver={e => e.preventDefault()}
           onDrop={handleDrop}
         >
@@ -111,11 +111,11 @@ export default function UploadPage() {
       )}
 
       {state === 'selected' && file && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-6 space-y-4">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-primary" />
+              <div className="w-10 h-10 bg-muted flex items-center justify-center">
+                <FileText className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{file.name}</p>
@@ -141,7 +141,7 @@ export default function UploadPage() {
       )}
 
       {state === 'uploading' && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-8 text-center">
             <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
             <p className="font-medium text-sm">Uploading contract...</p>
@@ -150,9 +150,9 @@ export default function UploadPage() {
       )}
 
       {state === 'completed' && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-8 text-center">
-            <CheckCircle className="h-12 w-12 text-success mx-auto mb-4" />
+            <CheckCircle className="h-12 w-12 text-foreground mx-auto mb-4" />
             <h3 className="font-semibold text-lg mb-1">Contract Uploaded Successfully</h3>
             <p className="text-sm text-muted-foreground mb-4">Your contract has been created and the file is stored securely.</p>
             <div className="flex gap-3 justify-center">
@@ -164,7 +164,7 @@ export default function UploadPage() {
       )}
 
       {state === 'failed' && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-8 text-center">
             <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h3 className="font-semibold text-lg mb-1">Upload Failed</h3>
