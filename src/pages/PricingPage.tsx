@@ -36,33 +36,35 @@ const plans = [
 
 export default function PricingPage() {
   return (
-    <div className="py-20">
-      <div className="container max-w-5xl mx-auto">
+    <div className="py-16">
+      <div className="container max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h1>
-          <p className="text-lg text-muted-foreground">Start free. Upgrade when you need more.</p>
+          <h1 className="text-2xl font-bold tracking-tight mb-3">Simple, Transparent Pricing</h1>
+          <p className="text-sm text-muted-foreground">Start free. Upgrade when you need more.</p>
         </div>
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-px bg-border border">
           {plans.map((plan) => (
-            <Card key={plan.name} className={`relative flex flex-col ${plan.popular ? 'border-primary shadow-lg scale-105' : 'shadow-sm'}`}>
+            <div key={plan.name} className="relative flex flex-col bg-card">
               {plan.popular && (
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3">
-                  Most Popular
-                </Badge>
+                <div className="absolute top-0 left-0 right-0">
+                  <Badge className="w-full justify-center py-1 text-[10px] uppercase tracking-widest">
+                    Most Popular
+                  </Badge>
+                </div>
               )}
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-xl">{plan.name}</CardTitle>
-                <CardDescription>{plan.desc}</CardDescription>
+              <CardHeader className={`text-center pb-2 ${plan.popular ? 'pt-10' : ''}`}>
+                <CardTitle className="text-sm font-semibold">{plan.name}</CardTitle>
+                <CardDescription className="text-xs">{plan.desc}</CardDescription>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground">{plan.period}</span>
+                  <span className="text-3xl font-bold tracking-tight">{plan.price}</span>
+                  <span className="text-xs text-muted-foreground">{plan.period}</span>
                 </div>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                <ul className="space-y-3 mb-8 flex-1">
+              <CardContent className="flex-1 flex flex-col p-6">
+                <ul className="space-y-2.5 mb-6 flex-1">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm">
-                      <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <li key={f} className="flex items-start gap-2 text-xs">
+                      <Check className="h-3 w-3 text-foreground mt-0.5 shrink-0" />
                       <span className={f.includes('Coming Soon') ? 'text-muted-foreground' : ''}>{f}</span>
                     </li>
                   ))}
@@ -73,7 +75,7 @@ export default function PricingPage() {
                   </Button>
                 </Link>
               </CardContent>
-            </Card>
+            </div>
           ))}
         </div>
       </div>

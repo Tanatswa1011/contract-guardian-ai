@@ -24,44 +24,44 @@ export default function SignupPage() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Account created! Check your email to confirm, or sign in if email confirmation is disabled.');
+      toast.success('Account created. Check your email to confirm, or sign in if email confirmation is disabled.');
       navigate('/app');
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
-      <Card className="w-full max-w-md mx-4 shadow-lg">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex items-center gap-2 font-bold text-xl">
-            <Shield className="h-6 w-6 text-primary" />
-            ContractGuardAI
+      <Card className="w-full max-w-sm mx-4">
+        <CardHeader className="text-center pb-4">
+          <div className="mx-auto mb-3 flex items-center gap-2 font-semibold text-sm">
+            <Shield className="h-4 w-4" />
+            ContractGuard
           </div>
-          <CardTitle className="text-2xl">Create your account</CardTitle>
-          <CardDescription>Start your free trial — no credit card required</CardDescription>
+          <CardTitle className="text-lg tracking-tight">Create your account</CardTitle>
+          <CardDescription className="text-xs">Start your free trial &mdash; no credit card required</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-xs">Full Name</Label>
               <Input id="name" placeholder="John Doe" value={name} onChange={e => setName(e.target.value)} required disabled={loading} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Work Email</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs">Work Email</Label>
               <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs">Password</Label>
               <Input id="password" type="password" placeholder="Min 8 characters" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} disabled={loading} />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
               Start Free Trial
             </Button>
           </form>
-          <p className="text-center text-sm text-muted-foreground mt-6">
+          <p className="text-center text-xs text-muted-foreground mt-5">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary font-medium hover:underline">Sign in</Link>
+            <Link to="/login" className="text-foreground font-medium hover:underline">Sign in</Link>
           </p>
         </CardContent>
       </Card>

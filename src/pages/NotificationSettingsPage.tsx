@@ -8,56 +8,54 @@ import { Mail, MessageSquare, CheckCircle } from 'lucide-react';
 
 export default function NotificationSettingsPage() {
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Notification Settings</h1>
-        <p className="text-muted-foreground text-sm">Configure how and when you receive contract deadline reminders.</p>
+        <h1 className="text-lg font-semibold tracking-tight">Notification Settings</h1>
+        <p className="text-muted-foreground text-xs mt-1">Configure how and when you receive contract deadline reminders.</p>
       </div>
 
-      {/* Email */}
-      <Card className="shadow-sm">
-        <CardHeader>
+      <Card>
+        <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Mail className="h-5 w-5 text-primary" />
+              <div className="w-8 h-8 border flex items-center justify-center">
+                <Mail className="h-3.5 w-3.5" />
               </div>
               <div>
-                <CardTitle className="text-base">Email Notifications</CardTitle>
-                <CardDescription>Receive deadline reminders via email</CardDescription>
+                <CardTitle className="text-sm font-medium">Email Notifications</CardTitle>
+                <CardDescription className="text-xs">Receive deadline reminders via email</CardDescription>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-success" />
-              <span className="text-xs text-success font-medium">Connected</span>
+            <div className="flex items-center gap-1.5">
+              <CheckCircle className="h-3 w-3 text-success" />
+              <span className="text-[10px] text-success font-medium uppercase tracking-wider">Connected</span>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Notification Email</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Notification Email</Label>
             <Input defaultValue="user@company.com" />
           </div>
           <Button variant="outline" size="sm">Send Test Email</Button>
         </CardContent>
       </Card>
 
-      {/* Reminder Schedule */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base">Reminder Schedule</CardTitle>
-          <CardDescription>Choose when to receive reminders before deadlines</CardDescription>
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Reminder Schedule</CardTitle>
+          <CardDescription className="text-xs mt-1">Choose when to receive reminders before deadlines</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="divide-y">
             {[
               { label: '30 days before deadline', enabled: true },
               { label: '7 days before deadline', enabled: true },
               { label: '1 day before deadline', enabled: true },
               { label: 'On deadline day', enabled: true },
             ].map((rule, i) => (
-              <div key={i} className="flex items-center justify-between py-2">
-                <span className="text-sm">{rule.label}</span>
+              <div key={i} className="flex items-center justify-between py-3">
+                <span className="text-xs">{rule.label}</span>
                 <Switch defaultChecked={rule.enabled} />
               </div>
             ))}
@@ -65,21 +63,20 @@ export default function NotificationSettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Coming Soon channels */}
       {['Slack', 'Telegram', 'WhatsApp'].map(channel => (
-        <Card key={channel} className="shadow-sm opacity-60">
-          <CardHeader>
+        <Card key={channel} className="opacity-50">
+          <CardHeader className="pb-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                  <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                <div className="w-8 h-8 border flex items-center justify-center">
+                  <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">{channel}</CardTitle>
-                  <CardDescription>Receive reminders via {channel}</CardDescription>
+                  <CardTitle className="text-sm font-medium">{channel}</CardTitle>
+                  <CardDescription className="text-xs">Receive reminders via {channel}</CardDescription>
                 </div>
               </div>
-              <Badge variant="outline" className="text-xs">Coming Soon</Badge>
+              <Badge variant="outline" className="text-[10px] uppercase tracking-wider">Coming Soon</Badge>
             </div>
           </CardHeader>
         </Card>

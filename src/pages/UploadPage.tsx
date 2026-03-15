@@ -45,7 +45,6 @@ export default function UploadPage() {
     setState('uploading');
 
     try {
-      // 1. Create contract record
       const { data: contract, error: contractError } = await supabase
         .from('contracts')
         .insert({ title, counterparty: counterparty || null, user_id: user.id })
@@ -54,7 +53,6 @@ export default function UploadPage() {
 
       if (contractError) throw contractError;
 
-      // 2. Upload file to storage
       const filePath = `${user.id}/${contract.id}/${file.name}`;
       const { error: storageError } = await supabase.storage
         .from('contract-documents')
@@ -62,7 +60,6 @@ export default function UploadPage() {
 
       if (storageError) throw storageError;
 
-      // 3. Create contract_files record
       const { error: fileError } = await supabase
         .from('contract_files')
         .insert({
@@ -78,7 +75,7 @@ export default function UploadPage() {
 
       setContractId(contract.id);
       setState('completed');
-      toast.success('Contract uploaded successfully!');
+      toast.success('Contract uploaded successfully.');
     } catch (err: any) {
       console.error('Upload error:', err);
       setState('failed');
@@ -87,89 +84,87 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-lg mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Upload Contract</h1>
-        <p className="text-muted-foreground text-sm">Upload a PDF contract to start tracking deadlines.</p>
+        <h1 className="text-lg font-semibold tracking-tight">Upload Contract</h1>
+        <p className="text-muted-foreground text-xs mt-1">Upload a PDF contract to start tracking deadlines.</p>
       </div>
 
       {state === 'idle' && (
-        <Card
-          className="border-2 border-dashed hover:border-primary/50 transition-colors cursor-pointer"
+        <div
+          className="border-2 border-dashed hover:border-foreground/30 transition-colors cursor-pointer p-12"
           onDragOver={e => e.preventDefault()}
           onDrop={handleDrop}
         >
-          <CardContent className="py-16 text-center">
-            <label className="cursor-pointer">
-              <input type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
-              <Upload className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
-              <p className="font-medium mb-1">Drag & drop your PDF here</p>
-              <p className="text-sm text-muted-foreground">or click to browse • Max 20MB</p>
-            </label>
-          </CardContent>
-        </Card>
+          <label className="cursor-pointer block text-center">
+            <input type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
+            <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm font-medium mb-1">Drag & drop your PDF here</p>
+            <p className="text-xs text-muted-foreground">or click to browse &middot; Max 20MB</p>
+          </label>
+        </div>
       )}
 
       {state === 'selected' && file && (
-        <Card className="shadow-sm">
-          <CardContent className="py-6 space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-primary" />
+        <Card>
+          <CardContent className="py-5 px-5 space-y-4">
+            <div className="flex items-center gap-3 pb-4 border-b">
+              <div className="w-8 h-8 border flex items-center justify-center">
+                <FileText className="h-4 w-4 text-foreground" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{file.name}</p>
+                <p className="text-sm font-medium truncate">{file.name}</p>
                 <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
               </div>
               <Button variant="ghost" size="icon" onClick={() => { setFile(null); setState('idle'); setTitle(''); }}>
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <div className="space-y-2">
-              <Label>Contract Title</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Contract Title</Label>
               <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Office Lease Agreement" required />
             </div>
-            <div className="space-y-2">
-              <Label>Counterparty (optional)</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Counterparty (optional)</Label>
               <Input value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
             </div>
-            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title}>
-              <Upload className="h-4 w-4" /> Upload & Create Contract
+            <Button onClick={handleUpload} className="w-full gap-1.5" disabled={!title}>
+              <Upload className="h-3.5 w-3.5" /> Upload & Create Contract
             </Button>
           </CardContent>
         </Card>
       )}
 
       {state === 'uploading' && (
-        <Card className="shadow-sm">
-          <CardContent className="py-8 text-center">
-            <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
-            <p className="font-medium text-sm">Uploading contract...</p>
+        <Card>
+          <CardContent className="py-10 text-center">
+            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin mx-auto mb-3" />
+            <p className="text-sm font-medium">Uploading contract...</p>
           </CardContent>
         </Card>
       )}
 
       {state === 'completed' && (
-        <Card className="shadow-sm">
-          <CardContent className="py-8 text-center">
-            <CheckCircle className="h-12 w-12 text-success mx-auto mb-4" />
-            <h3 className="font-semibold text-lg mb-1">Contract Uploaded Successfully</h3>
-            <p className="text-sm text-muted-foreground mb-4">Your contract has been created and the file is stored securely.</p>
-            <div className="flex gap-3 justify-center">
-              <Button onClick={() => navigate(`/app/contracts/${contractId}`)}>View Contract</Button>
-              <Button variant="outline" onClick={() => { setState('idle'); setFile(null); setTitle(''); setCounterparty(''); }}>Upload Another</Button>
+        <Card>
+          <CardContent className="py-10 text-center">
+            <CheckCircle className="h-6 w-6 text-success mx-auto mb-3" />
+            <h3 className="text-sm font-semibold mb-1">Contract Uploaded</h3>
+            <p className="text-xs text-muted-foreground mb-5">Your contract has been created and stored securely.</p>
+            <div className="flex gap-2 justify-center">
+              <Button size="sm" onClick={() => navigate(`/app/contracts/${contractId}`)}>View Contract</Button>
+              <Button size="sm" variant="outline" onClick={() => { setState('idle'); setFile(null); setTitle(''); setCounterparty(''); }}>Upload Another</Button>
             </div>
           </CardContent>
         </Card>
       )}
 
       {state === 'failed' && (
-        <Card className="shadow-sm">
-          <CardContent className="py-8 text-center">
-            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h3 className="font-semibold text-lg mb-1">Upload Failed</h3>
-            <p className="text-sm text-muted-foreground mb-4">Something went wrong. Please try again.</p>
-            <Button onClick={() => setState('selected')}>Try Again</Button>
+        <Card>
+          <CardContent className="py-10 text-center">
+            <AlertTriangle className="h-6 w-6 text-destructive mx-auto mb-3" />
+            <h3 className="text-sm font-semibold mb-1">Upload Failed</h3>
+            <p className="text-xs text-muted-foreground mb-5">Something went wrong. Please try again.</p>
+            <Button size="sm" onClick={() => setState('selected')}>Try Again</Button>
           </CardContent>
         </Card>
       )}
