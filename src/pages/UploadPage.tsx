@@ -21,6 +21,11 @@ export default function UploadPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const getErrorMessage = (error: unknown) => {
+    if (error instanceof Error) return error.message;
+    return 'Upload failed';
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const f = e.dataTransfer.files[0];
@@ -79,10 +84,10 @@ export default function UploadPage() {
       setContractId(contract.id);
       setState('completed');
       toast.success('Contract uploaded successfully!');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Upload error:', err);
       setState('failed');
-      toast.error(err.message || 'Upload failed');
+      toast.error(getErrorMessage(err));
     }
   };
 
