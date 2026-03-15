@@ -7,15 +7,15 @@ interface HealthBadgeProps {
 }
 
 const variantStyles: Record<string, string> = {
-  ok: 'bg-success text-success-foreground hover:bg-success/80',
-  warning: 'bg-warning text-warning-foreground hover:bg-warning/80',
-  danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/80',
-  info: 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20',
+  ok: 'border-border bg-accent text-foreground',
+  warning: 'border-border bg-secondary text-foreground',
+  danger: 'border-destructive/40 bg-destructive/10 text-destructive',
+  info: 'border-border bg-muted text-muted-foreground',
 };
 
 export function HealthBadge({ label, variant }: HealthBadgeProps) {
   return (
-    <Badge className={cn('text-xs font-medium', variantStyles[variant])}>
+    <Badge className={cn('normal-case text-xs font-medium tracking-normal', variantStyles[variant])}>
       {label}
     </Badge>
   );

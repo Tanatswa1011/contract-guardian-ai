@@ -4,7 +4,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
 import { Upload, FileText, CheckCircle, AlertTriangle, Loader2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -95,14 +94,16 @@ export default function UploadPage() {
 
       {state === 'idle' && (
         <Card
-          className="border-2 border-dashed hover:border-primary/50 transition-colors cursor-pointer"
+          className="cursor-pointer border-2 border-dashed transition-colors hover:border-foreground/40"
           onDragOver={e => e.preventDefault()}
           onDrop={handleDrop}
         >
           <CardContent className="py-16 text-center">
             <label className="cursor-pointer">
               <input type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
-              <Upload className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border bg-muted">
+                <Upload className="h-5 w-5 text-muted-foreground" />
+              </div>
               <p className="font-medium mb-1">Drag & drop your PDF here</p>
               <p className="text-sm text-muted-foreground">or click to browse • Max 20MB</p>
             </label>
@@ -111,11 +112,11 @@ export default function UploadPage() {
       )}
 
       {state === 'selected' && file && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-6 space-y-4">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-primary" />
+              <div className="flex h-10 w-10 items-center justify-center border bg-muted">
+                <FileText className="h-5 w-5 text-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{file.name}</p>
@@ -141,7 +142,7 @@ export default function UploadPage() {
       )}
 
       {state === 'uploading' && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-8 text-center">
             <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
             <p className="font-medium text-sm">Uploading contract...</p>
@@ -150,9 +151,9 @@ export default function UploadPage() {
       )}
 
       {state === 'completed' && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-8 text-center">
-            <CheckCircle className="h-12 w-12 text-success mx-auto mb-4" />
+            <CheckCircle className="mx-auto mb-4 h-12 w-12 text-foreground" />
             <h3 className="font-semibold text-lg mb-1">Contract Uploaded Successfully</h3>
             <p className="text-sm text-muted-foreground mb-4">Your contract has been created and the file is stored securely.</p>
             <div className="flex gap-3 justify-center">
@@ -164,7 +165,7 @@ export default function UploadPage() {
       )}
 
       {state === 'failed' && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-8 text-center">
             <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h3 className="font-semibold text-lg mb-1">Upload Failed</h3>

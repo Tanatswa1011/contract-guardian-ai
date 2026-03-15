@@ -8,15 +8,15 @@ export default function PublicLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b bg-background">
         <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl">
-            <Shield className="h-6 w-6 text-primary" />
-            <span>ContractGuard<span className="text-primary">AI</span></span>
+          <Link to="/" className="flex items-center gap-2 text-base font-semibold tracking-wide">
+            <Shield className="h-5 w-5 text-foreground" />
+            <span>ContractGuardAI</span>
           </Link>
           {!isAuthPage && (
             <nav className="flex items-center gap-6">
-              <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
+              <Link to="/pricing" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:block">
                 Pricing
               </Link>
               <Link to="/login">
@@ -32,11 +32,11 @@ export default function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
-      <footer className="border-t py-12 bg-muted/30">
+      <footer className="border-t bg-muted py-12">
         <div className="container grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
           <div>
             <div className="flex items-center gap-2 font-bold mb-4">
-              <Shield className="h-5 w-5 text-primary" />
+              <Shield className="h-5 w-5 text-foreground" />
               ContractGuardAI
             </div>
             <p className="text-muted-foreground">Stop losing money on missed contract deadlines.</p>

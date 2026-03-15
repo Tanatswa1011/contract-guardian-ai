@@ -39,14 +39,14 @@ export default function PricingPage() {
     <div className="py-20">
       <div className="container max-w-5xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h1>
+          <h1 className="mb-4 text-4xl font-semibold tracking-tight">Simple, Transparent Pricing</h1>
           <p className="text-lg text-muted-foreground">Start free. Upgrade when you need more.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
           {plans.map((plan) => (
-            <Card key={plan.name} className={`relative flex flex-col ${plan.popular ? 'border-primary shadow-lg scale-105' : 'shadow-sm'}`}>
+            <Card key={plan.name} className={`relative flex flex-col ${plan.popular ? 'border-foreground' : ''}`}>
               {plan.popular && (
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3">
+                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 border-foreground bg-foreground px-3 text-background normal-case tracking-normal">
                   Most Popular
                 </Badge>
               )}
@@ -62,7 +62,7 @@ export default function PricingPage() {
                 <ul className="space-y-3 mb-8 flex-1">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm">
-                      <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
                       <span className={f.includes('Coming Soon') ? 'text-muted-foreground' : ''}>{f}</span>
                     </li>
                   ))}

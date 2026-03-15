@@ -24,25 +24,25 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-muted/30">
+    <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-64 flex-col border-r bg-card fixed inset-y-0 z-30">
-        <div className="p-6 border-b">
-          <Link to="/app" className="flex items-center gap-2 font-bold text-lg">
-            <Shield className="h-5 w-5 text-primary" />
-            ContractGuard<span className="text-primary">AI</span>
+      <aside className="fixed inset-y-0 z-30 hidden w-64 flex-col border-r bg-sidebar lg:flex">
+        <div className="border-b px-6 py-5">
+          <Link to="/app" className="flex items-center gap-2 text-sm font-semibold tracking-wide">
+            <Shield className="h-4 w-4 text-foreground" />
+            ContractGuardAI
           </Link>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 space-y-1 p-4">
           {navItems.map(item => (
             <Link
               key={item.to}
               to={item.to}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-3 border px-3 py-2 text-sm font-medium transition-colors",
                 location.pathname === item.to
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  ? "border-foreground bg-accent text-foreground"
+                  : "border-transparent text-muted-foreground hover:border-border hover:bg-accent hover:text-foreground"
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -50,7 +50,7 @@ export default function AppLayout() {
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t">
+        <div className="border-t p-4">
           <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" />
             Sign Out
@@ -59,28 +59,28 @@ export default function AppLayout() {
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 inset-x-0 z-40 border-b bg-card">
-        <div className="flex items-center justify-between px-4 h-14">
-          <Link to="/app" className="flex items-center gap-2 font-bold">
-            <Shield className="h-5 w-5 text-primary" />
-            ContractGuard<span className="text-primary">AI</span>
+      <div className="fixed inset-x-0 top-0 z-40 border-b bg-background lg:hidden">
+        <div className="flex h-14 items-center justify-between px-4">
+          <Link to="/app" className="flex items-center gap-2 text-sm font-semibold tracking-wide">
+            <Shield className="h-4 w-4 text-foreground" />
+            ContractGuardAI
           </Link>
           <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
         {mobileOpen && (
-          <nav className="border-t p-4 space-y-1 bg-card">
+          <nav className="space-y-1 border-t bg-background p-4">
             {navItems.map(item => (
               <Link
                 key={item.to}
                 to={item.to}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 border px-3 py-2 text-sm font-medium transition-colors",
                   location.pathname === item.to
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    ? "border-foreground bg-accent text-foreground"
+                    : "border-transparent text-muted-foreground hover:border-border hover:bg-accent hover:text-foreground"
                 )}
               >
                 <item.icon className="h-4 w-4" />
@@ -97,7 +97,7 @@ export default function AppLayout() {
 
       {/* Main content */}
       <main className="flex-1 lg:ml-64 mt-14 lg:mt-0">
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+        <div className="mx-auto max-w-7xl p-4 md:p-8">
           <Outlet />
         </div>
       </main>

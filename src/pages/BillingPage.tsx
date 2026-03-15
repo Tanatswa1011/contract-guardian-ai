@@ -13,21 +13,21 @@ export default function BillingPage() {
       </div>
 
       {/* Current Plan */}
-      <Card className="shadow-sm">
+      <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base">Current Plan</CardTitle>
               <CardDescription>You're on the Starter plan</CardDescription>
             </div>
-            <Badge className="bg-primary/10 text-primary">Free</Badge>
+            <Badge variant="secondary" className="normal-case tracking-normal">Free</Badge>
           </div>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 mb-4">
             {['5 contracts', 'AI extraction', 'Email notifications', 'Basic deadline tracking'].map(f => (
               <li key={f} className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 text-primary" />
+                <Check className="h-4 w-4 text-foreground" />
                 {f}
               </li>
             ))}
@@ -36,7 +36,7 @@ export default function BillingPage() {
       </Card>
 
       {/* Upgrade */}
-      <Card className="shadow-sm border-primary/30">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Upgrade to Professional</CardTitle>
           <CardDescription>Unlock unlimited contracts and advanced features</CardDescription>
@@ -49,7 +49,7 @@ export default function BillingPage() {
           <ul className="space-y-2 mb-6">
             {['Unlimited contracts', 'Advanced deadline tracking', 'Priority support'].map(f => (
               <li key={f} className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 text-primary" />
+                <Check className="h-4 w-4 text-foreground" />
                 {f}
               </li>
             ))}
@@ -59,7 +59,7 @@ export default function BillingPage() {
       </Card>
 
       {/* Invoice History */}
-      <Card className="shadow-sm">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Invoice History</CardTitle>
         </CardHeader>
@@ -78,7 +78,7 @@ export default function BillingPage() {
                 <TableCell className="text-sm">Feb 1, 2026</TableCell>
                 <TableCell className="text-sm">Starter Plan</TableCell>
                 <TableCell className="text-sm">$0.00</TableCell>
-                <TableCell><Badge variant="outline" className="text-xs">Free</Badge></TableCell>
+                <TableCell><Badge variant="outline" className="normal-case text-xs tracking-normal">Free</Badge></TableCell>
               </TableRow>
             </TableBody>
           </Table>

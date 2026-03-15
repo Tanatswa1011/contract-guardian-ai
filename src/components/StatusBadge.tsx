@@ -2,15 +2,15 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 const statusStyles: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  active: 'bg-success/10 text-success border border-success/20',
-  archived: 'bg-muted text-muted-foreground',
-  expired: 'bg-destructive/10 text-destructive border border-destructive/20',
+  draft: 'border-border bg-muted text-muted-foreground',
+  active: 'border-border bg-accent text-foreground',
+  archived: 'border-border bg-secondary text-muted-foreground',
+  expired: 'border-destructive/40 bg-destructive/10 text-destructive',
 };
 
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <Badge className={cn('text-xs font-medium capitalize', statusStyles[status] || statusStyles.draft)}>
+    <Badge className={cn('normal-case text-xs font-medium capitalize tracking-normal', statusStyles[status] || statusStyles.draft)}>
       {status}
     </Badge>
   );

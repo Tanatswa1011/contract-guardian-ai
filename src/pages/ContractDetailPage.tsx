@@ -8,7 +8,7 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Trash2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -140,10 +140,10 @@ export default function ContractDetailPage() {
   }
 
   const typeColors: Record<string, string> = {
-    renewal: 'bg-primary/10 text-primary',
-    notice: 'bg-warning/10 text-warning',
-    payment: 'bg-success/10 text-success',
-    custom: 'bg-muted text-muted-foreground',
+    renewal: 'border-border bg-accent text-foreground',
+    notice: 'border-border bg-secondary text-foreground',
+    payment: 'border-border bg-muted text-foreground',
+    custom: 'border-border bg-background text-muted-foreground',
   };
 
   const formatFileSize = (bytes: number | null) => {
@@ -155,13 +155,13 @@ export default function ContractDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold truncate">{contract.title}</h1>
+            <h1 className="truncate text-xl font-semibold tracking-tight">{contract.title}</h1>
             <StatusBadge status={contract.status} />
           </div>
           <p className="text-sm text-muted-foreground">{contract.counterparty || 'No counterparty'}</p>
@@ -209,10 +209,10 @@ export default function ContractDetailPage() {
       </div>
 
       {extraction?.needs_review && (
-        <Card className="border-warning/50 bg-warning/5 shadow-sm">
+        <Card className="border-destructive/30 bg-card">
           <CardContent className="py-4 px-5">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-destructive" />
               <div>
                 <p className="font-medium text-sm">This contract needs manual review</p>
                 <p className="text-xs text-muted-foreground mt-1">Missing fields:</p>
@@ -228,7 +228,7 @@ export default function ContractDetailPage() {
       )}
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader><CardTitle className="text-base">Contract Information</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -256,7 +256,7 @@ export default function ContractDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader><CardTitle className="text-base">Deadlines</CardTitle></CardHeader>
           <CardContent>
             {dates.length === 0 ? (
@@ -264,16 +264,16 @@ export default function ContractDetailPage() {
             ) : (
               <div className="space-y-3">
                 {dates.map(d => (
-                  <div key={d.id} className="flex items-start justify-between p-3 rounded-lg border bg-card">
+                  <div key={d.id} className="flex items-start justify-between border bg-muted/40 p-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Badge className={`text-xs capitalize ${typeColors[d.type] || ''}`}>{d.type}</Badge>
+                        <Badge className={`normal-case text-xs capitalize tracking-normal ${typeColors[d.type] || ''}`}>{d.type}</Badge>
                         <span className="text-sm font-medium">{d.label || d.type}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">{new Date(d.due_date).toLocaleDateString()}</p>
                       {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
                     </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDeadline.mutate(d.id)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteDeadline.mutate(d.id)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -285,12 +285,12 @@ export default function ContractDetailPage() {
       </div>
 
       {files.length > 0 && (
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader><CardTitle className="text-base">Files</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-2">
               {files.map(f => (
-                <div key={f.id} className="flex items-center justify-between p-3 rounded-lg border">
+                <div key={f.id} className="flex items-center justify-between border bg-muted/40 p-3">
                   <div className="flex items-center gap-3">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <div>
@@ -309,7 +309,7 @@ export default function ContractDetailPage() {
       )}
 
       {notifications.length > 0 && (
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader><CardTitle className="text-base">Notification History</CardTitle></CardHeader>
           <CardContent>
             <Table>
@@ -325,7 +325,7 @@ export default function ContractDetailPage() {
                 {notifications.map(n => (
                   <TableRow key={n.id}>
                     <TableCell>
-                      <Badge variant={n.status === 'sent' ? 'default' : 'destructive'} className="text-xs capitalize">
+                      <Badge variant={n.status === 'sent' ? 'secondary' : 'destructive'} className="normal-case text-xs capitalize tracking-normal">
                         {n.status}
                       </Badge>
                     </TableCell>

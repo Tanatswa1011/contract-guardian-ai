@@ -29,13 +29,13 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
-      <Card className="w-full max-w-md mx-4 shadow-lg">
+      <Card className="mx-4 w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex items-center gap-2 font-bold text-xl">
-            <Shield className="h-6 w-6 text-primary" />
+          <div className="mx-auto mb-4 flex items-center gap-2 text-xl font-semibold">
+            <Shield className="h-6 w-6 text-foreground" />
             ContractGuardAI
           </div>
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
+          <CardTitle className="text-2xl font-semibold">Welcome back</CardTitle>
           <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
         <CardContent>
@@ -55,7 +55,7 @@ export default function LoginPage() {
           </form>
           <p className="text-center text-sm text-muted-foreground mt-6">
             Don't have an account?{' '}
-            <Link to="/signup" className="text-primary font-medium hover:underline">Sign up</Link>
+            <Link to="/signup" className="font-medium text-foreground hover:underline">Sign up</Link>
           </p>
         </CardContent>
       </Card>
