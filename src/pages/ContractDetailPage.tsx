@@ -8,7 +8,7 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Trash2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -132,18 +132,20 @@ export default function ContractDetailPage() {
 
   if (!contract) {
     return (
-      <div className="text-center py-16">
-        <h2 className="text-xl font-semibold mb-2">Contract not found</h2>
-        <Link to="/app"><Button variant="outline">Back to Dashboard</Button></Link>
+      <div className="py-16 text-center">
+        <h2 className="mb-2 text-xl font-semibold">Contract not found</h2>
+        <Link to="/app">
+          <Button variant="outline">Back to Dashboard</Button>
+        </Link>
       </div>
     );
   }
 
   const typeColors: Record<string, string> = {
-    renewal: 'bg-primary/10 text-primary',
-    notice: 'bg-warning/10 text-warning',
-    payment: 'bg-success/10 text-success',
-    custom: 'bg-muted text-muted-foreground',
+    renewal: 'border-foreground bg-foreground text-background',
+    notice: 'border-border bg-secondary text-foreground',
+    payment: 'border-border bg-muted text-foreground',
+    custom: 'border-border bg-background text-muted-foreground',
   };
 
   const formatFileSize = (bytes: number | null) => {
@@ -155,24 +157,30 @@ export default function ContractDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold truncate">{contract.title}</h1>
+      <div className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-end">
+        <div className="min-w-0 flex-1">
+          <Link to="/app" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />
+            Back to dashboard
+          </Link>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <h1 className="truncate text-2xl font-semibold tracking-tight">{contract.title}</h1>
             <StatusBadge status={contract.status} />
           </div>
-          <p className="text-sm text-muted-foreground">{contract.counterparty || 'No counterparty'}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{contract.counterparty || 'No counterparty recorded'}</p>
         </div>
         <div className="flex gap-2">
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-2"><Plus className="h-3 w-3" /> Add Deadline</Button>
+              <Button size="sm" className="gap-2">
+                <Plus className="h-3 w-3" />
+                Add Deadline
+              </Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Add Deadline</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>Add Deadline</DialogTitle>
+              </DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label>Type</Label>
@@ -209,16 +217,20 @@ export default function ContractDetailPage() {
       </div>
 
       {extraction?.needs_review && (
-        <Card className="border-warning/50 bg-warning/5 shadow-sm">
-          <CardContent className="py-4 px-5">
+        <Card className="border-destructive/20 bg-destructive/5">
+          <CardContent className="px-5 py-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
+              <div className="flex h-10 w-10 items-center justify-center border border-destructive/20 bg-background">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+              </div>
               <div>
-                <p className="font-medium text-sm">This contract needs manual review</p>
-                <p className="text-xs text-muted-foreground mt-1">Missing fields:</p>
-                <div className="flex gap-2 mt-2 flex-wrap">
+                <p className="text-sm font-medium">This contract needs manual review</p>
+                <p className="mt-1 text-xs text-muted-foreground">Missing fields:</p>
+                <div className="mt-2 flex flex-wrap gap-2">
                   {extraction.missing_fields.map((f: string) => (
-                    <Badge key={f} variant="outline" className="text-xs capitalize">{f.replace('_', ' ')}</Badge>
+                    <Badge key={f} variant="outline" className="text-xs capitalize">
+                      {f.replace('_', ' ')}
+                    </Badge>
                   ))}
                 </div>
               </div>
@@ -227,9 +239,11 @@ export default function ContractDetailPage() {
         </Card>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="shadow-sm">
-          <CardHeader><CardTitle className="text-base">Contract Information</CardTitle></CardHeader>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Contract Information</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Title</Label>
@@ -256,15 +270,19 @@ export default function ContractDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
-          <CardHeader><CardTitle className="text-base">Deadlines</CardTitle></CardHeader>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Deadlines</CardTitle>
+          </CardHeader>
           <CardContent>
             {dates.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No deadlines added yet.</p>
+              <div className="border border-dashed bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+                No deadlines added yet.
+              </div>
             ) : (
               <div className="space-y-3">
                 {dates.map(d => (
-                  <div key={d.id} className="flex items-start justify-between p-3 rounded-lg border bg-card">
+                  <div key={d.id} className="flex items-start justify-between border bg-muted/20 p-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Badge className={`text-xs capitalize ${typeColors[d.type] || ''}`}>{d.type}</Badge>
@@ -273,7 +291,7 @@ export default function ContractDetailPage() {
                       <p className="text-xs text-muted-foreground">{new Date(d.due_date).toLocaleDateString()}</p>
                       {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
                     </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDeadline.mutate(d.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDeadline.mutate(d.id)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -285,14 +303,18 @@ export default function ContractDetailPage() {
       </div>
 
       {files.length > 0 && (
-        <Card className="shadow-sm">
-          <CardHeader><CardTitle className="text-base">Files</CardTitle></CardHeader>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Files</CardTitle>
+          </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {files.map(f => (
-                <div key={f.id} className="flex items-center justify-between p-3 rounded-lg border">
+                <div key={f.id} className="flex items-center justify-between border bg-muted/20 p-4">
                   <div className="flex items-center gap-3">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex h-9 w-9 items-center justify-center border bg-background">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </div>
                     <div>
                       <p className="text-sm font-medium">{f.file_name}</p>
                       <p className="text-xs text-muted-foreground">{formatFileSize(f.size_bytes)} • {new Date(f.created_at).toLocaleDateString()}</p>
@@ -309,8 +331,10 @@ export default function ContractDetailPage() {
       )}
 
       {notifications.length > 0 && (
-        <Card className="shadow-sm">
-          <CardHeader><CardTitle className="text-base">Notification History</CardTitle></CardHeader>
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-base">Notification History</CardTitle>
+          </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
@@ -325,13 +349,15 @@ export default function ContractDetailPage() {
                 {notifications.map(n => (
                   <TableRow key={n.id}>
                     <TableCell>
-                      <Badge variant={n.status === 'sent' ? 'default' : 'destructive'} className="text-xs capitalize">
+                      <Badge variant={n.status === 'sent' ? 'secondary' : 'destructive'} className="text-xs capitalize">
                         {n.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm">{n.subject}</TableCell>
                     <TableCell className="text-sm">{new Date(n.sent_at).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-sm text-destructive">{n.error || '—'}</TableCell>
+                    <TableCell className={n.error ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'}>
+                      {n.error || '—'}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

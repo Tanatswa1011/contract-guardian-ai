@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight, Star } from 'lucide-react';
+import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight } from 'lucide-react';
 
 const steps = [
   { icon: Upload, title: 'Upload Your Contract', desc: 'Drag and drop any PDF contract. We support agreements, leases, and SOWs.' },
@@ -19,56 +19,70 @@ const features = [
 ];
 
 const testimonials = [
-  { name: 'Sarah Chen', role: 'COO, TechStart Inc.', text: 'ContractGuardAI saved us from a $50K auto-renewal we completely forgot about. Paid for itself on day one.', stars: 5 },
-  { name: 'Marcus Johnson', role: 'Freelance Consultant', text: 'I manage 30+ client contracts. This tool replaced my messy spreadsheet and actually works.', stars: 5 },
-  { name: 'Emily Rodriguez', role: 'Operations Lead, ScaleUp Agency', text: 'The AI extraction is surprisingly accurate. We onboarded 100 contracts in an afternoon.', stars: 5 },
+  { name: 'Sarah Chen', role: 'COO, TechStart Inc.', text: 'ContractGuardAI saved us from a $50K auto-renewal we completely forgot about. Paid for itself on day one.' },
+  { name: 'Marcus Johnson', role: 'Freelance Consultant', text: 'I manage 30+ client contracts. This tool replaced my messy spreadsheet and actually works.' },
+  { name: 'Emily Rodriguez', role: 'Operations Lead, ScaleUp Agency', text: 'The AI extraction is surprisingly accurate. We onboarded 100 contracts in an afternoon.' },
 ];
 
 export default function LandingPage() {
   return (
     <div>
       {/* Hero */}
-      <section className="py-20 md:py-32">
+      <section className="border-b py-20 md:py-28">
         <div className="container text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-sm font-medium mb-6 animate-fade-in">
+          <div className="mb-6 inline-flex items-center gap-2 border bg-muted px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             <Shield className="h-4 w-4" />
             Trusted by 500+ businesses
           </div>
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <h1 className="mb-6 text-4xl font-semibold tracking-tight md:text-6xl">
             Stop Losing Money on Missed Contract Deadlines
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl">
             Upload your contracts, let AI extract the critical dates, and get reminded before every renewal, notice period, and payment deadline.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <Link to="/signup">
-              <Button size="lg" className="text-base px-8 gap-2">
+              <Button size="lg" className="gap-2 px-8 text-base">
                 Start Free Trial <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <a href="#how-it-works">
-              <Button size="lg" variant="outline" className="text-base px-8">
+              <Button size="lg" variant="outline" className="px-8 text-base">
                 See How It Works
               </Button>
             </a>
+          </div>
+          <div className="mt-12 grid gap-px border bg-border text-left sm:grid-cols-3">
+            {[
+              { label: 'Portfolio visibility', value: 'One system of record' },
+              { label: 'Deadline discipline', value: 'Automated reminders' },
+              { label: 'Faster onboarding', value: 'AI-assisted extraction' },
+            ].map(item => (
+              <div key={item.label} className="bg-background px-5 py-5">
+                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
+                <p className="mt-3 text-sm font-medium">{item.value}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="py-20 bg-muted/40 border-y">
+      <section id="how-it-works" className="border-b bg-muted/20 py-20">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-4">How It Works</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Three simple steps to never miss a contract deadline again.</p>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <h2 className="mb-4 text-center text-3xl font-semibold tracking-tight">How It Works</h2>
+          <p className="mx-auto mb-12 max-w-lg text-center text-muted-foreground">
+            Three simple steps to never miss a contract deadline again.
+          </p>
+          <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3">
             {steps.map((step, i) => (
-              <Card key={i} className="text-center border-0 shadow-md bg-card">
-                <CardContent className="pt-8 pb-6 px-6">
-                  <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
-                    <step.icon className="h-7 w-7 text-primary" />
+              <Card key={i} className="text-center">
+                <CardContent className="px-6 pb-6 pt-8">
+                  <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center border bg-muted">
+                    <step.icon className="h-6 w-6 text-foreground" />
                   </div>
-                  <div className="text-xs font-semibold text-primary mb-2">STEP {i + 1}</div>
-                  <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
+                  <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Step {i + 1}</div>
+                  <h3 className="mb-2 text-lg font-semibold">{step.title}</h3>
                   <p className="text-sm text-muted-foreground">{step.desc}</p>
                 </CardContent>
               </Card>
@@ -80,14 +94,16 @@ export default function LandingPage() {
       {/* Features */}
       <section className="py-20">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-4">Everything You Need</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Built for teams who take their contracts seriously.</p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <h2 className="mb-4 text-center text-3xl font-semibold tracking-tight">Everything You Need</h2>
+          <p className="mx-auto mb-12 max-w-lg text-center text-muted-foreground">
+            Built for teams who take their contracts seriously.
+          </p>
+          <div className="mx-auto grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((f, i) => (
-              <Card key={i} className="border shadow-sm hover:shadow-md transition-shadow">
-                <CardContent className="pt-6 pb-5 px-6">
+              <Card key={i}>
+                <CardContent className="px-6 pb-5 pt-6">
                   <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="h-5 w-5 text-primary" />
+                    <CheckCircle className="h-5 w-5 text-foreground" />
                     <h3 className="font-semibold">{f.title}</h3>
                   </div>
                   <p className="text-sm text-muted-foreground">{f.desc}</p>
@@ -99,19 +115,14 @@ export default function LandingPage() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-20 bg-muted/40 border-y">
+      <section className="border-y bg-muted/20 py-20">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-12">Loved by Teams Everywhere</h2>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <h2 className="mb-12 text-center text-3xl font-semibold tracking-tight">Trusted by Operations Teams</h2>
+          <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3">
             {testimonials.map((t, i) => (
-              <Card key={i} className="border-0 shadow-md">
-                <CardContent className="pt-6 pb-5 px-6">
-                  <div className="flex gap-0.5 mb-3">
-                    {Array.from({ length: t.stars }).map((_, j) => (
-                      <Star key={j} className="h-4 w-4 fill-warning text-warning" />
-                    ))}
-                  </div>
-                  <p className="text-sm mb-4 text-foreground">"{t.text}"</p>
+              <Card key={i}>
+                <CardContent className="px-6 pb-5 pt-6">
+                  <p className="mb-4 text-sm leading-relaxed text-foreground">"{t.text}"</p>
                   <div>
                     <p className="text-sm font-semibold">{t.name}</p>
                     <p className="text-xs text-muted-foreground">{t.role}</p>
@@ -126,13 +137,19 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="py-20">
         <div className="container text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">Ready to Protect Your Contracts?</h2>
-          <p className="text-muted-foreground mb-8">Join hundreds of businesses that trust ContractGuardAI to track their critical deadlines.</p>
-          <Link to="/signup">
-            <Button size="lg" className="text-base px-8 gap-2">
-              Start Free Trial <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Card>
+            <CardContent className="px-8 py-10">
+              <h2 className="mb-4 text-3xl font-semibold tracking-tight">Ready to Protect Your Contracts?</h2>
+              <p className="mb-8 text-muted-foreground">
+                Join hundreds of businesses that trust ContractGuardAI to track their critical deadlines.
+              </p>
+              <Link to="/signup">
+                <Button size="lg" className="gap-2 px-8 text-base">
+                  Start Free Trial <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
       </section>
     </div>

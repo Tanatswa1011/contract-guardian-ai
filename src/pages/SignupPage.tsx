@@ -30,13 +30,13 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
-      <Card className="w-full max-w-md mx-4 shadow-lg">
+    <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center bg-muted/20 py-12">
+      <Card className="mx-4 w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex items-center gap-2 font-bold text-xl">
-            <Shield className="h-6 w-6 text-primary" />
-            ContractGuardAI
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border bg-muted">
+            <Shield className="h-5 w-5" />
           </div>
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Create account</p>
           <CardTitle className="text-2xl">Create your account</CardTitle>
           <CardDescription>Start your free trial — no credit card required</CardDescription>
         </CardHeader>
@@ -61,7 +61,7 @@ export default function SignupPage() {
           </form>
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary font-medium hover:underline">Sign in</Link>
+            <Link to="/login" className="font-medium text-foreground hover:underline">Sign in</Link>
           </p>
         </CardContent>
       </Card>

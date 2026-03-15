@@ -88,22 +88,25 @@ export default function UploadPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Upload Contract</h1>
-        <p className="text-muted-foreground text-sm">Upload a PDF contract to start tracking deadlines.</p>
+      <div className="border-b pb-6">
+        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Intake</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Upload Contract</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Upload a PDF contract to start tracking deadlines.</p>
       </div>
 
       {state === 'idle' && (
         <Card
-          className="border-2 border-dashed hover:border-primary/50 transition-colors cursor-pointer"
+          className="cursor-pointer border-2 border-dashed bg-muted/10 transition-colors hover:border-foreground/30 hover:bg-muted/20"
           onDragOver={e => e.preventDefault()}
           onDrop={handleDrop}
         >
           <CardContent className="py-16 text-center">
             <label className="cursor-pointer">
               <input type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
-              <Upload className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
-              <p className="font-medium mb-1">Drag & drop your PDF here</p>
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border bg-background">
+                <Upload className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <p className="mb-1 font-medium">Drag and drop your PDF here</p>
               <p className="text-sm text-muted-foreground">or click to browse • Max 20MB</p>
             </label>
           </CardContent>
@@ -111,11 +114,11 @@ export default function UploadPage() {
       )}
 
       {state === 'selected' && file && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-6 space-y-4">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-primary" />
+              <div className="flex h-10 w-10 items-center justify-center border bg-muted">
+                <FileText className="h-5 w-5 text-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{file.name}</p>
@@ -141,20 +144,24 @@ export default function UploadPage() {
       )}
 
       {state === 'uploading' && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-8 text-center">
-            <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border bg-muted">
+              <Loader2 className="h-5 w-5 animate-spin text-foreground" />
+            </div>
             <p className="font-medium text-sm">Uploading contract...</p>
           </CardContent>
         </Card>
       )}
 
       {state === 'completed' && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-8 text-center">
-            <CheckCircle className="h-12 w-12 text-success mx-auto mb-4" />
-            <h3 className="font-semibold text-lg mb-1">Contract Uploaded Successfully</h3>
-            <p className="text-sm text-muted-foreground mb-4">Your contract has been created and the file is stored securely.</p>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border bg-foreground text-background">
+              <CheckCircle className="h-5 w-5" />
+            </div>
+            <h3 className="mb-1 text-lg font-semibold">Contract Uploaded Successfully</h3>
+            <p className="mb-4 text-sm text-muted-foreground">Your contract has been created and the file is stored securely.</p>
             <div className="flex gap-3 justify-center">
               <Button onClick={() => navigate(`/app/contracts/${contractId}`)}>View Contract</Button>
               <Button variant="outline" onClick={() => { setState('idle'); setFile(null); setTitle(''); setCounterparty(''); }}>Upload Another</Button>
@@ -164,11 +171,13 @@ export default function UploadPage() {
       )}
 
       {state === 'failed' && (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-8 text-center">
-            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h3 className="font-semibold text-lg mb-1">Upload Failed</h3>
-            <p className="text-sm text-muted-foreground mb-4">Something went wrong. Please try again.</p>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border border-destructive/20 bg-destructive/10">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            </div>
+            <h3 className="mb-1 text-lg font-semibold">Upload Failed</h3>
+            <p className="mb-4 text-sm text-muted-foreground">Something went wrong. Please try again.</p>
             <Button onClick={() => setState('selected')}>Try Again</Button>
           </CardContent>
         </Card>

@@ -7,27 +7,28 @@ import { Check, CreditCard } from 'lucide-react';
 export default function BillingPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Billing</h1>
-        <p className="text-muted-foreground text-sm">Manage your subscription and view invoices.</p>
+      <div className="border-b pb-6">
+        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Billing</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Billing</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Manage your subscription and view invoices.</p>
       </div>
 
       {/* Current Plan */}
-      <Card className="shadow-sm">
+      <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base">Current Plan</CardTitle>
               <CardDescription>You're on the Starter plan</CardDescription>
             </div>
-            <Badge className="bg-primary/10 text-primary">Free</Badge>
+            <Badge variant="secondary">Free</Badge>
           </div>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 mb-4">
             {['5 contracts', 'AI extraction', 'Email notifications', 'Basic deadline tracking'].map(f => (
               <li key={f} className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 text-primary" />
+                <Check className="h-4 w-4 text-foreground" />
                 {f}
               </li>
             ))}
@@ -36,7 +37,7 @@ export default function BillingPage() {
       </Card>
 
       {/* Upgrade */}
-      <Card className="shadow-sm border-primary/30">
+      <Card className="border-foreground">
         <CardHeader>
           <CardTitle className="text-base">Upgrade to Professional</CardTitle>
           <CardDescription>Unlock unlimited contracts and advanced features</CardDescription>
@@ -49,7 +50,7 @@ export default function BillingPage() {
           <ul className="space-y-2 mb-6">
             {['Unlimited contracts', 'Advanced deadline tracking', 'Priority support'].map(f => (
               <li key={f} className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 text-primary" />
+                <Check className="h-4 w-4 text-foreground" />
                 {f}
               </li>
             ))}
@@ -59,7 +60,7 @@ export default function BillingPage() {
       </Card>
 
       {/* Invoice History */}
-      <Card className="shadow-sm">
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle className="text-base">Invoice History</CardTitle>
         </CardHeader>
