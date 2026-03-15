@@ -69,6 +69,7 @@ export default function ContractDetailPage() {
   const [endDate, setEndDate] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newDeadline, setNewDeadline] = useState({ type: 'renewal', due_date: '', label: '', note: '' });
+  const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'An unexpected error occurred');
 
   // Sync form state when contract loads
   const isFormInitialized = title || counterparty || startDate || endDate;
@@ -88,7 +89,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
     },
     onSuccess: () => { toast.success('Contract updated'); queryClient.invalidateQueries({ queryKey: ['contract', id] }); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 
   const addDeadline = useMutation({
@@ -105,7 +106,7 @@ export default function ContractDetailPage() {
       setAddDialogOpen(false);
       setNewDeadline({ type: 'renewal', due_date: '', label: '', note: '' });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 
   const deleteDeadline = useMutation({
@@ -114,7 +115,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
     },
     onSuccess: () => { toast.success('Deadline deleted'); queryClient.invalidateQueries({ queryKey: ['contract-dates', id] }); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 
   const handleDownload = async (storagePath: string, fileName: string) => {

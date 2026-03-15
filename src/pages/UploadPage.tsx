@@ -19,6 +19,7 @@ export default function UploadPage() {
   const [contractId, setContractId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Upload failed');
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -78,10 +79,10 @@ export default function UploadPage() {
       setContractId(contract.id);
       setState('completed');
       toast.success('Contract uploaded successfully!');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Upload error:', err);
       setState('failed');
-      toast.error(err.message || 'Upload failed');
+      toast.error(getErrorMessage(err));
     }
   };
 
