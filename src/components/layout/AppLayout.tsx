@@ -1,8 +1,9 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Shield, LayoutDashboard, Upload, Settings, CreditCard, LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard },
@@ -13,7 +14,14 @@ const navItems = [
 
 export default function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen flex bg-muted/30">
@@ -43,12 +51,10 @@ export default function AppLayout() {
           ))}
         </nav>
         <div className="p-4 border-t">
-          <Link to="/">
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground">
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </Button>
-          </Link>
+          <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
         </div>
       </aside>
 
@@ -81,12 +87,10 @@ export default function AppLayout() {
                 {item.label}
               </Link>
             ))}
-            <Link to="/" onClick={() => setMobileOpen(false)}>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground mt-2">
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </Button>
-            </Link>
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground mt-2" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
           </nav>
         )}
       </div>

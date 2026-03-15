@@ -6,22 +6,129 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { StatusBadge } from '@/components/StatusBadge';
-import { HealthBadge } from '@/components/HealthBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { mockContracts, mockContractDates, mockContractFiles, mockExtractionRuns, mockNotificationLogs, getHealthBadge, formatFileSize } from '@/lib/mock-data';
-import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function ContractDetailPage() {
   const { id } = useParams();
-  const contract = mockContracts.find(c => c.id === id);
-  const dates = mockContractDates.filter(d => d.contract_id === id);
-  const files = mockContractFiles.filter(f => f.contract_id === id);
-  const extraction = mockExtractionRuns.find(e => e.contract_id === id);
-  const notifications = mockNotificationLogs.filter(n => n.contract_id === id);
+  const queryClient = useQueryClient();
 
-  const [title, setTitle] = useState(contract?.title || '');
+  const { data: contract, isLoading: contractLoading } = useQuery({
+    queryKey: ['contract', id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('contracts').select('*').eq('id', id!).single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: dates = [] } = useQuery({
+    queryKey: ['contract-dates', id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('contract_dates').select('*').eq('contract_id', id!).order('due_date');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: files = [] } = useQuery({
+    queryKey: ['contract-files', id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('contract_files').select('*').eq('contract_id', id!).order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: extraction } = useQuery({
+    queryKey: ['extraction', id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('extraction_runs').select('*').eq('contract_id', id!).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications', id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('notification_log').select('*').eq('contract_id', id!).order('sent_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [title, setTitle] = useState('');
+  const [counterparty, setCounterparty] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newDeadline, setNewDeadline] = useState({ type: 'renewal', due_date: '', label: '', note: '' });
+
+  // Sync form state when contract loads
+  const isFormInitialized = title || counterparty || startDate || endDate;
+  if (contract && !isFormInitialized) {
+    setTitle(contract.title);
+    setCounterparty(contract.counterparty || '');
+    setStartDate(contract.start_date || '');
+    setEndDate(contract.end_date || '');
+  }
+
+  const updateContract = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('contracts').update({
+        title, counterparty: counterparty || null,
+        start_date: startDate || null, end_date: endDate || null,
+      }).eq('id', id!);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success('Contract updated'); queryClient.invalidateQueries({ queryKey: ['contract', id] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const addDeadline = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('contract_dates').insert({
+        contract_id: id!, type: newDeadline.type, due_date: newDeadline.due_date,
+        label: newDeadline.label || null, note: newDeadline.note || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Deadline added');
+      queryClient.invalidateQueries({ queryKey: ['contract-dates', id] });
+      setAddDialogOpen(false);
+      setNewDeadline({ type: 'renewal', due_date: '', label: '', note: '' });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteDeadline = useMutation({
+    mutationFn: async (deadlineId: string) => {
+      const { error } = await supabase.from('contract_dates').delete().eq('id', deadlineId);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success('Deadline deleted'); queryClient.invalidateQueries({ queryKey: ['contract-dates', id] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const handleDownload = async (storagePath: string, fileName: string) => {
+    const { data, error } = await supabase.storage.from('contract-documents').download(storagePath);
+    if (error) { toast.error('Download failed'); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (contractLoading) {
+    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
 
   if (!contract) {
     return (
@@ -32,8 +139,6 @@ export default function ContractDetailPage() {
     );
   }
 
-  const health = getHealthBadge(contract, mockContractDates, extraction);
-
   const typeColors: Record<string, string> = {
     renewal: 'bg-primary/10 text-primary',
     notice: 'bg-warning/10 text-warning',
@@ -41,9 +146,15 @@ export default function ContractDetailPage() {
     custom: 'bg-muted text-muted-foreground',
   };
 
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return '—';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / 1048576).toFixed(1)} MB`;
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-5 w-5" />
@@ -52,12 +163,11 @@ export default function ContractDetailPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold truncate">{contract.title}</h1>
             <StatusBadge status={contract.status} />
-            <HealthBadge label={health.label} variant={health.variant} />
           </div>
-          <p className="text-sm text-muted-foreground">{contract.counterparty}</p>
+          <p className="text-sm text-muted-foreground">{contract.counterparty || 'No counterparty'}</p>
         </div>
         <div className="flex gap-2">
-          <Dialog>
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2"><Plus className="h-3 w-3" /> Add Deadline</Button>
             </DialogTrigger>
@@ -66,8 +176,8 @@ export default function ContractDetailPage() {
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label>Type</Label>
-                  <Select>
-                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <Select value={newDeadline.type} onValueChange={v => setNewDeadline(d => ({ ...d, type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="renewal">Renewal</SelectItem>
                       <SelectItem value="notice">Notice</SelectItem>
@@ -78,25 +188,26 @@ export default function ContractDetailPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Due Date</Label>
-                  <Input type="date" />
+                  <Input type="date" value={newDeadline.due_date} onChange={e => setNewDeadline(d => ({ ...d, due_date: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>Label</Label>
-                  <Input placeholder="e.g., Annual renewal" />
+                  <Input placeholder="e.g., Annual renewal" value={newDeadline.label} onChange={e => setNewDeadline(d => ({ ...d, label: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>Note</Label>
-                  <Input placeholder="Optional note" />
+                  <Input placeholder="Optional note" value={newDeadline.note} onChange={e => setNewDeadline(d => ({ ...d, note: e.target.value }))} />
                 </div>
-                <Button className="w-full">Save Deadline</Button>
+                <Button className="w-full" onClick={() => addDeadline.mutate()} disabled={!newDeadline.due_date || addDeadline.isPending}>
+                  {addDeadline.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Save Deadline
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
-          <Button size="sm" variant="outline" className="gap-2"><FileText className="h-3 w-3" /> Upload Version</Button>
         </div>
       </div>
 
-      {/* Needs Review Banner */}
       {extraction?.needs_review && (
         <Card className="border-warning/50 bg-warning/5 shadow-sm">
           <CardContent className="py-4 px-5">
@@ -106,7 +217,7 @@ export default function ContractDetailPage() {
                 <p className="font-medium text-sm">This contract needs manual review</p>
                 <p className="text-xs text-muted-foreground mt-1">Missing fields:</p>
                 <div className="flex gap-2 mt-2 flex-wrap">
-                  {extraction.missing_fields.map(f => (
+                  {extraction.missing_fields.map((f: string) => (
                     <Badge key={f} variant="outline" className="text-xs capitalize">{f.replace('_', ' ')}</Badge>
                   ))}
                 </div>
@@ -117,7 +228,6 @@ export default function ContractDetailPage() {
       )}
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Contract Info */}
         <Card className="shadow-sm">
           <CardHeader><CardTitle className="text-base">Contract Information</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -127,23 +237,25 @@ export default function ContractDetailPage() {
             </div>
             <div className="space-y-2">
               <Label>Counterparty</Label>
-              <Input value={contract.counterparty} readOnly className="bg-muted/50" />
+              <Input value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Start Date</Label>
-                <Input type="date" defaultValue={contract.start_date} />
+                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>End Date</Label>
-                <Input type="date" defaultValue={contract.end_date || ''} />
+                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
               </div>
             </div>
-            <Button className="w-full">Save Changes</Button>
+            <Button className="w-full" onClick={() => updateContract.mutate()} disabled={updateContract.isPending}>
+              {updateContract.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Deadlines */}
         <Card className="shadow-sm">
           <CardHeader><CardTitle className="text-base">Deadlines</CardTitle></CardHeader>
           <CardContent>
@@ -151,20 +263,19 @@ export default function ContractDetailPage() {
               <p className="text-sm text-muted-foreground text-center py-6">No deadlines added yet.</p>
             ) : (
               <div className="space-y-3">
-                {dates.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()).map(d => (
+                {dates.map(d => (
                   <div key={d.id} className="flex items-start justify-between p-3 rounded-lg border bg-card">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Badge className={`text-xs capitalize ${typeColors[d.type]}`}>{d.type}</Badge>
-                        <span className="text-sm font-medium">{d.label}</span>
+                        <Badge className={`text-xs capitalize ${typeColors[d.type] || ''}`}>{d.type}</Badge>
+                        <span className="text-sm font-medium">{d.label || d.type}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">{new Date(d.due_date).toLocaleDateString()}</p>
                       {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
                     </div>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7"><Pencil className="h-3 w-3" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3 w-3" /></Button>
-                    </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDeadline.mutate(d.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -173,7 +284,6 @@ export default function ContractDetailPage() {
         </Card>
       </div>
 
-      {/* Files */}
       {files.length > 0 && (
         <Card className="shadow-sm">
           <CardHeader><CardTitle className="text-base">Files</CardTitle></CardHeader>
@@ -188,7 +298,9 @@ export default function ContractDetailPage() {
                       <p className="text-xs text-muted-foreground">{formatFileSize(f.size_bytes)} • {new Date(f.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon"><Download className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDownload(f.storage_path, f.file_name)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
             </div>
@@ -196,7 +308,6 @@ export default function ContractDetailPage() {
         </Card>
       )}
 
-      {/* Notification History */}
       {notifications.length > 0 && (
         <Card className="shadow-sm">
           <CardHeader><CardTitle className="text-base">Notification History</CardTitle></CardHeader>
