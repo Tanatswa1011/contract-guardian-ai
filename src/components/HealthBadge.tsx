@@ -7,10 +7,10 @@ interface HealthBadgeProps {
 }
 
 const variantStyles: Record<string, string> = {
-  ok: 'bg-success text-success-foreground hover:bg-success/80',
-  warning: 'bg-warning text-warning-foreground hover:bg-warning/80',
-  danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/80',
-  info: 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20',
+  ok: 'bg-secondary text-secondary-foreground border-border',
+  warning: 'bg-secondary text-foreground border-border',
+  danger: 'bg-destructive text-destructive-foreground border-border',
+  info: 'bg-muted text-muted-foreground border-border',
 };
 
 export function HealthBadge({ label, variant }: HealthBadgeProps) {
