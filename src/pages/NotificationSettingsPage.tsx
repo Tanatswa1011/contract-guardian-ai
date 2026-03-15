@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Mail, MessageSquare, CheckCircle } from 'lucide-react';
+import { Mail, MessageSquare } from 'lucide-react';
 
 export default function NotificationSettingsPage() {
   return (
@@ -15,22 +15,19 @@ export default function NotificationSettingsPage() {
       </div>
 
       {/* Email */}
-      <Card className="shadow-sm">
+      <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Mail className="h-5 w-5 text-primary" />
+              <div className="flex h-10 w-10 items-center justify-center border bg-muted">
+                <Mail className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 <CardTitle className="text-base">Email Notifications</CardTitle>
                 <CardDescription>Receive deadline reminders via email</CardDescription>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-success" />
-              <span className="text-xs text-success font-medium">Connected</span>
-            </div>
+            <Badge variant="secondary" className="normal-case tracking-normal">Connected</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -43,7 +40,7 @@ export default function NotificationSettingsPage() {
       </Card>
 
       {/* Reminder Schedule */}
-      <Card className="shadow-sm">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Reminder Schedule</CardTitle>
           <CardDescription>Choose when to receive reminders before deadlines</CardDescription>
@@ -67,11 +64,11 @@ export default function NotificationSettingsPage() {
 
       {/* Coming Soon channels */}
       {['Slack', 'Telegram', 'WhatsApp'].map(channel => (
-        <Card key={channel} className="shadow-sm opacity-60">
+        <Card key={channel} className="bg-muted/30">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <div className="flex h-10 w-10 items-center justify-center border bg-muted">
                   <MessageSquare className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
@@ -79,7 +76,7 @@ export default function NotificationSettingsPage() {
                   <CardDescription>Receive reminders via {channel}</CardDescription>
                 </div>
               </div>
-              <Badge variant="outline" className="text-xs">Coming Soon</Badge>
+              <Badge variant="outline" className="normal-case text-xs tracking-normal">Coming Soon</Badge>
             </div>
           </CardHeader>
         </Card>

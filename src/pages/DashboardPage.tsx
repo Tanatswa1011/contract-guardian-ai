@@ -34,8 +34,6 @@ export default function DashboardPage() {
   }
 
   const allContracts = contracts || [];
-  const now = new Date();
-
   const expiringThisMonth = allContracts.filter(c => c.expiring_within_30_days).length;
   const activeContracts = allContracts.filter(c => c.status === 'active').length;
   const riskAlerts = allContracts.filter(c => c.risk_alert).length;
@@ -50,19 +48,19 @@ export default function DashboardPage() {
   );
 
   const summaryCards = [
-    { label: 'Expiring Soon', value: expiringThisMonth, icon: CalendarClock, color: 'text-warning' },
-    { label: 'Next Deadline', value: nextDeadlineDays != null ? `${nextDeadlineDays}d` : '—', icon: CalendarClock, color: 'text-primary' },
-    { label: 'Active Contracts', value: activeContracts, icon: FileText, color: 'text-success' },
-    { label: 'Risk Alerts', value: riskAlerts, icon: AlertTriangle, color: 'text-destructive' },
+    { label: 'Expiring Soon', value: expiringThisMonth, icon: CalendarClock },
+    { label: 'Next Deadline', value: nextDeadlineDays != null ? `${nextDeadlineDays}d` : '—', icon: CalendarClock },
+    { label: 'Active Contracts', value: activeContracts, icon: FileText },
+    { label: 'Risk Alerts', value: riskAlerts, icon: AlertTriangle },
   ];
 
   const healthVariant = (status: string | null) => {
     switch (status) {
       case 'overdue': return 'destructive';
-      case 'expiring_soon': return 'default';
+      case 'expiring_soon': return 'secondary';
       case 'needs_review': return 'secondary';
       case 'missing_dates': return 'outline';
-      default: return 'default';
+      default: return 'outline';
     }
   };
 
@@ -79,9 +77,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Contract Command Center</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Contract Command Center</h1>
           <p className="text-muted-foreground text-sm">Track, manage, and protect your business contracts.</p>
         </div>
         <Link to="/app/upload">
@@ -91,13 +89,13 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {summaryCards.map(card => (
-          <Card key={card.label} className="shadow-sm">
+          <Card key={card.label}>
             <CardContent className="pt-5 pb-4 px-5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</span>
-                <card.icon className={`h-4 w-4 ${card.color}`} />
+                <card.icon className="h-4 w-4 text-muted-foreground" />
               </div>
-              <p className="text-2xl font-bold">{card.value}</p>
+              <p className="text-2xl font-semibold">{card.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -111,9 +109,11 @@ export default function DashboardPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="py-16 text-center">
-            <FileText className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border bg-muted">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+            </div>
             <h3 className="font-semibold mb-1">No contracts found</h3>
             <p className="text-sm text-muted-foreground mb-4">Upload your first contract to get started.</p>
             <Link to="/app/upload">
@@ -124,7 +124,7 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="hidden md:block">
-            <Card className="shadow-sm overflow-hidden">
+            <Card className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -137,9 +137,9 @@ export default function DashboardPage() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map(contract => (
-                    <TableRow key={contract.id} className="cursor-pointer hover:bg-muted/50">
+                    <TableRow key={contract.id} className="cursor-pointer">
                       <TableCell>
-                        <Link to={`/app/contracts/${contract.id}`} className="font-medium hover:text-primary transition-colors">
+                        <Link to={`/app/contracts/${contract.id}`} className="font-medium transition-colors hover:text-foreground/70">
                           {contract.title}
                         </Link>
                       </TableCell>
@@ -149,7 +149,7 @@ export default function DashboardPage() {
                       <TableCell className="text-sm capitalize">{contract.next_deadline_type || '—'}</TableCell>
                       <TableCell><StatusBadge status={contract.status || 'draft'} /></TableCell>
                       <TableCell>
-                        <Badge variant={healthVariant(contract.health_status)} className="text-xs capitalize">
+                        <Badge variant={healthVariant(contract.health_status)} className="normal-case text-xs capitalize tracking-normal">
                           {healthLabel(contract.health_status)}
                         </Badge>
                       </TableCell>
@@ -163,7 +163,7 @@ export default function DashboardPage() {
           <div className="md:hidden space-y-3">
             {filtered.map(contract => (
               <Link key={contract.id} to={`/app/contracts/${contract.id}`}>
-                <Card className="shadow-sm hover:shadow-md transition-shadow">
+                <Card>
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <p className="font-medium text-sm leading-tight">{contract.title}</p>
@@ -171,7 +171,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{contract.next_deadline_date ? `Next: ${new Date(contract.next_deadline_date).toLocaleDateString()}` : 'No upcoming'}</span>
-                      <Badge variant={healthVariant(contract.health_status)} className="text-xs capitalize">
+                      <Badge variant={healthVariant(contract.health_status)} className="normal-case text-xs capitalize tracking-normal">
                         {healthLabel(contract.health_status)}
                       </Badge>
                     </div>
