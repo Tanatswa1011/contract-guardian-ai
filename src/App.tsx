@@ -35,12 +35,14 @@ const App = () => (
               <Route path="/signup" element={<SignupPage />} />
             </Route>
 
-            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              <Route path="/app" element={<DashboardPage />} />
-              <Route path="/app/upload" element={<UploadPage />} />
-              <Route path="/app/contracts/:id" element={<ContractDetailPage />} />
-              <Route path="/app/settings/notifications" element={<NotificationSettingsPage />} />
-              <Route path="/app/billing" element={<BillingPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route path="/app" element={<DashboardPage />} />
+                <Route path="/app/upload" element={<UploadPage />} />
+                <Route path="/app/contracts/:id" element={<ContractDetailPage />} />
+                <Route path="/app/settings/notifications" element={<NotificationSettingsPage />} />
+                <Route path="/app/billing" element={<BillingPage />} />
+              </Route>
             </Route>
 
             <Route path="*" element={<NotFound />} />
