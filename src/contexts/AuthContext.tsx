@@ -19,11 +19,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const acceptPendingInvites = async (u: User) => {
+    try {
+      const email = u.email;
+      if (!email) return;
+
+      const { data: invites } = await supabase
+        .from('workspace_invites')
+        .select('id, workspace_id, role')
+        .eq('email', email.toLowerCase())
+        .eq('status', 'pending');
+
+      if (!invites?.length) return;
+
+      for (const inv of invites) {
+        await supabase
+          .from('workspace_members')
+          .upsert(
+            { workspace_id: inv.workspace_id, user_id: u.id, role: inv.role },
+            { onConflict: 'workspace_id,user_id' }
+          );
+
+        await supabase
+          .from('workspace_invites')
+          .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+          .eq('id', inv.id);
+      }
+    } catch {
+      // Silent fail — invites will be retried on next login
+    }
+  };
+
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Accept pending workspace invites on sign-in
+      if (event === 'SIGNED_IN' && session?.user) {
+        setTimeout(() => acceptPendingInvites(session.user), 0);
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
