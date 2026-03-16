@@ -17,5 +17,10 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" replace />;
   }
 
+  // Block users who haven't confirmed their email
+  if (user.email_confirmed_at === null || user.email_confirmed_at === undefined) {
+    return <Navigate to="/login" replace />;
+  }
+
   return <Outlet />;
 }
