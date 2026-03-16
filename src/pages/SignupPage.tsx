@@ -91,7 +91,7 @@ export default function SignupPage() {
           </form>
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-foreground hover:underline">Sign in</Link>
+            <Link to={inviteEmail ? `/login?invite_email=${encodeURIComponent(inviteEmail)}` : '/login'} className="font-medium text-foreground hover:underline">Sign in</Link>
           </p>
         </CardContent>
       </Card>

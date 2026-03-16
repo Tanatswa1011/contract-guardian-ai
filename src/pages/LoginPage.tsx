@@ -66,7 +66,7 @@ export default function LoginPage() {
           </form>
           <p className="text-center text-sm text-muted-foreground mt-6">
             Don't have an account?{' '}
-            <Link to="/signup" className="font-medium text-foreground hover:underline">Sign up</Link>
+            <Link to={inviteEmail ? `/signup?invite_email=${encodeURIComponent(inviteEmail)}` : '/signup'} className="font-medium text-foreground hover:underline">Sign up</Link>
           </p>
         </CardContent>
       </Card>
