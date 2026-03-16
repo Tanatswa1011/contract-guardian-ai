@@ -64,24 +64,7 @@ export default function BillingPage() {
           <CardTitle className="text-base">Invoice History</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="text-sm">Feb 1, 2026</TableCell>
-                <TableCell className="text-sm">Starter Plan</TableCell>
-                <TableCell className="text-sm">$0.00</TableCell>
-                <TableCell><Badge variant="outline" className="normal-case text-xs tracking-normal">Free</Badge></TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          <p className="text-sm text-muted-foreground">No invoices yet.</p>
         </CardContent>
       </Card>
 

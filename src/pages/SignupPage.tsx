@@ -16,6 +16,8 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const { signUp } = useAuth();
 
+  const [success, setSuccess] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -24,10 +26,30 @@ export default function SignupPage() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Account created! Check your email to confirm, or sign in if email confirmation is disabled.');
-      navigate('/app');
+      setSuccess(true);
     }
   };
+
+  if (success) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
+        <Card className="mx-4 w-full max-w-md">
+          <CardContent className="pt-8 pb-6 text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <h2 className="text-xl font-semibold">Check your email</h2>
+            <p className="text-sm text-muted-foreground">
+              We've sent a confirmation link to <strong>{email}</strong>. Please confirm your email address before signing in.
+            </p>
+            <Link to="/login">
+              <Button variant="outline" className="mt-2">Go to Sign In</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
