@@ -39,6 +39,12 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-semibold">Welcome back</CardTitle>
           <CardDescription>Sign in to your account to continue</CardDescription>
+          {inviteEmail && (
+            <div className="mt-2 flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+              <Mail className="h-4 w-4 shrink-0" />
+              You've been invited to join a workspace. Sign in to accept.
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
