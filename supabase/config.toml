@@ -3,5 +3,8 @@ project_id = "ybyhiklkcsehhhcjodxi"
 [functions.send-contract-reminders]
 verify_jwt = false
 
+[functions.extract-contract]
+verify_jwt = true
+
 [functions.send-workspace-invite]
 verify_jwt = false

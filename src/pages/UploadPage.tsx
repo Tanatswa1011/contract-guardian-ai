@@ -76,6 +76,20 @@ export default function UploadPage() {
 
       if (fileError) throw fileError;
 
+      supabase.functions.invoke('extract-contract', {
+        body: {
+          contract_id: contract.id,
+        },
+      }).then(({ error }) => {
+        if (error) {
+          console.error('Contract extraction failed to start:', error);
+          toast.error('AI extraction could not be completed. You can still review the contract manually.');
+        }
+      }).catch((error) => {
+        console.error('Contract extraction failed to start:', error);
+        toast.error('AI extraction could not be completed. You can still review the contract manually.');
+      });
+
       setContractId(contract.id);
       setState('completed');
       toast.success('Contract uploaded successfully!');
@@ -156,7 +170,7 @@ export default function UploadPage() {
           <CardContent className="py-8 text-center">
             <CheckCircle className="mx-auto mb-4 h-12 w-12 text-foreground" />
             <h3 className="font-semibold text-lg mb-1">Contract Uploaded Successfully</h3>
-            <p className="text-sm text-muted-foreground mb-4">Your contract has been created and the file is stored securely.</p>
+            <p className="text-sm text-muted-foreground mb-4">Your contract has been created, the file is stored securely, and AI extraction is running in the background for review.</p>
             <div className="flex gap-3 justify-center">
               <Button onClick={() => navigate(`/app/contracts/${contractId}`)}>View Contract</Button>
               <Button variant="outline" onClick={() => { setState('idle'); setFile(null); setTitle(''); setCounterparty(''); }}>Upload Another</Button>
