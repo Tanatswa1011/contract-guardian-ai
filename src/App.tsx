@@ -42,7 +42,7 @@ const App = () => (
                   <Route path="/app" element={<DashboardPage />} />
                   <Route path="/app/upload" element={<UploadPage />} />
                   <Route path="/app/contracts/:id" element={<ContractDetailPage />} />
-                  <Route path="/app/settings/notifications" element={<NotificationSettingsPage />} />
+                  <Route path="/app/settings" element={<SettingsPage />} />
                   <Route path="/app/billing" element={<BillingPage />} />
                 </Route>
               </Route>
