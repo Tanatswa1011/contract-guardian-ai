@@ -16,15 +16,18 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('');
 
   const { data: contracts, isLoading } = useQuery({
-    queryKey: ['contracts-dashboard'],
+    queryKey: ['contracts-dashboard', user?.id],
     queryFn: async () => {
+      if (!user) return [];
       const { data, error } = await supabase
         .from('contracts_dashboard')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
+    enabled: !!user,
   });
 
   if (isLoading) {
