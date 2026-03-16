@@ -82,12 +82,13 @@ export default function WorkspaceSettings() {
 
   const sendInvite = useMutation({
     mutationFn: async () => {
-      if (!inviteEmail.trim() || !workspace?.id) return;
+      const trimmedEmail = inviteEmail.trim().toLowerCase();
+      if (!trimmedEmail || !workspace?.id) return;
       const { error } = await supabase
         .from('workspace_invites')
         .insert({
           workspace_id: workspace.id,
-          email: inviteEmail.trim().toLowerCase(),
+          email: trimmedEmail,
           role: 'member',
           invited_by: user!.id,
         });
@@ -95,6 +96,15 @@ export default function WorkspaceSettings() {
         if (error.code === '23505') throw new Error('This email has already been invited.');
         throw error;
       }
+
+      // Send invitation email via edge function (fire-and-forget, don't block on failure)
+      supabase.functions.invoke('send-workspace-invite', {
+        body: {
+          email: trimmedEmail,
+          workspace_id: workspace.id,
+          app_url: window.location.origin,
+        },
+      }).catch((err) => console.error('Invite email failed:', err));
     },
     onSuccess: () => {
       toast.success('Invitation sent');
