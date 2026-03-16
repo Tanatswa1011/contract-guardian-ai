@@ -309,15 +309,19 @@ export default function ContractDetailPage() {
         </Card>
       )}
 
-      {notifications.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Notification History</CardTitle></CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Reminder History</CardTitle></CardHeader>
+        <CardContent>
+          {notifications.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No reminders have been sent for this contract yet.</p>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Status</TableHead>
                   <TableHead>Subject</TableHead>
+                  <TableHead>Sent To</TableHead>
+                  <TableHead>Channel</TableHead>
                   <TableHead>Sent At</TableHead>
                   <TableHead>Error</TableHead>
                 </TableRow>
@@ -326,20 +330,25 @@ export default function ContractDetailPage() {
                 {notifications.map(n => (
                   <TableRow key={n.id}>
                     <TableCell>
-                      <Badge variant={n.status === 'sent' ? 'secondary' : 'destructive'} className="normal-case text-xs capitalize tracking-normal">
+                      <Badge
+                        variant={n.status === 'sent' ? 'secondary' : n.status === 'failed' ? 'destructive' : 'outline'}
+                        className="normal-case text-xs capitalize tracking-normal"
+                      >
                         {n.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">{n.subject}</TableCell>
-                    <TableCell className="text-sm">{new Date(n.sent_at).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-sm text-destructive">{n.error || '—'}</TableCell>
+                    <TableCell className="text-sm">{n.subject || '—'}</TableCell>
+                    <TableCell className="text-sm">{n.sent_to}</TableCell>
+                    <TableCell className="text-sm capitalize">{n.channel}</TableCell>
+                    <TableCell className="text-sm">{new Date(n.sent_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-destructive">{n.status === 'failed' ? (n.error || '—') : '—'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
