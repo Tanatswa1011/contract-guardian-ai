@@ -1,5 +1,8 @@
 project_id = "ybyhiklkcsehhhcjodxi"
 
+[functions.extract-contract]
+verify_jwt = false
+
 [functions.send-contract-reminders]
 verify_jwt = false
 

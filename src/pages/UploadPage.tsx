@@ -4,12 +4,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Upload, FileText, CheckCircle, AlertTriangle, Loader2, X } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Loader2, X, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { runExtraction } from '@/lib/extraction';
 
 type UploadState = 'idle' | 'selected' | 'uploading' | 'completed' | 'failed';
+type ExtractionStatus = 'idle' | 'running' | 'done' | 'error';
 
 export default function UploadPage() {
   const [state, setState] = useState<UploadState>('idle');
@@ -17,6 +19,7 @@ export default function UploadPage() {
   const [title, setTitle] = useState('');
   const [counterparty, setCounterparty] = useState('');
   const [contractId, setContractId] = useState<string | null>(null);
+  const [extractionStatus, setExtractionStatus] = useState<ExtractionStatus>('idle');
   const navigate = useNavigate();
   const { user } = useAuth();
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Upload failed');
@@ -79,6 +82,16 @@ export default function UploadPage() {
       setContractId(contract.id);
       setState('completed');
       toast.success('Contract uploaded successfully!');
+
+      setExtractionStatus('running');
+      runExtraction(contract.id, file)
+        .then(() => {
+          setExtractionStatus('done');
+        })
+        .catch((err) => {
+          console.error('Extraction error:', err);
+          setExtractionStatus('error');
+        });
     } catch (err: unknown) {
       console.error('Upload error:', err);
       setState('failed');
@@ -156,10 +169,29 @@ export default function UploadPage() {
           <CardContent className="py-8 text-center">
             <CheckCircle className="mx-auto mb-4 h-12 w-12 text-foreground" />
             <h3 className="font-semibold text-lg mb-1">Contract Uploaded Successfully</h3>
-            <p className="text-sm text-muted-foreground mb-4">Your contract has been created and the file is stored securely.</p>
+            <p className="text-sm text-muted-foreground mb-2">Your contract has been created and the file is stored securely.</p>
+
+            {extractionStatus === 'running' && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-4">
+                <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                Extracting contract data with AI...
+              </div>
+            )}
+            {extractionStatus === 'done' && (
+              <p className="text-sm text-primary mb-4 flex items-center justify-center gap-1">
+                <Sparkles className="h-4 w-4" />
+                Data extracted — review it on the contract page.
+              </p>
+            )}
+            {extractionStatus === 'error' && (
+              <p className="text-sm text-muted-foreground mb-4">
+                Auto-extraction was not successful. You can add details manually.
+              </p>
+            )}
+
             <div className="flex gap-3 justify-center">
               <Button onClick={() => navigate(`/app/contracts/${contractId}`)}>View Contract</Button>
-              <Button variant="outline" onClick={() => { setState('idle'); setFile(null); setTitle(''); setCounterparty(''); }}>Upload Another</Button>
+              <Button variant="outline" onClick={() => { setState('idle'); setFile(null); setTitle(''); setCounterparty(''); setExtractionStatus('idle'); }}>Upload Another</Button>
             </div>
           </CardContent>
         </Card>

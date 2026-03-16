@@ -8,11 +8,12 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Download, FileText, Trash2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import ExtractionReviewCard from '@/components/ExtractionReviewCard';
 
 export default function ContractDetailPage() {
   const { id } = useParams();
@@ -209,24 +210,17 @@ export default function ContractDetailPage() {
         </div>
       </div>
 
-      {extraction?.needs_review && (
-        <Card className="border-destructive/30 bg-card">
-          <CardContent className="py-4 px-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-destructive" />
-              <div>
-                <p className="font-medium text-sm">This contract needs manual review</p>
-                <p className="text-xs text-muted-foreground mt-1">Missing fields:</p>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {extraction.missing_fields.map((f: string) => (
-                    <Badge key={f} variant="outline" className="text-xs capitalize">{f.replace('_', ' ')}</Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <ExtractionReviewCard
+        extraction={extraction ?? null}
+        contract={contract}
+        dates={dates}
+        files={files}
+        onApplied={() => {
+          queryClient.invalidateQueries({ queryKey: ['contract', id] });
+          queryClient.invalidateQueries({ queryKey: ['contract-dates', id] });
+          queryClient.invalidateQueries({ queryKey: ['extraction', id] });
+        }}
+      />
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
