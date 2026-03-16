@@ -1,15 +1,17 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield, Loader2 } from 'lucide-react';
+import { Shield, Loader2, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export default function SignupPage() {
-  const [email, setEmail] = useState('');
+  const [searchParams] = useSearchParams();
+  const inviteEmail = searchParams.get('invite_email') || '';
+  const [email, setEmail] = useState(inviteEmail);
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -61,6 +63,12 @@ export default function SignupPage() {
           </div>
           <CardTitle className="text-2xl font-semibold">Create your account</CardTitle>
           <CardDescription>Start your free trial — no credit card required</CardDescription>
+          {inviteEmail && (
+            <div className="mt-2 flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+              <Mail className="h-4 w-4 shrink-0" />
+              You've been invited to join a workspace.
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -83,7 +91,7 @@ export default function SignupPage() {
           </form>
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-foreground hover:underline">Sign in</Link>
+            <Link to={inviteEmail ? `/login?invite_email=${encodeURIComponent(inviteEmail)}` : '/login'} className="font-medium text-foreground hover:underline">Sign in</Link>
           </p>
         </CardContent>
       </Card>
