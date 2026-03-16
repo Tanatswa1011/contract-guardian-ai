@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
 
   const { data: contracts, isLoading } = useQuery({
