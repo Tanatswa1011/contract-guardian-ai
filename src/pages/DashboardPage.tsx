@@ -8,6 +8,7 @@ import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2 } from 'l
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 
 export default function DashboardPage() {
