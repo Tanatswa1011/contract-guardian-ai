@@ -15,7 +15,7 @@ import SignupPage from "@/pages/SignupPage";
 import DashboardPage from "@/pages/DashboardPage";
 import UploadPage from "@/pages/UploadPage";
 import ContractDetailPage from "@/pages/ContractDetailPage";
-import NotificationSettingsPage from "@/pages/NotificationSettingsPage";
+import SettingsPage from "@/pages/SettingsPage";
 import BillingPage from "@/pages/BillingPage";
 import NotFound from "@/pages/NotFound";
 

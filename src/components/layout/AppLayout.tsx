@@ -8,8 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 const navItems = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/app/upload', label: 'Upload', icon: Upload },
-  { to: '/app/settings/notifications', label: 'Notifications', icon: Settings },
   { to: '/app/billing', label: 'Billing', icon: CreditCard },
+  { to: '/app/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AppLayout() {
