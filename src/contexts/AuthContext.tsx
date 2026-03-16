@@ -50,11 +50,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const navigate = useNavigate();
+
   useEffect(() => {
+    // Handle PKCE code exchange from Supabase email links (password reset, email confirm)
+    // Supabase redirects to the Site URL with ?code=... — we must exchange it here
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (error) {
+          console.error('Code exchange failed:', error.message);
+        }
+        // Clean the URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('code');
+        window.history.replaceState({}, '', url.pathname + url.search);
+      });
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Redirect to /reset-password when a password recovery link is used
+      if (event === 'PASSWORD_RECOVERY') {
+        navigate('/reset-password', { replace: true });
+        return;
+      }
 
       // Accept pending workspace invites on sign-in
       if (event === 'SIGNED_IN' && session?.user) {
@@ -69,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const signUp = async (email: string, password: string, displayName: string) => {
     const { error } = await supabase.auth.signUp({
