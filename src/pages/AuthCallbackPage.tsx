@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shield, CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function AuthCallbackPage() {
@@ -18,10 +18,10 @@ export default function AuthCallbackPage() {
       }
     });
 
-    // Timeout fallback
+    // If no auth event fires within 10s, show error (not fake success)
     const timeout = setTimeout(() => {
-      setStatus((prev) => (prev === 'loading' ? 'confirmed' : prev));
-    }, 3000);
+      setStatus((prev) => (prev === 'loading' ? 'error' : prev));
+    }, 10000);
 
     return () => {
       subscription.unsubscribe();
@@ -36,6 +36,27 @@ export default function AuthCallbackPage() {
           <CardContent className="pt-8 pb-6 text-center space-y-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
             <p className="text-sm text-muted-foreground">Verifying your email…</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
+        <Card className="mx-4 w-full max-w-md">
+          <CardContent className="pt-8 pb-6 text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <AlertCircle className="h-6 w-6 text-destructive" />
+            </div>
+            <h2 className="text-xl font-semibold">Verification failed</h2>
+            <p className="text-sm text-muted-foreground">
+              We could not verify your email automatically. Please try signing in or request a new confirmation email.
+            </p>
+            <Link to="/login">
+              <Button variant="outline" className="mt-2">Go to Sign In</Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
