@@ -8,8 +8,8 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Trash2, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Trash2, Loader2, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -71,14 +71,15 @@ export default function ContractDetailPage() {
   const [newDeadline, setNewDeadline] = useState({ type: 'renewal', due_date: '', label: '', note: '' });
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'An unexpected error occurred');
 
-  // Sync form state when contract loads
-  const isFormInitialized = title || counterparty || startDate || endDate;
-  if (contract && !isFormInitialized) {
-    setTitle(contract.title);
-    setCounterparty(contract.counterparty || '');
-    setStartDate(contract.start_date || '');
-    setEndDate(contract.end_date || '');
-  }
+  // Sync form state from contract; pre-fill from extraction when contract fields are empty
+  useEffect(() => {
+    if (!contract) return;
+    const raw = extraction?.raw_json as Record<string, unknown> | undefined;
+    setTitle(contract.title || (raw?.contract_title ? String(raw.contract_title) : ''));
+    setCounterparty(contract.counterparty || (raw?.counterparty ? String(raw.counterparty) : ''));
+    setStartDate(contract.start_date || (raw?.start_date ? String(raw.start_date) : ''));
+    setEndDate(contract.end_date || (raw?.end_date ? String(raw.end_date) : ''));
+  }, [contract?.id, extraction?.id, contract, extraction?.raw_json]);
 
   const updateContract = useMutation({
     mutationFn: async () => {
@@ -93,18 +94,21 @@ export default function ContractDetailPage() {
   });
 
   const addDeadline = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (payload?: { type: string; due_date: string; label?: string; note?: string }) => {
+      const p = payload ?? newDeadline;
       const { error } = await supabase.from('contract_dates').insert({
-        contract_id: id!, type: newDeadline.type, due_date: newDeadline.due_date,
-        label: newDeadline.label || null, note: newDeadline.note || null,
+        contract_id: id!, type: p.type, due_date: p.due_date,
+        label: p.label || null, note: p.note || null,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, payload) => {
       toast.success('Deadline added');
       queryClient.invalidateQueries({ queryKey: ['contract-dates', id] });
-      setAddDialogOpen(false);
-      setNewDeadline({ type: 'renewal', due_date: '', label: '', note: '' });
+      if (!payload) {
+        setAddDialogOpen(false);
+        setNewDeadline({ type: 'renewal', due_date: '', label: '', note: '' });
+      }
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
@@ -115,6 +119,18 @@ export default function ContractDetailPage() {
       if (error) throw error;
     },
     onSuccess: () => { toast.success('Deadline deleted'); queryClient.invalidateQueries({ queryKey: ['contract-dates', id] }); },
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+  });
+
+  const retryExtraction = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.functions.invoke('extract-contract', { body: { contract_id: id } });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Extraction started');
+      queryClient.invalidateQueries({ queryKey: ['extraction', id] });
+    },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 
@@ -153,6 +169,14 @@ export default function ContractDetailPage() {
     if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / 1048576).toFixed(1)} MB`;
   };
+
+  const raw = extraction?.status === 'completed' ? (extraction.raw_json as Record<string, unknown>) : null;
+  const suggestedDeadlines = raw
+    ? (['renewal_date', 'notice_date', 'payment_date'] as const)
+        .filter((k) => raw[k] && typeof raw[k] === 'string')
+        .map((k) => ({ type: k.replace('_date', '') as 'renewal' | 'notice' | 'payment', due_date: String(raw[k]) }))
+        .filter((s) => !dates.some((d) => d.type === s.type))
+    : [];
 
   return (
     <div className="space-y-6">
@@ -209,7 +233,28 @@ export default function ContractDetailPage() {
         </div>
       </div>
 
-      {extraction?.needs_review && (
+      {extraction?.status === 'failed' && (
+        <Card className="border-destructive/30 bg-card">
+          <CardContent className="py-4 px-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 text-destructive" />
+                <div>
+                  <p className="font-medium text-sm">AI extraction failed</p>
+                  <p className="text-xs text-muted-foreground mt-1">{extraction.error || 'Could not extract data from PDF.'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">You can add contract details manually below.</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => retryExtraction.mutate()} disabled={retryExtraction.isPending}>
+                {retryExtraction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {extraction?.needs_review && extraction?.status === 'completed' && (
         <Card className="border-destructive/30 bg-card">
           <CardContent className="py-4 px-5">
             <div className="flex items-start gap-3">
@@ -218,8 +263,8 @@ export default function ContractDetailPage() {
                 <p className="font-medium text-sm">This contract needs manual review</p>
                 <p className="text-xs text-muted-foreground mt-1">Missing fields:</p>
                 <div className="flex gap-2 mt-2 flex-wrap">
-                  {extraction.missing_fields.map((f: string) => (
-                    <Badge key={f} variant="outline" className="text-xs capitalize">{f.replace('_', ' ')}</Badge>
+                  {(extraction.missing_fields ?? []).map((f: string) => (
+                    <Badge key={f} variant="outline" className="text-xs capitalize">{f.replace(/_/g, ' ')}</Badge>
                   ))}
                 </div>
               </div>
@@ -260,9 +305,33 @@ export default function ContractDetailPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Deadlines</CardTitle></CardHeader>
           <CardContent>
-            {dates.length === 0 ? (
+            {suggestedDeadlines.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Suggested from AI extraction</p>
+                <div className="space-y-2">
+                  {suggestedDeadlines.map((s) => (
+                    <div key={s.type} className="flex items-center justify-between border bg-muted/30 p-3">
+                      <div>
+                        <Badge className={`normal-case text-xs capitalize ${typeColors[s.type] || ''}`}>{s.type}</Badge>
+                        <span className="ml-2 text-sm">{new Date(s.due_date).toLocaleDateString()}</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => addDeadline.mutate({ type: s.type, due_date: s.due_date })}
+                        disabled={addDeadline.isPending}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {dates.length === 0 && suggestedDeadlines.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-6">No deadlines added yet.</p>
-            ) : (
+            )}
+            {dates.length > 0 && (
               <div className="space-y-3">
                 {dates.map(d => (
                   <div key={d.id} className="flex items-start justify-between border bg-muted/40 p-3">
@@ -287,7 +356,17 @@ export default function ContractDetailPage() {
 
       {files.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Files</CardTitle></CardHeader>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Files</CardTitle>
+              {!extraction && (
+                <Button variant="outline" size="sm" onClick={() => retryExtraction.mutate()} disabled={retryExtraction.isPending}>
+                  {retryExtraction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Run AI extraction
+                </Button>
+              )}
+            </div>
+          </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {files.map(f => (

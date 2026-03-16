@@ -79,6 +79,11 @@ export default function UploadPage() {
       setContractId(contract.id);
       setState('completed');
       toast.success('Contract uploaded successfully!');
+
+      // Trigger AI extraction (fire-and-forget; user reviews on contract detail page)
+      supabase.functions
+        .invoke('extract-contract', { body: { contract_id: contract.id } })
+        .catch((err) => console.error('Extraction trigger failed:', err));
     } catch (err: unknown) {
       console.error('Upload error:', err);
       setState('failed');
