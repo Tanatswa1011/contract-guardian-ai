@@ -16,8 +16,10 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const redirectUrl = `${window.location.origin}/reset-password`;
+    console.log('[ForgotPassword] redirectTo:', redirectUrl);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: redirectUrl,
     });
     setLoading(false);
     if (error) {
