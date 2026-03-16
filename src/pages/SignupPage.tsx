@@ -63,6 +63,12 @@ export default function SignupPage() {
           </div>
           <CardTitle className="text-2xl font-semibold">Create your account</CardTitle>
           <CardDescription>Start your free trial — no credit card required</CardDescription>
+          {inviteEmail && (
+            <div className="mt-2 flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+              <Mail className="h-4 w-4 shrink-0" />
+              You've been invited to join a workspace.
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
