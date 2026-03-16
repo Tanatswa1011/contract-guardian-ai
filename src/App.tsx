@@ -40,6 +40,7 @@ const App = () => (
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/auth/callback" element={<AuthCallbackPage />} />
               </Route>
 
               <Route element={<ProtectedRoute />}>

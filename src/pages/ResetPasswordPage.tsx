@@ -1,9 +1,9 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield, Loader2 } from 'lucide-react';
+import { Shield, Loader2, CheckCircle2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -12,6 +12,7 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [isRecovery, setIsRecovery] = useState(false);
   const navigate = useNavigate();
 
@@ -40,10 +41,31 @@ export default function ResetPasswordPage() {
     if (error) {
       toast.error(error.message);
     } else {
+      setSuccess(true);
       toast.success('Password updated successfully');
-      navigate('/app');
     }
   };
+
+  if (success) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
+        <Card className="mx-4 w-full max-w-md">
+          <CardContent className="pt-8 pb-6 text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <CheckCircle2 className="h-6 w-6 text-primary" />
+            </div>
+            <h2 className="text-xl font-semibold">Password updated</h2>
+            <p className="text-sm text-muted-foreground">
+              Your password has been changed successfully. You can now sign in with your new password.
+            </p>
+            <Link to="/login">
+              <Button className="mt-2">Sign In</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
