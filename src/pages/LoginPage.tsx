@@ -48,6 +48,9 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} />
             </div>
+            <div className="flex justify-end">
+              <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground hover:underline">Forgot password?</Link>
+            </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Sign In
