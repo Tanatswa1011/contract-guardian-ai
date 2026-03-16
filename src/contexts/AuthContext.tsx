@@ -20,10 +20,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Accept pending workspace invites on sign-in
+      if (event === 'SIGNED_IN' && session?.user) {
+        setTimeout(() => acceptPendingInvites(session.user), 0);
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
