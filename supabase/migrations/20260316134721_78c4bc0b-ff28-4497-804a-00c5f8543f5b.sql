@@ -1,0 +1,2 @@
+ALTER TABLE public.reminder_rules DROP CONSTRAINT reminder_rules_date_type_check;
+ALTER TABLE public.reminder_rules ADD CONSTRAINT reminder_rules_date_type_check CHECK (date_type = ANY (ARRAY['renewal', 'notice', 'payment', 'custom', 'all']));
