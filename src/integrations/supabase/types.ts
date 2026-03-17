@@ -718,6 +718,10 @@ export type Database = {
       }
     }
     Functions: {
+      accept_my_pending_workspace_invites: {
+        Args: never
+        Returns: number
+      }
       claim_notification_jobs: {
         Args: { batch_size?: number }
         Returns: {
@@ -755,6 +759,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      create_workspace_with_owner: {
+        Args: { p_name: string }
+        Returns: string
       }
       handle_notification_failure: {
         Args: { error_message: string; queue_id: string }

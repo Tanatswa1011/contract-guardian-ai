@@ -9,28 +9,171 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Badge } from '@/components/ui/badge';
 
 type DashboardFilter = 'all' | 'needs_review' | 'expiring_soon' | 'active' | 'overdue';
+type DashboardContractRow = {
+  id: string;
+  title: string | null;
+  counterparty: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: string | null;
+  user_id: string | null;
+  workspace_id: string | null;
+  days_until_next_deadline: number | null;
+  expiring_within_30_days: boolean | null;
+  extracted_at: string | null;
+  extraction_model: string | null;
+  extraction_status: string | null;
+  has_overdue_dates: boolean | null;
+  health_status: string | null;
+  missing_fields: string[] | null;
+  needs_review: boolean | null;
+  next_deadline_date: string | null;
+  next_deadline_source: string | null;
+  next_deadline_type: string | null;
+  risk_alert: boolean | null;
+};
+
+type ContractDeadlineSummary = {
+  type: string;
+  due_date: string;
+  daysUntil: number | null;
+};
+
+type UpcomingContractDeadline = {
+  type: string;
+  due_date: string;
+  daysUntil: number;
+};
+
+const getDaysUntilDate = (value: string) => {
+  const target = new Date(value);
+  if (Number.isNaN(target.getTime())) {
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+};
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { currentWorkspaceId } = useWorkspace();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all');
 
   const { data: contracts, isLoading } = useQuery({
-    queryKey: ['contracts-dashboard', user?.id],
+    queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
     queryFn: async () => {
-      if (!user) return [];
-      const { data, error } = await supabase
-        .from('contracts_dashboard')
-        .select('*')
-        .eq('user_id', user.id)
+      if (!user || !currentWorkspaceId) return [];
+
+      const { data: contractRows, error: contractError } = await supabase
+        .from('contracts')
+        .select('id, title, counterparty, created_at, updated_at, start_date, end_date, status, user_id, workspace_id')
+        .or(`workspace_id.eq.${currentWorkspaceId},and(workspace_id.is.null,user_id.eq.${user.id})`)
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
+      if (contractError) throw contractError;
+
+      if (!contractRows?.length) {
+        return [] as DashboardContractRow[];
+      }
+
+      const contractIds = contractRows.map((contract) => contract.id);
+
+      const [{ data: dateRows, error: dateError }, { data: extractionRows, error: extractionError }] = await Promise.all([
+        supabase
+          .from('contract_dates')
+          .select('contract_id, due_date, type')
+          .in('contract_id', contractIds),
+        supabase
+          .from('extraction_runs')
+          .select('contract_id, created_at, model, status, missing_fields, needs_review')
+          .in('contract_id', contractIds)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      if (dateError) throw dateError;
+      if (extractionError) throw extractionError;
+
+      const datesByContract = new Map<string, Array<{ due_date: string; type: string }>>();
+      for (const date of dateRows ?? []) {
+        const existingDates = datesByContract.get(date.contract_id) ?? [];
+        existingDates.push({ due_date: date.due_date, type: date.type });
+        datesByContract.set(date.contract_id, existingDates);
+      }
+
+      const latestExtractionByContract = new Map<string, NonNullable<typeof extractionRows>[number]>();
+      for (const extraction of extractionRows ?? []) {
+        if (!latestExtractionByContract.has(extraction.contract_id)) {
+          latestExtractionByContract.set(extraction.contract_id, extraction);
+        }
+      }
+
+      return contractRows.map<DashboardContractRow>((contract) => {
+        const contractDates = datesByContract.get(contract.id) ?? [];
+        const latestExtraction = latestExtractionByContract.get(contract.id);
+        const upcomingDates = contractDates
+          .map<ContractDeadlineSummary>((date) => ({
+            type: date.type,
+            due_date: date.due_date,
+            daysUntil: getDaysUntilDate(date.due_date),
+          }))
+          .filter((date): date is UpcomingContractDeadline => date.daysUntil !== null)
+          .sort((left, right) => left.daysUntil - right.daysUntil);
+
+        const nextDeadline = upcomingDates.find((date) => date.daysUntil >= 0) ?? null;
+        const hasOverdueDates = upcomingDates.some((date) => date.daysUntil < 0);
+        const needsReview = Boolean(
+          latestExtraction?.needs_review || (latestExtraction?.missing_fields?.length ?? 0) > 0,
+        );
+
+        let healthStatus = 'ok';
+        if (hasOverdueDates) {
+          healthStatus = 'overdue';
+        } else if (needsReview) {
+          healthStatus = 'needs_review';
+        } else if (contractDates.length === 0) {
+          healthStatus = 'missing_dates';
+        } else if (nextDeadline && nextDeadline.daysUntil <= 30) {
+          healthStatus = 'expiring_soon';
+        }
+
+        return {
+          id: contract.id,
+          title: contract.title,
+          counterparty: contract.counterparty,
+          created_at: contract.created_at,
+          updated_at: contract.updated_at,
+          start_date: contract.start_date,
+          end_date: contract.end_date,
+          status: contract.status,
+          user_id: contract.user_id,
+          workspace_id: contract.workspace_id,
+          days_until_next_deadline: nextDeadline?.daysUntil ?? null,
+          expiring_within_30_days: nextDeadline ? nextDeadline.daysUntil <= 30 : false,
+          extracted_at: latestExtraction?.created_at ?? null,
+          extraction_model: latestExtraction?.model ?? null,
+          extraction_status: latestExtraction?.status ?? null,
+          has_overdue_dates: hasOverdueDates,
+          health_status: healthStatus,
+          missing_fields: latestExtraction?.missing_fields ?? null,
+          needs_review: needsReview,
+          next_deadline_date: nextDeadline?.due_date ?? null,
+          next_deadline_source: nextDeadline ? 'contract_dates' : null,
+          next_deadline_type: nextDeadline?.type ?? null,
+          risk_alert: hasOverdueDates || needsReview,
+        };
+      });
     },
-    enabled: !!user,
+    enabled: !!user && !!currentWorkspaceId,
   });
 
   if (isLoading) {
