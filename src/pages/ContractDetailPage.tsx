@@ -211,9 +211,26 @@ export default function ContractDetailPage() {
       }).eq('id', id!);
       if (error) throw error;
     },
-    onSuccess: (_, values) => {
+    onSuccess: async (_, values) => {
       setInitialFormValues(values);
       setAiSuggestionsApplied(false);
+      if (extraction?.id) {
+        const unresolvedFields = extractionMissingFields.filter((field) => (
+          isFieldMissingForValues(field, values, currentDeadlineByType)
+        ));
+        const { error } = await supabase
+          .from('extraction_runs')
+          .update({
+            missing_fields: unresolvedFields,
+            needs_review: unresolvedFields.length > 0,
+          })
+          .eq('id', extraction.id);
+        if (error) {
+          toast.error('Changes saved, but review status could not be refreshed.');
+        } else {
+          queryClient.invalidateQueries({ queryKey: ['extraction', id] });
+        }
+      }
       toast.success('Changes saved successfully.');
       queryClient.invalidateQueries({ queryKey: ['contract', id] });
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
@@ -432,19 +449,27 @@ export default function ContractDetailPage() {
       endDate: contract.end_date ?? '',
     };
 
-  const isFieldMissingNow = (field: SupportedExtractionField) => {
-    if (field === 'contract_title') return !visibleFormValues.title.trim();
-    if (field === 'counterparty') return !visibleFormValues.counterparty.trim();
-    if (field === 'start_date') return !visibleFormValues.startDate;
-    if (field === 'end_date') return !visibleFormValues.endDate;
-    if (field === 'renewal_date') return !currentDeadlineByType.renewal;
-    if (field === 'notice_date') return !currentDeadlineByType.notice;
-    if (field === 'payment_date') return !currentDeadlineByType.payment;
+  const isFieldMissingForValues = (
+    field: SupportedExtractionField,
+    values: ContractFormValues,
+    deadlines: Record<'renewal' | 'notice' | 'payment', string | null>,
+  ) => {
+    if (field === 'contract_title') return !values.title.trim();
+    if (field === 'counterparty') return !values.counterparty.trim();
+    if (field === 'start_date') return !values.startDate;
+    if (field === 'end_date') return !values.endDate;
+    if (field === 'renewal_date') return !deadlines.renewal;
+    if (field === 'notice_date') return !deadlines.notice;
+    if (field === 'payment_date') return !deadlines.payment;
     return false;
   };
 
+  const isFieldMissingNow = (field: SupportedExtractionField) => {
+    return isFieldMissingForValues(field, visibleFormValues, currentDeadlineByType);
+  };
+
   const missingFields = extractionMissingFields.filter(isFieldMissingNow);
-  const needsReview = missingFields.length > 0;
+  const needsReview = Boolean(extraction?.needs_review || missingFields.length > 0);
   const missingFieldSet = new Set(missingFields);
 
   const missingFormFields = new Set<keyof ContractFormValues>();
@@ -499,7 +524,7 @@ export default function ContractDetailPage() {
         </div>
       </div>
 
-      {needsReview && (
+      {missingFields.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Missing Fields</CardTitle>
@@ -773,7 +798,7 @@ export default function ContractDetailPage() {
                 </div>
               )}
 
-              {needsReview && (
+              {missingFields.length > 0 && (
                 <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
                   <p className="text-sm font-medium">Manual confirmation recommended</p>
                   <p className="mt-1 text-xs text-muted-foreground">Missing or uncertain fields:</p>
