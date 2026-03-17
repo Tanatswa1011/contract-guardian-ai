@@ -76,6 +76,25 @@ export default function UploadPage() {
 
       if (fileError) throw fileError;
 
+      // 4. Trigger extraction in background (non-blocking for upload success)
+      void supabase.functions
+        .invoke('extract-contract-fields', {
+          body: {
+            contractId: contract.id,
+            filePath,
+          },
+        })
+        .then(({ error: extractionError }) => {
+          if (extractionError) {
+            console.error('Extraction trigger error:', extractionError);
+            toast.error('Contract uploaded. AI extraction could not start, but you can add details manually.');
+          }
+        })
+        .catch((extractionError: unknown) => {
+          console.error('Extraction trigger exception:', extractionError);
+          toast.error('Contract uploaded. AI extraction could not start, but you can add details manually.');
+        });
+
       setContractId(contract.id);
       setState('completed');
       toast.success('Contract uploaded successfully!');

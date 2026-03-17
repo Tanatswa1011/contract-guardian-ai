@@ -9,10 +9,26 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Trash2, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  parseExtractionSuggestion,
+  type SupportedExtractionField,
+} from '@/lib/extraction';
+
+const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
+  contract_title: 'Contract Title',
+  counterparty: 'Counterparty',
+  start_date: 'Start Date',
+  end_date: 'End Date',
+  renewal_date: 'Renewal Date',
+  notice_date: 'Notice Date',
+  payment_date: 'Payment Date',
+};
+
+const formatSuggestionValue = (value: string | null) => value ?? '—';
 
 export default function ContractDetailPage() {
   const { id } = useParams();
@@ -52,6 +68,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
+    refetchInterval: (query) => query.state.data?.status === 'processing' ? 3000 : false,
   });
 
   const { data: notifications = [] } = useQuery({
@@ -69,16 +86,17 @@ export default function ContractDetailPage() {
   const [endDate, setEndDate] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newDeadline, setNewDeadline] = useState({ type: 'renewal', due_date: '', label: '', note: '' });
+  const [isFormInitialized, setIsFormInitialized] = useState(false);
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'An unexpected error occurred');
 
-  // Sync form state when contract loads
-  const isFormInitialized = title || counterparty || startDate || endDate;
-  if (contract && !isFormInitialized) {
+  useEffect(() => {
+    if (!contract || isFormInitialized) return;
     setTitle(contract.title);
     setCounterparty(contract.counterparty || '');
     setStartDate(contract.start_date || '');
     setEndDate(contract.end_date || '');
-  }
+    setIsFormInitialized(true);
+  }, [contract, isFormInitialized]);
 
   const updateContract = useMutation({
     mutationFn: async () => {
@@ -117,6 +135,85 @@ export default function ContractDetailPage() {
     onSuccess: () => { toast.success('Deadline deleted'); queryClient.invalidateQueries({ queryKey: ['contract-dates', id] }); },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
+
+  const extractionSuggestion = useMemo(
+    () => (extraction ? parseExtractionSuggestion(extraction.raw_json) : null),
+    [extraction],
+  );
+
+  const suggestedDeadlines = useMemo(() => {
+    if (!extractionSuggestion) return [] as Array<{ type: 'renewal' | 'notice' | 'payment'; due_date: string }>;
+    const suggestions = [
+      { type: 'renewal' as const, due_date: extractionSuggestion.renewal_date },
+      { type: 'notice' as const, due_date: extractionSuggestion.notice_date },
+      { type: 'payment' as const, due_date: extractionSuggestion.payment_date },
+    ];
+    return suggestions.filter((suggestion) => Boolean(suggestion.due_date)) as Array<{ type: 'renewal' | 'notice' | 'payment'; due_date: string }>;
+  }, [extractionSuggestion]);
+
+  const startExtraction = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error('Missing contract id.');
+      const latestFile = files[0];
+      if (!latestFile) throw new Error('No uploaded contract file found.');
+      const { error } = await supabase.functions.invoke('extract-contract-fields', {
+        body: {
+          contractId: id,
+          filePath: latestFile.storage_path,
+        },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('AI extraction started');
+      queryClient.invalidateQueries({ queryKey: ['extraction', id] });
+    },
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+  });
+
+  const addSuggestedDeadlines = useMutation({
+    mutationFn: async () => {
+      if (!id || !extractionSuggestion) throw new Error('No AI suggestions available.');
+
+      const existingPairs = new Set(
+        dates.map((date) => `${date.type}:${date.due_date}`),
+      );
+
+      const inserts = suggestedDeadlines
+        .filter((suggestion) => !existingPairs.has(`${suggestion.type}:${suggestion.due_date}`))
+        .map((suggestion) => ({
+          contract_id: id,
+          type: suggestion.type,
+          due_date: suggestion.due_date,
+          label: `AI suggested ${suggestion.type} date`,
+          note: 'Please review and edit if needed.',
+        }));
+
+      if (inserts.length === 0) return 0;
+
+      const { error } = await supabase.from('contract_dates').insert(inserts);
+      if (error) throw error;
+      return inserts.length;
+    },
+    onSuccess: (insertedCount) => {
+      if (insertedCount === 0) {
+        toast.success('Suggested deadlines are already added.');
+      } else {
+        toast.success(`${insertedCount} suggested deadline${insertedCount > 1 ? 's' : ''} added.`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['contract-dates', id] });
+    },
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+  });
+
+  const applySuggestionsToForm = () => {
+    if (!extractionSuggestion) return;
+    if (extractionSuggestion.contract_title) setTitle(extractionSuggestion.contract_title);
+    if (extractionSuggestion.counterparty) setCounterparty(extractionSuggestion.counterparty);
+    if (extractionSuggestion.start_date) setStartDate(extractionSuggestion.start_date);
+    if (extractionSuggestion.end_date) setEndDate(extractionSuggestion.end_date);
+    toast.success('Suggestions applied to the form. Click Save Changes to confirm.');
+  };
 
   const handleDownload = async (storagePath: string, fileName: string) => {
     const { data, error } = await supabase.storage.from('contract-documents').download(storagePath);
@@ -218,7 +315,7 @@ export default function ContractDetailPage() {
                 <p className="font-medium text-sm">This contract needs manual review</p>
                 <p className="text-xs text-muted-foreground mt-1">Missing fields:</p>
                 <div className="flex gap-2 mt-2 flex-wrap">
-                  {extraction.missing_fields.map((f: string) => (
+                  {(extractionSuggestion?.missing_fields ?? extraction.missing_fields).map((f: string) => (
                     <Badge key={f} variant="outline" className="text-xs capitalize">{f.replace('_', ' ')}</Badge>
                   ))}
                 </div>
@@ -227,6 +324,101 @@ export default function ContractDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">AI Extraction Review</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!extraction ? (
+            <p className="text-sm text-muted-foreground">
+              No extraction run yet. You can start extraction from the uploaded PDF at any time.
+            </p>
+          ) : (
+            <>
+              {extraction.status === 'processing' && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Extracting fields from the contract...
+                </div>
+              )}
+
+              {extraction.status === 'failed' && (
+                <div className="rounded-md border border-destructive/30 bg-card p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 text-destructive" />
+                    <div>
+                      <p className="text-sm font-medium">Extraction failed</p>
+                      <p className="text-xs text-muted-foreground">
+                        {extraction.error || 'You can continue manually or re-run extraction.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {extractionSuggestion && (
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {(
+                      [
+                        ['contract_title', extractionSuggestion.contract_title],
+                        ['counterparty', extractionSuggestion.counterparty],
+                        ['start_date', extractionSuggestion.start_date],
+                        ['end_date', extractionSuggestion.end_date],
+                        ['renewal_date', extractionSuggestion.renewal_date],
+                        ['notice_date', extractionSuggestion.notice_date],
+                        ['payment_date', extractionSuggestion.payment_date],
+                      ] as Array<[SupportedExtractionField, string | null]>
+                    ).map(([field, value]) => (
+                      <div key={field} className="space-y-1">
+                        <p className="text-xs text-muted-foreground">{EXTRACTION_FIELD_LABELS[field]}</p>
+                        <p className="text-sm font-medium">{formatSuggestionValue(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {extractionSuggestion.notes && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Extraction Notes</p>
+                      <p className="text-sm">{extractionSuggestion.notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={applySuggestionsToForm}
+              disabled={!extractionSuggestion || extraction?.status === 'processing'}
+            >
+              Apply Suggestions to Form
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => addSuggestedDeadlines.mutate()}
+              disabled={!suggestedDeadlines.length || addSuggestedDeadlines.isPending}
+            >
+              {addSuggestedDeadlines.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Add Suggested Deadlines
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => startExtraction.mutate()}
+              disabled={startExtraction.isPending || files.length === 0}
+            >
+              {startExtraction.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {extraction ? 'Re-run Extraction' : 'Run Extraction'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
