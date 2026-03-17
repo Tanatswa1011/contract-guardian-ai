@@ -1,4 +1,4 @@
-import { getDocument } from "https://esm.sh/pdfjs-serverless@0.6.0";
+import { getDocumentProxy, extractText as unpdfExtractText } from "https://esm.sh/unpdf@0.12.1";
 
 export const SUPPORTED_EXTRACTION_FIELDS = [
   "contract_title",
@@ -126,24 +126,10 @@ function parseExtractionJson(content: string): ContractExtractionResult {
 export async function extractTextFromPdf(pdfBytes: Uint8Array): Promise<string> {
   console.log(`[pdf-parse] Starting PDF text extraction (${pdfBytes.byteLength} bytes)`);
   try {
-    const loadingTask = getDocument(pdfBytes);
-    const pdf = await loadingTask.promise;
+    const pdf = await getDocumentProxy(pdfBytes);
     console.log(`[pdf-parse] PDF loaded successfully. Pages: ${pdf.numPages}`);
-    const pages: string[] = [];
-
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const textContent = await page.getTextContent();
-      const pageText = (textContent.items as Array<Record<string, unknown>>)
-        .map((item) => (typeof item.str === "string" ? item.str : ""))
-        .join(" ");
-      const normalizedPage = normalizeWhitespace(pageText);
-      if (normalizedPage) {
-        pages.push(normalizedPage);
-      }
-    }
-
-    const result = pages.join("\n\n").trim();
+    const { text } = await unpdfExtractText(pdf, { mergePages: true });
+    const result = typeof text === "string" ? text.trim() : (text as string[]).join("\n\n").trim();
     console.log(`[pdf-parse] Extraction complete. Characters: ${result.length}`);
     return result;
   } catch (error) {
