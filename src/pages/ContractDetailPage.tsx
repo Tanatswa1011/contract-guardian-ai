@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Trash2, Loader2, CalendarClock } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,7 @@ import {
   parseExtractionSuggestion,
   type SupportedExtractionField,
 } from '@/lib/extraction';
+import { cn } from '@/lib/utils';
 
 const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
   contract_title: 'Contract Title',
@@ -30,6 +31,37 @@ const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
 
 const formatSuggestionValue = (value: string | null) => value ?? '—';
 
+const DEADLINE_TYPE_LABELS: Record<string, string> = {
+  renewal: 'Renewal',
+  notice: 'Notice',
+  payment: 'Payment',
+  custom: 'Custom',
+};
+
+type ContractFormValues = {
+  title: string;
+  counterparty: string;
+  startDate: string;
+  endDate: string;
+};
+
+const EMPTY_FORM_VALUES: ContractFormValues = {
+  title: '',
+  counterparty: '',
+  startDate: '',
+  endDate: '',
+};
+
+const EXTRACTION_FIELDS_IN_ORDER: SupportedExtractionField[] = [
+  'contract_title',
+  'counterparty',
+  'start_date',
+  'end_date',
+  'renewal_date',
+  'notice_date',
+  'payment_date',
+];
+
 export default function ContractDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
@@ -41,6 +73,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
+    enabled: !!id,
   });
 
   const { data: dates = [] } = useQuery({
@@ -50,6 +83,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
+    enabled: !!id,
   });
 
   const { data: files = [] } = useQuery({
@@ -59,6 +93,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
+    enabled: !!id,
   });
 
   const { data: extraction } = useQuery({
@@ -69,6 +104,7 @@ export default function ContractDetailPage() {
       return data;
     },
     refetchInterval: (query) => query.state.data?.status === 'processing' ? 3000 : false,
+    enabled: !!id,
   });
 
   const { data: notifications = [] } = useQuery({
@@ -78,35 +114,103 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
+    enabled: !!id,
   });
 
-  const [title, setTitle] = useState('');
-  const [counterparty, setCounterparty] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [formValues, setFormValues] = useState<ContractFormValues>(EMPTY_FORM_VALUES);
+  const [initialFormValues, setInitialFormValues] = useState<ContractFormValues>(EMPTY_FORM_VALUES);
+  const [loadedContractId, setLoadedContractId] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newDeadline, setNewDeadline] = useState({ type: 'renewal', due_date: '', label: '', note: '' });
-  const [isFormInitialized, setIsFormInitialized] = useState(false);
+  const [aiSuggestionsApplied, setAiSuggestionsApplied] = useState(false);
+  const [deletingDeadlineId, setDeletingDeadlineId] = useState<string | null>(null);
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'An unexpected error occurred');
 
+  const hasUnsavedChanges = useMemo(
+    () =>
+      formValues.title !== initialFormValues.title
+      || formValues.counterparty !== initialFormValues.counterparty
+      || formValues.startDate !== initialFormValues.startDate
+      || formValues.endDate !== initialFormValues.endDate,
+    [formValues, initialFormValues],
+  );
+
+  const updateFormField = (field: keyof ContractFormValues, value: string) => {
+    setFormValues((currentValues) => ({ ...currentValues, [field]: value }));
+  };
+
+  const extractionSuggestion = useMemo(
+    () => (extraction ? parseExtractionSuggestion(extraction.raw_json) : null),
+    [extraction],
+  );
+
+  const missingFields = useMemo(() => {
+    if (extractionSuggestion?.missing_fields.length) {
+      return extractionSuggestion.missing_fields;
+    }
+    if (!Array.isArray(extraction?.missing_fields)) {
+      return [] as SupportedExtractionField[];
+    }
+    return extraction.missing_fields.filter(
+      (field): field is SupportedExtractionField => typeof field === 'string' && field in EXTRACTION_FIELD_LABELS,
+    );
+  }, [extraction, extractionSuggestion]);
+
+  const needsReview = Boolean(extraction?.needs_review || extractionSuggestion?.needs_review || missingFields.length);
+
+  const missingFieldSet = useMemo(() => new Set(missingFields), [missingFields]);
+
+  const missingFormFields = useMemo(() => {
+    const fields = new Set<keyof ContractFormValues>();
+    if (missingFieldSet.has('contract_title')) fields.add('title');
+    if (missingFieldSet.has('counterparty')) fields.add('counterparty');
+    if (missingFieldSet.has('start_date')) fields.add('startDate');
+    if (missingFieldSet.has('end_date')) fields.add('endDate');
+    return fields;
+  }, [missingFieldSet]);
+
   useEffect(() => {
-    if (!contract || isFormInitialized) return;
-    setTitle(contract.title);
-    setCounterparty(contract.counterparty || '');
-    setStartDate(contract.start_date || '');
-    setEndDate(contract.end_date || '');
-    setIsFormInitialized(true);
-  }, [contract, isFormInitialized]);
+    if (!contract) return;
+    const nextValues: ContractFormValues = {
+      title: contract.title,
+      counterparty: contract.counterparty ?? '',
+      startDate: contract.start_date ?? '',
+      endDate: contract.end_date ?? '',
+    };
+    const isNewContract = loadedContractId !== contract.id;
+    if (isNewContract || !hasUnsavedChanges) {
+      setFormValues(nextValues);
+      setInitialFormValues(nextValues);
+      setLoadedContractId(contract.id);
+      setAiSuggestionsApplied(false);
+    }
+  }, [
+    contract?.id,
+    contract?.title,
+    contract?.counterparty,
+    contract?.start_date,
+    contract?.end_date,
+    loadedContractId,
+    hasUnsavedChanges,
+    contract,
+  ]);
 
   const updateContract = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: ContractFormValues) => {
       const { error } = await supabase.from('contracts').update({
-        title, counterparty: counterparty || null,
-        start_date: startDate || null, end_date: endDate || null,
+        title: values.title.trim(),
+        counterparty: values.counterparty || null,
+        start_date: values.startDate || null,
+        end_date: values.endDate || null,
       }).eq('id', id!);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success('Contract updated'); queryClient.invalidateQueries({ queryKey: ['contract', id] }); },
+    onSuccess: (_, values) => {
+      setInitialFormValues(values);
+      setAiSuggestionsApplied(false);
+      toast.success('Changes saved successfully.');
+      queryClient.invalidateQueries({ queryKey: ['contract', id] });
+    },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 
@@ -135,11 +239,6 @@ export default function ContractDetailPage() {
     onSuccess: () => { toast.success('Deadline deleted'); queryClient.invalidateQueries({ queryKey: ['contract-dates', id] }); },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
-
-  const extractionSuggestion = useMemo(
-    () => (extraction ? parseExtractionSuggestion(extraction.raw_json) : null),
-    [extraction],
-  );
 
   const suggestedDeadlines = useMemo(() => {
     if (!extractionSuggestion) return [] as Array<{ type: 'renewal' | 'notice' | 'payment'; due_date: string }>;
@@ -208,11 +307,41 @@ export default function ContractDetailPage() {
 
   const applySuggestionsToForm = () => {
     if (!extractionSuggestion) return;
-    if (extractionSuggestion.contract_title) setTitle(extractionSuggestion.contract_title);
-    if (extractionSuggestion.counterparty) setCounterparty(extractionSuggestion.counterparty);
-    if (extractionSuggestion.start_date) setStartDate(extractionSuggestion.start_date);
-    if (extractionSuggestion.end_date) setEndDate(extractionSuggestion.end_date);
-    toast.success('Suggestions applied to the form. Click Save Changes to confirm.');
+    let appliedAtLeastOne = false;
+    const nextValues = { ...formValues };
+
+    if (extractionSuggestion.contract_title && extractionSuggestion.contract_title !== nextValues.title) {
+      nextValues.title = extractionSuggestion.contract_title;
+      appliedAtLeastOne = true;
+    }
+    if (extractionSuggestion.counterparty && extractionSuggestion.counterparty !== nextValues.counterparty) {
+      nextValues.counterparty = extractionSuggestion.counterparty;
+      appliedAtLeastOne = true;
+    }
+    if (extractionSuggestion.start_date && extractionSuggestion.start_date !== nextValues.startDate) {
+      nextValues.startDate = extractionSuggestion.start_date;
+      appliedAtLeastOne = true;
+    }
+    if (extractionSuggestion.end_date && extractionSuggestion.end_date !== nextValues.endDate) {
+      nextValues.endDate = extractionSuggestion.end_date;
+      appliedAtLeastOne = true;
+    }
+
+    if (!appliedAtLeastOne) {
+      toast.success('Your form already matches the available AI suggestions.');
+      return;
+    }
+
+    setFormValues(nextValues);
+    setAiSuggestionsApplied(true);
+    toast.success('AI suggestions applied. Review the fields, then click Save Changes.');
+  };
+
+  const handleDeleteDeadline = (deadlineId: string) => {
+    setDeletingDeadlineId(deadlineId);
+    deleteDeadline.mutate(deadlineId, {
+      onSettled: () => setDeletingDeadlineId(null),
+    });
   };
 
   const handleDownload = async (storagePath: string, fileName: string) => {
@@ -223,6 +352,43 @@ export default function ContractDetailPage() {
     a.href = url; a.download = fileName; a.click();
     URL.revokeObjectURL(url);
   };
+
+  const currentDeadlineByType = useMemo(() => {
+    const next = { renewal: null, notice: null, payment: null } as Record<'renewal' | 'notice' | 'payment', string | null>;
+    for (const date of dates) {
+      if ((date.type === 'renewal' || date.type === 'notice' || date.type === 'payment') && !next[date.type]) {
+        next[date.type] = date.due_date;
+      }
+    }
+    return next;
+  }, [dates]);
+
+  const extractionFieldRows = useMemo(() => {
+    if (!extractionSuggestion) return [] as Array<{
+      field: SupportedExtractionField;
+      suggestedValue: string | null;
+      currentValue: string | null;
+      missing: boolean;
+    }>;
+
+    return EXTRACTION_FIELDS_IN_ORDER.map((field) => {
+      let currentValue: string | null = null;
+      if (field === 'contract_title') currentValue = formValues.title || null;
+      if (field === 'counterparty') currentValue = formValues.counterparty || null;
+      if (field === 'start_date') currentValue = formValues.startDate || null;
+      if (field === 'end_date') currentValue = formValues.endDate || null;
+      if (field === 'renewal_date') currentValue = currentDeadlineByType.renewal;
+      if (field === 'notice_date') currentValue = currentDeadlineByType.notice;
+      if (field === 'payment_date') currentValue = currentDeadlineByType.payment;
+
+      return {
+        field,
+        suggestedValue: extractionSuggestion[field],
+        currentValue,
+        missing: missingFieldSet.has(field),
+      };
+    });
+  }, [currentDeadlineByType, extractionSuggestion, formValues.counterparty, formValues.endDate, formValues.startDate, formValues.title, missingFieldSet]);
 
   if (contractLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -251,20 +417,153 @@ export default function ContractDetailPage() {
     return `${(bytes / 1048576).toFixed(1)} MB`;
   };
 
+  const formatDateValue = (value: string | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+  };
+
+  const formatExtractionFieldValue = (field: SupportedExtractionField, value: string | null) => {
+    if (field.endsWith('_date')) {
+      return formatDateValue(value);
+    }
+    return formatSuggestionValue(value);
+  };
+
+  const canSaveChanges = hasUnsavedChanges && formValues.title.trim().length > 0 && !updateContract.isPending;
+  const isFormReadyForContract = loadedContractId === contract.id;
+  const visibleFormValues = isFormReadyForContract
+    ? formValues
+    : {
+      title: contract.title,
+      counterparty: contract.counterparty ?? '',
+      startDate: contract.start_date ?? '',
+      endDate: contract.end_date ?? '',
+    };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="truncate text-xl font-semibold tracking-tight">{contract.title}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-2xl font-semibold tracking-tight">{visibleFormValues.title || contract.title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{visibleFormValues.counterparty || 'No counterparty added'}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <StatusBadge status={contract.status} />
+            {needsReview && (
+              <Badge variant="outline" className="border-destructive/30 bg-destructive/5 text-foreground">
+                Needs Review
+              </Badge>
+            )}
+            {hasUnsavedChanges && (
+              <Badge variant="outline" className="text-foreground">
+                Unsaved Changes
+              </Badge>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground">{contract.counterparty || 'No counterparty'}</p>
         </div>
-        <div className="flex gap-2">
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Contract Information</CardTitle>
+          <CardDescription>Review core contract details and save intentionally after confirming edits.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {aiSuggestionsApplied && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              AI suggestions were applied to the form. Review the fields below, then click Save Changes.
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              Title
+              {missingFormFields.has('title') && !visibleFormValues.title && (
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Needs confirmation</Badge>
+              )}
+            </Label>
+            <Input
+              value={visibleFormValues.title}
+              onChange={(e) => updateFormField('title', e.target.value)}
+              disabled={updateContract.isPending}
+              className={cn(
+                missingFormFields.has('title') && !visibleFormValues.title && 'border-destructive/40 bg-destructive/5',
+              )}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              Counterparty
+              {missingFormFields.has('counterparty') && !visibleFormValues.counterparty && (
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Needs confirmation</Badge>
+              )}
+            </Label>
+            <Input
+              value={visibleFormValues.counterparty}
+              onChange={(e) => updateFormField('counterparty', e.target.value)}
+              placeholder="e.g., Acme Corp"
+              disabled={updateContract.isPending}
+              className={cn(
+                missingFormFields.has('counterparty') && !visibleFormValues.counterparty && 'border-destructive/40 bg-destructive/5',
+              )}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                Start Date
+                {missingFormFields.has('startDate') && !visibleFormValues.startDate && (
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Needs confirmation</Badge>
+                )}
+              </Label>
+              <Input
+                type="date"
+                value={visibleFormValues.startDate}
+                onChange={(e) => updateFormField('startDate', e.target.value)}
+                disabled={updateContract.isPending}
+                className={cn(
+                  missingFormFields.has('startDate') && !visibleFormValues.startDate && 'border-destructive/40 bg-destructive/5',
+                )}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                End Date
+                {missingFormFields.has('endDate') && !visibleFormValues.endDate && (
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Needs confirmation</Badge>
+                )}
+              </Label>
+              <Input
+                type="date"
+                value={visibleFormValues.endDate}
+                onChange={(e) => updateFormField('endDate', e.target.value)}
+                disabled={updateContract.isPending}
+                className={cn(
+                  missingFormFields.has('endDate') && !visibleFormValues.endDate && 'border-destructive/40 bg-destructive/5',
+                )}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              {hasUnsavedChanges ? 'You have unsaved edits.' : 'All contract information is saved.'}
+            </p>
+            <Button onClick={() => updateContract.mutate(formValues)} disabled={!canSaveChanges}>
+              {updateContract.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-base">Important Dates / Deadlines</CardTitle>
+            <CardDescription>Track renewal, notice, payment, and custom deadlines.</CardDescription>
+          </div>
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2"><Plus className="h-3 w-3" /> Add Deadline</Button>
@@ -274,7 +573,7 @@ export default function ContractDetailPage() {
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label>Type</Label>
-                  <Select value={newDeadline.type} onValueChange={v => setNewDeadline(d => ({ ...d, type: v }))}>
+                  <Select value={newDeadline.type} onValueChange={(v) => setNewDeadline((d) => ({ ...d, type: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="renewal">Renewal</SelectItem>
@@ -286,53 +585,79 @@ export default function ContractDetailPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Due Date</Label>
-                  <Input type="date" value={newDeadline.due_date} onChange={e => setNewDeadline(d => ({ ...d, due_date: e.target.value }))} />
+                  <Input type="date" value={newDeadline.due_date} onChange={(e) => setNewDeadline((d) => ({ ...d, due_date: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>Label</Label>
-                  <Input placeholder="e.g., Annual renewal" value={newDeadline.label} onChange={e => setNewDeadline(d => ({ ...d, label: e.target.value }))} />
+                  <Input placeholder="e.g., Annual renewal" value={newDeadline.label} onChange={(e) => setNewDeadline((d) => ({ ...d, label: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>Note</Label>
-                  <Input placeholder="Optional note" value={newDeadline.note} onChange={e => setNewDeadline(d => ({ ...d, note: e.target.value }))} />
+                  <Input placeholder="Optional note" value={newDeadline.note} onChange={(e) => setNewDeadline((d) => ({ ...d, note: e.target.value }))} />
                 </div>
                 <Button className="w-full" onClick={() => addDeadline.mutate()} disabled={!newDeadline.due_date || addDeadline.isPending}>
-                  {addDeadline.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {addDeadline.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Save Deadline
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
-
-      {extraction?.needs_review && (
-        <Card className="border-destructive/30 bg-card">
-          <CardContent className="py-4 px-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-destructive" />
-              <div>
-                <p className="font-medium text-sm">This contract needs manual review</p>
-                <p className="text-xs text-muted-foreground mt-1">Missing fields:</p>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {(extractionSuggestion?.missing_fields ?? extraction.missing_fields).map((f: string) => (
-                    <Badge key={f} variant="outline" className="text-xs capitalize">{f.replace('_', ' ')}</Badge>
-                  ))}
-                </div>
+        </CardHeader>
+        <CardContent>
+          {dates.length === 0 ? (
+            <div className="py-8 text-center">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center border bg-muted">
+                <CalendarClock className="h-4 w-4 text-muted-foreground" />
               </div>
+              <p className="text-sm font-medium">No deadlines added</p>
+              <p className="mt-1 text-xs text-muted-foreground">Use Add Deadline to capture important contract dates.</p>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="space-y-3">
+              {dates.map((date) => (
+                <div key={date.id} className="flex items-start justify-between rounded-md border bg-muted/40 p-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <Badge className={`normal-case text-xs tracking-normal ${typeColors[date.type] || ''}`}>
+                        {DEADLINE_TYPE_LABELS[date.type] || date.type}
+                      </Badge>
+                      <p className="text-sm font-medium">{date.label || `${DEADLINE_TYPE_LABELS[date.type] || 'Custom'} deadline`}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{formatDateValue(date.due_date)}</p>
+                    {date.note ? <p className="text-xs text-muted-foreground">{date.note}</p> : null}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => handleDeleteDeadline(date.id)}
+                    disabled={deleteDeadline.isPending}
+                  >
+                    {deleteDeadline.isPending && deletingDeadlineId === date.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">AI Extraction Review</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle className="text-base">AI Extraction Review</CardTitle>
+            {needsReview ? <Badge variant="outline" className="border-destructive/30 bg-destructive/5 text-foreground">Needs Review</Badge> : null}
+          </div>
+          <CardDescription>Compare extracted values with current contract details before saving.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!extraction ? (
             <p className="text-sm text-muted-foreground">
-              No extraction run yet. You can start extraction from the uploaded PDF at any time.
+              No extraction run yet. Run extraction from the latest uploaded file to populate suggestions.
             </p>
           ) : (
             <>
@@ -344,9 +669,9 @@ export default function ContractDetailPage() {
               )}
 
               {extraction.status === 'failed' && (
-                <div className="rounded-md border border-destructive/30 bg-card p-3">
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 mt-0.5 text-destructive" />
+                    <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />
                     <div>
                       <p className="text-sm font-medium">Extraction failed</p>
                       <p className="text-xs text-muted-foreground">
@@ -357,149 +682,119 @@ export default function ContractDetailPage() {
                 </div>
               )}
 
-              {extractionSuggestion && (
-                <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {(
-                      [
-                        ['contract_title', extractionSuggestion.contract_title],
-                        ['counterparty', extractionSuggestion.counterparty],
-                        ['start_date', extractionSuggestion.start_date],
-                        ['end_date', extractionSuggestion.end_date],
-                        ['renewal_date', extractionSuggestion.renewal_date],
-                        ['notice_date', extractionSuggestion.notice_date],
-                        ['payment_date', extractionSuggestion.payment_date],
-                      ] as Array<[SupportedExtractionField, string | null]>
-                    ).map(([field, value]) => (
-                      <div key={field} className="space-y-1">
-                        <p className="text-xs text-muted-foreground">{EXTRACTION_FIELD_LABELS[field]}</p>
-                        <p className="text-sm font-medium">{formatSuggestionValue(value)}</p>
-                      </div>
+              {needsReview && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                  <p className="text-sm font-medium">Manual confirmation recommended</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Missing or uncertain fields:</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {missingFields.map((field) => (
+                      <Badge key={field} variant="outline" className="text-xs">
+                        {EXTRACTION_FIELD_LABELS[field]}
+                      </Badge>
                     ))}
                   </div>
+                </div>
+              )}
 
-                  {extractionSuggestion.notes && (
+              {extractionSuggestion ? (
+                <div className="space-y-3">
+                  {extractionFieldRows.map((row) => (
+                    <div
+                      key={row.field}
+                      className={cn(
+                        'grid gap-3 rounded-md border p-3 md:grid-cols-[180px_1fr_1fr]',
+                        row.missing && 'border-destructive/30 bg-destructive/5',
+                      )}
+                    >
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">{EXTRACTION_FIELD_LABELS[row.field]}</p>
+                        {row.missing ? <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Missing</Badge> : null}
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground">Suggested</p>
+                        <p className="text-sm font-medium">{formatExtractionFieldValue(row.field, row.suggestedValue)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground">Current</p>
+                        <p className="text-sm">{formatExtractionFieldValue(row.field, row.currentValue)}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {extractionSuggestion.notes ? (
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Extraction Notes</p>
                       <p className="text-sm">{extractionSuggestion.notes}</p>
                     </div>
-                  )}
+                  ) : null}
                 </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No structured suggestions were returned from this extraction run.</p>
               )}
             </>
           )}
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={applySuggestionsToForm}
-              disabled={!extractionSuggestion || extraction?.status === 'processing'}
-            >
-              Apply Suggestions to Form
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => addSuggestedDeadlines.mutate()}
-              disabled={!suggestedDeadlines.length || addSuggestedDeadlines.isPending}
-            >
-              {addSuggestedDeadlines.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Add Suggested Deadlines
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => startExtraction.mutate()}
-              disabled={startExtraction.isPending || files.length === 0}
-            >
-              {startExtraction.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {extraction ? 'Re-run Extraction' : 'Run Extraction'}
-            </Button>
+          <div className="space-y-2 border-t pt-4">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={applySuggestionsToForm}
+                disabled={!extractionSuggestion || extraction?.status === 'processing'}
+              >
+                Apply AI Suggestions
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => addSuggestedDeadlines.mutate()}
+                disabled={!suggestedDeadlines.length || addSuggestedDeadlines.isPending}
+              >
+                {addSuggestedDeadlines.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Add Suggested Deadlines
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => startExtraction.mutate()}
+                disabled={startExtraction.isPending || files.length === 0}
+              >
+                {startExtraction.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {extraction ? 'Re-run Extraction' : 'Run Extraction'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Applying suggestions updates the editable form only. Your contract is updated only after Save Changes.
+            </p>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader><CardTitle className="text-base">Contract Information</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Files</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {files.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No files uploaded for this contract yet.</p>
+          ) : (
             <div className="space-y-2">
-              <Label>Title</Label>
-              <Input value={title} onChange={e => setTitle(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Counterparty</Label>
-              <Input value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Start Date</Label>
-                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>End Date</Label>
-                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-              </div>
-            </div>
-            <Button className="w-full" onClick={() => updateContract.mutate()} disabled={updateContract.isPending}>
-              {updateContract.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Save Changes
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="text-base">Deadlines</CardTitle></CardHeader>
-          <CardContent>
-            {dates.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No deadlines added yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {dates.map(d => (
-                  <div key={d.id} className="flex items-start justify-between border bg-muted/40 p-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge className={`normal-case text-xs capitalize tracking-normal ${typeColors[d.type] || ''}`}>{d.type}</Badge>
-                        <span className="text-sm font-medium">{d.label || d.type}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{new Date(d.due_date).toLocaleDateString()}</p>
-                      {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteDeadline.mutate(d.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {files.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Files</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {files.map(f => (
-                <div key={f.id} className="flex items-center justify-between border bg-muted/40 p-3">
+              {files.map((file) => (
+                <div key={file.id} className="flex items-center justify-between rounded-md border bg-muted/40 p-3">
                   <div className="flex items-center gap-3">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">{f.file_name}</p>
-                      <p className="text-xs text-muted-foreground">{formatFileSize(f.size_bytes)} • {new Date(f.created_at).toLocaleDateString()}</p>
+                      <p className="text-sm font-medium">{file.file_name}</p>
+                      <p className="text-xs text-muted-foreground">{formatFileSize(file.size_bytes)} • {new Date(file.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDownload(f.storage_path, f.file_name)}>
+                  <Button variant="ghost" size="icon" onClick={() => handleDownload(file.storage_path, file.file_name)}>
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Reminder History</CardTitle></CardHeader>
@@ -507,37 +802,39 @@ export default function ContractDetailPage() {
           {notifications.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No reminders have been sent for this contract yet.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Sent To</TableHead>
-                  <TableHead>Channel</TableHead>
-                  <TableHead>Sent At</TableHead>
-                  <TableHead>Error</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {notifications.map(n => (
-                  <TableRow key={n.id}>
-                    <TableCell>
-                      <Badge
-                        variant={n.status === 'sent' ? 'secondary' : n.status === 'failed' ? 'destructive' : 'outline'}
-                        className="normal-case text-xs capitalize tracking-normal"
-                      >
-                        {n.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">{n.subject || '—'}</TableCell>
-                    <TableCell className="text-sm">{n.sent_to}</TableCell>
-                    <TableCell className="text-sm capitalize">{n.channel}</TableCell>
-                    <TableCell className="text-sm">{new Date(n.sent_at).toLocaleString()}</TableCell>
-                    <TableCell className="text-sm text-destructive">{n.status === 'failed' ? (n.error || '—') : '—'}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Sent To</TableHead>
+                    <TableHead>Channel</TableHead>
+                    <TableHead>Sent At</TableHead>
+                    <TableHead>Error</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {notifications.map((notification) => (
+                    <TableRow key={notification.id}>
+                      <TableCell>
+                        <Badge
+                          variant={notification.status === 'sent' ? 'secondary' : notification.status === 'failed' ? 'destructive' : 'outline'}
+                          className="normal-case text-xs capitalize tracking-normal"
+                        >
+                          {notification.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{notification.subject || '—'}</TableCell>
+                      <TableCell className="text-sm">{notification.sent_to}</TableCell>
+                      <TableCell className="text-sm capitalize">{notification.channel}</TableCell>
+                      <TableCell className="text-sm">{new Date(notification.sent_at).toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-destructive">{notification.status === 'failed' ? (notification.error || '—') : '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
