@@ -56,7 +56,10 @@ export default function NotificationSettings() {
         if (error) throw error;
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reminder-rules'] }),
+    onSuccess: () => {
+      toast.success('Notification settings updated');
+      queryClient.invalidateQueries({ queryKey: ['reminder-rules'] });
+    },
     onError: () => toast.error('Failed to update rule'),
   });
 

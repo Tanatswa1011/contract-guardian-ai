@@ -62,6 +62,18 @@ const EXTRACTION_FIELDS_IN_ORDER: SupportedExtractionField[] = [
   'payment_date',
 ];
 
+const DEADLINE_REVIEW_FIELDS: SupportedExtractionField[] = ['renewal_date', 'notice_date', 'payment_date'];
+
+const REVIEW_TARGET_ID_BY_FIELD: Record<SupportedExtractionField, string> = {
+  contract_title: 'contract-title-input',
+  counterparty: 'contract-counterparty-input',
+  start_date: 'contract-start-date-input',
+  end_date: 'contract-end-date-input',
+  renewal_date: 'important-dates-section',
+  notice_date: 'important-dates-section',
+  payment_date: 'important-dates-section',
+};
+
 export default function ContractDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
@@ -76,7 +88,7 @@ export default function ContractDetailPage() {
     enabled: !!id,
   });
 
-  const { data: dates = [] } = useQuery({
+  const { data: dates = [], isLoading: datesLoading } = useQuery({
     queryKey: ['contract-dates', id],
     queryFn: async () => {
       const { data, error } = await supabase.from('contract_dates').select('*').eq('contract_id', id!).order('due_date');
@@ -86,7 +98,7 @@ export default function ContractDetailPage() {
     enabled: !!id,
   });
 
-  const { data: files = [] } = useQuery({
+  const { data: files = [], isLoading: filesLoading } = useQuery({
     queryKey: ['contract-files', id],
     queryFn: async () => {
       const { data, error } = await supabase.from('contract_files').select('*').eq('contract_id', id!).order('created_at', { ascending: false });
@@ -96,7 +108,7 @@ export default function ContractDetailPage() {
     enabled: !!id,
   });
 
-  const { data: extraction } = useQuery({
+  const { data: extraction, isLoading: extractionLoading } = useQuery({
     queryKey: ['extraction', id],
     queryFn: async () => {
       const { data, error } = await supabase.from('extraction_runs').select('*').eq('contract_id', id!).order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -107,7 +119,7 @@ export default function ContractDetailPage() {
     enabled: !!id,
   });
 
-  const { data: notifications = [] } = useQuery({
+  const { data: notifications = [], isLoading: notificationsLoading } = useQuery({
     queryKey: ['notifications', id],
     queryFn: async () => {
       const { data, error } = await supabase.from('notification_log').select('*').eq('contract_id', id!).order('sent_at', { ascending: false });
@@ -124,6 +136,7 @@ export default function ContractDetailPage() {
   const [newDeadline, setNewDeadline] = useState({ type: 'renewal', due_date: '', label: '', note: '' });
   const [aiSuggestionsApplied, setAiSuggestionsApplied] = useState(false);
   const [deletingDeadlineId, setDeletingDeadlineId] = useState<string | null>(null);
+  const [activeReviewField, setActiveReviewField] = useState<SupportedExtractionField | null>(null);
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'An unexpected error occurred');
 
   const hasUnsavedChanges = useMemo(
@@ -144,7 +157,7 @@ export default function ContractDetailPage() {
     [extraction],
   );
 
-  const missingFields = useMemo(() => {
+  const extractionMissingFields = useMemo(() => {
     if (extractionSuggestion?.missing_fields.length) {
       return extractionSuggestion.missing_fields;
     }
@@ -155,19 +168,6 @@ export default function ContractDetailPage() {
       (field): field is SupportedExtractionField => typeof field === 'string' && field in EXTRACTION_FIELD_LABELS,
     );
   }, [extraction, extractionSuggestion]);
-
-  const needsReview = Boolean(extraction?.needs_review || extractionSuggestion?.needs_review || missingFields.length);
-
-  const missingFieldSet = useMemo(() => new Set(missingFields), [missingFields]);
-
-  const missingFormFields = useMemo(() => {
-    const fields = new Set<keyof ContractFormValues>();
-    if (missingFieldSet.has('contract_title')) fields.add('title');
-    if (missingFieldSet.has('counterparty')) fields.add('counterparty');
-    if (missingFieldSet.has('start_date')) fields.add('startDate');
-    if (missingFieldSet.has('end_date')) fields.add('endDate');
-    return fields;
-  }, [missingFieldSet]);
 
   useEffect(() => {
     if (!contract) return;
@@ -195,6 +195,12 @@ export default function ContractDetailPage() {
     contract,
   ]);
 
+  useEffect(() => {
+    if (!activeReviewField) return;
+    const timeoutId = window.setTimeout(() => setActiveReviewField(null), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [activeReviewField]);
+
   const updateContract = useMutation({
     mutationFn: async (values: ContractFormValues) => {
       const { error } = await supabase.from('contracts').update({
@@ -210,6 +216,7 @@ export default function ContractDetailPage() {
       setAiSuggestionsApplied(false);
       toast.success('Changes saved successfully.');
       queryClient.invalidateQueries({ queryKey: ['contract', id] });
+      queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
@@ -344,6 +351,17 @@ export default function ContractDetailPage() {
     });
   };
 
+  const jumpToReviewTarget = (field: SupportedExtractionField) => {
+    const targetId = REVIEW_TARGET_ID_BY_FIELD[field];
+    const element = document.getElementById(targetId);
+    setActiveReviewField(field);
+    if (!element) return;
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (element instanceof HTMLInputElement) {
+      element.focus({ preventScroll: true });
+    }
+  };
+
   const handleDownload = async (storagePath: string, fileName: string) => {
     const { data, error } = await supabase.storage.from('contract-documents').download(storagePath);
     if (error) { toast.error('Download failed'); return; }
@@ -362,33 +380,6 @@ export default function ContractDetailPage() {
     }
     return next;
   }, [dates]);
-
-  const extractionFieldRows = useMemo(() => {
-    if (!extractionSuggestion) return [] as Array<{
-      field: SupportedExtractionField;
-      suggestedValue: string | null;
-      currentValue: string | null;
-      missing: boolean;
-    }>;
-
-    return EXTRACTION_FIELDS_IN_ORDER.map((field) => {
-      let currentValue: string | null = null;
-      if (field === 'contract_title') currentValue = formValues.title || null;
-      if (field === 'counterparty') currentValue = formValues.counterparty || null;
-      if (field === 'start_date') currentValue = formValues.startDate || null;
-      if (field === 'end_date') currentValue = formValues.endDate || null;
-      if (field === 'renewal_date') currentValue = currentDeadlineByType.renewal;
-      if (field === 'notice_date') currentValue = currentDeadlineByType.notice;
-      if (field === 'payment_date') currentValue = currentDeadlineByType.payment;
-
-      return {
-        field,
-        suggestedValue: extractionSuggestion[field],
-        currentValue,
-        missing: missingFieldSet.has(field),
-      };
-    });
-  }, [currentDeadlineByType, extractionSuggestion, formValues.counterparty, formValues.endDate, formValues.startDate, formValues.title, missingFieldSet]);
 
   if (contractLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -441,6 +432,48 @@ export default function ContractDetailPage() {
       endDate: contract.end_date ?? '',
     };
 
+  const isFieldMissingNow = (field: SupportedExtractionField) => {
+    if (field === 'contract_title') return !visibleFormValues.title.trim();
+    if (field === 'counterparty') return !visibleFormValues.counterparty.trim();
+    if (field === 'start_date') return !visibleFormValues.startDate;
+    if (field === 'end_date') return !visibleFormValues.endDate;
+    if (field === 'renewal_date') return !currentDeadlineByType.renewal;
+    if (field === 'notice_date') return !currentDeadlineByType.notice;
+    if (field === 'payment_date') return !currentDeadlineByType.payment;
+    return false;
+  };
+
+  const missingFields = extractionMissingFields.filter(isFieldMissingNow);
+  const needsReview = missingFields.length > 0;
+  const missingFieldSet = new Set(missingFields);
+
+  const missingFormFields = new Set<keyof ContractFormValues>();
+  if (missingFieldSet.has('contract_title')) missingFormFields.add('title');
+  if (missingFieldSet.has('counterparty')) missingFormFields.add('counterparty');
+  if (missingFieldSet.has('start_date')) missingFormFields.add('startDate');
+  if (missingFieldSet.has('end_date')) missingFormFields.add('endDate');
+
+  const missingDeadlineFields = missingFields.filter((field) => DEADLINE_REVIEW_FIELDS.includes(field));
+  const isDeadlineTargetActive = activeReviewField ? DEADLINE_REVIEW_FIELDS.includes(activeReviewField) : false;
+
+  const extractionFieldRows = EXTRACTION_FIELDS_IN_ORDER.map((field) => {
+    let currentValue: string | null = null;
+    if (field === 'contract_title') currentValue = visibleFormValues.title || null;
+    if (field === 'counterparty') currentValue = visibleFormValues.counterparty || null;
+    if (field === 'start_date') currentValue = visibleFormValues.startDate || null;
+    if (field === 'end_date') currentValue = visibleFormValues.endDate || null;
+    if (field === 'renewal_date') currentValue = currentDeadlineByType.renewal;
+    if (field === 'notice_date') currentValue = currentDeadlineByType.notice;
+    if (field === 'payment_date') currentValue = currentDeadlineByType.payment;
+
+    return {
+      field,
+      suggestedValue: extractionSuggestion?.[field] ?? null,
+      currentValue,
+      missing: missingFieldSet.has(field),
+    };
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -466,7 +499,28 @@ export default function ContractDetailPage() {
         </div>
       </div>
 
-      <Card>
+      {needsReview && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Missing Fields</CardTitle>
+            <CardDescription>Review these required fields and save changes after confirming values.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {missingFields.map((field) => (
+              <div key={field} className="flex items-center justify-between rounded-md border bg-muted/40 p-3">
+                <p className="text-sm">
+                  <span className="font-medium">{EXTRACTION_FIELD_LABELS[field]}</span> missing
+                </p>
+                <Button variant="outline" size="sm" onClick={() => jumpToReviewTarget(field)}>
+                  {DEADLINE_REVIEW_FIELDS.includes(field) ? 'Go to Deadlines' : 'Go to Field'}
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card id="contract-information-section">
         <CardHeader>
           <CardTitle className="text-base">Contract Information</CardTitle>
           <CardDescription>Review core contract details and save intentionally after confirming edits.</CardDescription>
@@ -478,72 +532,92 @@ export default function ContractDetailPage() {
             </div>
           )}
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
+            <Label htmlFor="contract-title-input" className="flex items-center gap-2">
               Title
               {missingFormFields.has('title') && !visibleFormValues.title && (
                 <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Needs confirmation</Badge>
               )}
             </Label>
             <Input
+              id="contract-title-input"
               value={visibleFormValues.title}
               onChange={(e) => updateFormField('title', e.target.value)}
               disabled={updateContract.isPending}
               className={cn(
                 missingFormFields.has('title') && !visibleFormValues.title && 'border-destructive/40 bg-destructive/5',
+                activeReviewField === 'contract_title' && 'ring-2 ring-destructive/30 ring-offset-1',
               )}
             />
+            {missingFormFields.has('title') && !visibleFormValues.title ? (
+              <p className="text-xs text-destructive/90">Needs confirmation</p>
+            ) : null}
           </div>
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
+            <Label htmlFor="contract-counterparty-input" className="flex items-center gap-2">
               Counterparty
               {missingFormFields.has('counterparty') && !visibleFormValues.counterparty && (
                 <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Needs confirmation</Badge>
               )}
             </Label>
             <Input
+              id="contract-counterparty-input"
               value={visibleFormValues.counterparty}
               onChange={(e) => updateFormField('counterparty', e.target.value)}
               placeholder="e.g., Acme Corp"
               disabled={updateContract.isPending}
               className={cn(
                 missingFormFields.has('counterparty') && !visibleFormValues.counterparty && 'border-destructive/40 bg-destructive/5',
+                activeReviewField === 'counterparty' && 'ring-2 ring-destructive/30 ring-offset-1',
               )}
             />
+            {missingFormFields.has('counterparty') && !visibleFormValues.counterparty ? (
+              <p className="text-xs text-destructive/90">Needs confirmation</p>
+            ) : null}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
+              <Label htmlFor="contract-start-date-input" className="flex items-center gap-2">
                 Start Date
                 {missingFormFields.has('startDate') && !visibleFormValues.startDate && (
                   <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Needs confirmation</Badge>
                 )}
               </Label>
               <Input
+                id="contract-start-date-input"
                 type="date"
                 value={visibleFormValues.startDate}
                 onChange={(e) => updateFormField('startDate', e.target.value)}
                 disabled={updateContract.isPending}
                 className={cn(
                   missingFormFields.has('startDate') && !visibleFormValues.startDate && 'border-destructive/40 bg-destructive/5',
+                  activeReviewField === 'start_date' && 'ring-2 ring-destructive/30 ring-offset-1',
                 )}
               />
+              {missingFormFields.has('startDate') && !visibleFormValues.startDate ? (
+                <p className="text-xs text-destructive/90">Needs confirmation</p>
+              ) : null}
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
+              <Label htmlFor="contract-end-date-input" className="flex items-center gap-2">
                 End Date
                 {missingFormFields.has('endDate') && !visibleFormValues.endDate && (
                   <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Needs confirmation</Badge>
                 )}
               </Label>
               <Input
+                id="contract-end-date-input"
                 type="date"
                 value={visibleFormValues.endDate}
                 onChange={(e) => updateFormField('endDate', e.target.value)}
                 disabled={updateContract.isPending}
                 className={cn(
                   missingFormFields.has('endDate') && !visibleFormValues.endDate && 'border-destructive/40 bg-destructive/5',
+                  activeReviewField === 'end_date' && 'ring-2 ring-destructive/30 ring-offset-1',
                 )}
               />
+              {missingFormFields.has('endDate') && !visibleFormValues.endDate ? (
+                <p className="text-xs text-destructive/90">Needs confirmation</p>
+              ) : null}
             </div>
           </div>
           <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -558,7 +632,10 @@ export default function ContractDetailPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card
+        id="important-dates-section"
+        className={cn(isDeadlineTargetActive && 'border-destructive/30')}
+      >
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-base">Important Dates / Deadlines</CardTitle>
@@ -604,12 +681,22 @@ export default function ContractDetailPage() {
           </Dialog>
         </CardHeader>
         <CardContent>
-          {dates.length === 0 ? (
+          {missingDeadlineFields.length > 0 ? (
+            <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-muted-foreground">
+              Missing deadline fields: {missingDeadlineFields.map((field) => EXTRACTION_FIELD_LABELS[field]).join(', ')}.
+              Add or confirm these dates before saving.
+            </div>
+          ) : null}
+          {datesLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : dates.length === 0 ? (
             <div className="py-8 text-center">
               <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center border bg-muted">
                 <CalendarClock className="h-4 w-4 text-muted-foreground" />
               </div>
-              <p className="text-sm font-medium">No deadlines added</p>
+              <p className="text-sm font-medium">No deadlines added yet</p>
               <p className="mt-1 text-xs text-muted-foreground">Use Add Deadline to capture important contract dates.</p>
             </div>
           ) : (
@@ -655,7 +742,11 @@ export default function ContractDetailPage() {
           <CardDescription>Compare extracted values with current contract details before saving.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!extraction ? (
+          {extractionLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : !extraction ? (
             <p className="text-sm text-muted-foreground">
               No extraction run yet. Run extraction from the latest uploaded file to populate suggestions.
             </p>
@@ -773,8 +864,12 @@ export default function ContractDetailPage() {
           <CardTitle className="text-base">Files</CardTitle>
         </CardHeader>
         <CardContent>
-          {files.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No files uploaded for this contract yet.</p>
+          {filesLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : files.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No files uploaded.</p>
           ) : (
             <div className="space-y-2">
               {files.map((file) => (
@@ -799,8 +894,12 @@ export default function ContractDetailPage() {
       <Card>
         <CardHeader><CardTitle className="text-base">Reminder History</CardTitle></CardHeader>
         <CardContent>
-          {notifications.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No reminders have been sent for this contract yet.</p>
+          {notificationsLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : notifications.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No reminders have been sent yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>

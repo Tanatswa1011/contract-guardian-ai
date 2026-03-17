@@ -78,6 +78,8 @@ export default function DashboardPage() {
     }
   };
 
+  const contractNeedsReview = (contract: (typeof allContracts)[number]) => matchesFilter(contract, 'needs_review');
+
   const filterCounts = {
     all: allContracts.length,
     needs_review: allContracts.filter(c => matchesFilter(c, 'needs_review')).length,
@@ -183,7 +185,7 @@ export default function DashboardPage() {
             </div>
             {allContracts.length === 0 ? (
               <>
-                <h3 className="font-semibold mb-1">No contracts found</h3>
+                <h3 className="font-semibold mb-1">No contracts yet</h3>
                 <p className="text-sm text-muted-foreground mb-4">Upload your first contract to get started.</p>
                 <Link to="/app/upload">
                   <Button className="gap-2"><Plus className="h-4 w-4" /> Upload Contract</Button>
@@ -229,9 +231,16 @@ export default function DashboardPage() {
                   {filtered.map(contract => (
                     <TableRow key={contract.id} className="cursor-pointer">
                       <TableCell>
-                        <Link to={`/app/contracts/${contract.id}`} className="font-medium transition-colors hover:text-foreground/70">
-                          {contract.title}
-                        </Link>
+                        <div className="space-y-1">
+                          <Link to={`/app/contracts/${contract.id}`} className="font-medium transition-colors hover:text-foreground/70">
+                            {contract.title}
+                          </Link>
+                          {contractNeedsReview(contract) ? (
+                            <Badge variant="outline" className="w-fit border-destructive/30 bg-destructive/5 text-[10px] uppercase tracking-wide">
+                              Needs Review
+                            </Badge>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm">
                         {contract.next_deadline_date ? new Date(contract.next_deadline_date).toLocaleDateString() : '—'}
@@ -256,7 +265,14 @@ export default function DashboardPage() {
                 <Card>
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <p className="font-medium text-sm leading-tight">{contract.title}</p>
+                      <div className="space-y-1">
+                        <p className="font-medium text-sm leading-tight">{contract.title}</p>
+                        {contractNeedsReview(contract) ? (
+                          <Badge variant="outline" className="w-fit border-destructive/30 bg-destructive/5 text-[10px] uppercase tracking-wide">
+                            Needs Review
+                          </Badge>
+                        ) : null}
+                      </div>
                       <StatusBadge status={contract.status || 'draft'} />
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
