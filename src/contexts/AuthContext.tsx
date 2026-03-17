@@ -80,9 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Accept pending workspace invites on sign-in
+      // Accept pending workspace invites on sign-in (await so membership check sees them)
       if (event === 'SIGNED_IN' && session?.user) {
-        setTimeout(() => acceptPendingInvites(session.user), 0);
+        await acceptPendingInvites(session.user);
       }
     });
 

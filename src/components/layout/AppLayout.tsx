@@ -85,7 +85,7 @@ export default function AppLayout() {
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 z-30 hidden w-64 flex-col border-r bg-sidebar lg:flex">
-        <div className="border-b px-6 py-5">
+        <div className="border-b px-4 py-4 space-y-3">
           <Link to="/app" className="flex items-center gap-2 text-sm font-semibold tracking-wide">
             <Shield className="h-4 w-4 text-foreground" />
             ContractGuardAI

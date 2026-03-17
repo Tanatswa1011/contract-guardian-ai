@@ -38,8 +38,14 @@ export default function DashboardPage() {
         .eq('user_id', user.id)
         .in('id', contractIds)
         .order('created_at', { ascending: false });
+      if (currentWorkspaceId) {
+        query = query.or(
+          `workspace_id.eq.${currentWorkspaceId},workspace_id.is.null`
+        );
+      }
+      const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!user && !!currentWorkspaceId,
   });
