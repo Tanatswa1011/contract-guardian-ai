@@ -7,22 +7,24 @@ import { Loader2, UserPlus, Crown, User } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
 export default function WorkspaceSettings() {
   const { user } = useAuth();
+  const { currentWorkspaceId } = useWorkspace();
   const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
 
   const { data: workspace, isLoading: wsLoading } = useQuery({
-    queryKey: ['workspace'],
+    queryKey: ['workspace', currentWorkspaceId],
     queryFn: async () => {
       const { data: membership, error: memErr } = await supabase
         .from('workspace_members')
         .select('workspace_id, role')
         .eq('user_id', user!.id)
-        .limit(1)
+        .eq('workspace_id', currentWorkspaceId!)
         .single();
       if (memErr) throw memErr;
 
@@ -35,7 +37,7 @@ export default function WorkspaceSettings() {
 
       return { ...ws, currentRole: membership.role };
     },
-    enabled: !!user,
+    enabled: !!user && !!currentWorkspaceId,
   });
 
   const { data: members = [], isLoading: membersLoading } = useQuery({
@@ -47,7 +49,6 @@ export default function WorkspaceSettings() {
         .eq('workspace_id', workspace!.id);
       if (error) throw error;
 
-      // Fetch profiles for display names
       const userIds = data.map(m => m.user_id);
       const { data: profiles } = await supabase
         .from('profiles')
@@ -97,7 +98,6 @@ export default function WorkspaceSettings() {
         throw error;
       }
 
-      // Send invitation email via edge function (fire-and-forget, don't block on failure)
       supabase.functions.invoke('send-workspace-invite', {
         body: {
           email: trimmedEmail,

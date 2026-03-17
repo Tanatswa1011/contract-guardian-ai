@@ -1,11 +1,14 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Loader2 } from 'lucide-react';
 
 export default function ProtectedRoute() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { workspaces, loading: wsLoading } = useWorkspace();
+  const location = useLocation();
 
-  if (loading) {
+  if (authLoading || (user && wsLoading)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -17,9 +20,12 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" replace />;
   }
 
-  // Block users who haven't confirmed their email
   if (user.email_confirmed_at === null || user.email_confirmed_at === undefined) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (workspaces.length === 0 && location.pathname !== '/create-workspace') {
+    return <Navigate to="/create-workspace" replace />;
   }
 
   return <Outlet />;

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Upload, FileText, CheckCircle, AlertTriangle, Loader2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 
 type UploadState = 'idle' | 'selected' | 'uploading' | 'completed' | 'failed';
@@ -19,6 +20,7 @@ export default function UploadPage() {
   const [contractId, setContractId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { currentWorkspaceId } = useWorkspace();
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Upload failed');
 
   const handleDrop = (e: React.DragEvent) => {
@@ -48,7 +50,7 @@ export default function UploadPage() {
       // 1. Create contract record
       const { data: contract, error: contractError } = await supabase
         .from('contracts')
-        .insert({ title, counterparty: counterparty || null, user_id: user.id })
+        .insert({ title, counterparty: counterparty || null, user_id: user.id, workspace_id: currentWorkspaceId })
         .select()
         .single();
 

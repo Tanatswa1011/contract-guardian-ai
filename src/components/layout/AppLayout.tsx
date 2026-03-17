@@ -1,9 +1,29 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Shield, LayoutDashboard, Upload, Settings, CreditCard, LogOut, Menu, X } from 'lucide-react';
+import {
+  Shield,
+  LayoutDashboard,
+  Upload,
+  Settings,
+  CreditCard,
+  LogOut,
+  Menu,
+  X,
+  ChevronsUpDown,
+  Check,
+  Plus,
+} from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const navItems = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard },
@@ -11,6 +31,48 @@ const navItems = [
   { to: '/app/billing', label: 'Billing', icon: CreditCard },
   { to: '/app/settings', label: 'Settings', icon: Settings },
 ];
+
+function WorkspaceSwitcher() {
+  const { currentWorkspaceId, workspaces, switchWorkspace } = useWorkspace();
+  const navigate = useNavigate();
+  const current = workspaces.find((w) => w.workspace_id === currentWorkspaceId);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex w-full items-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-border hover:bg-accent">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground text-xs font-bold">
+            {current?.workspace_name?.charAt(0).toUpperCase() ?? 'W'}
+          </div>
+          <span className="truncate flex-1 text-left">{current?.workspace_name ?? 'Workspace'}</span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        {workspaces.map((ws) => (
+          <DropdownMenuItem
+            key={ws.workspace_id}
+            onClick={() => switchWorkspace(ws.workspace_id)}
+            className="gap-2"
+          >
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground text-[10px] font-bold">
+              {ws.workspace_name.charAt(0).toUpperCase()}
+            </div>
+            <span className="truncate flex-1">{ws.workspace_name}</span>
+            {ws.workspace_id === currentWorkspaceId && (
+              <Check className="h-3.5 w-3.5 shrink-0 text-foreground" />
+            )}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/create-workspace')} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Create Workspace
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export default function AppLayout() {
   const location = useLocation();
@@ -32,6 +94,9 @@ export default function AppLayout() {
             <Shield className="h-4 w-4 text-foreground" />
             ContractGuardAI
           </Link>
+        </div>
+        <div className="border-b p-3">
+          <WorkspaceSwitcher />
         </div>
         <nav className="flex-1 space-y-1 p-4">
           {navItems.map(item => (
@@ -71,6 +136,9 @@ export default function AppLayout() {
         </div>
         {mobileOpen && (
           <nav className="space-y-1 border-t bg-background p-4">
+            <div className="pb-3">
+              <WorkspaceSwitcher />
+            </div>
             {navItems.map(item => (
               <Link
                 key={item.to}
