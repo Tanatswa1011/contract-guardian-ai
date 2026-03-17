@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Upload, FileText, CheckCircle, AlertTriangle, Loader2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 
 type UploadState = 'idle' | 'selected' | 'uploading' | 'completed' | 'failed';
@@ -19,6 +20,7 @@ export default function UploadPage() {
   const [contractId, setContractId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { currentWorkspaceId } = useWorkspace();
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Upload failed');
 
   const handleDrop = (e: React.DragEvent) => {
@@ -41,14 +43,14 @@ export default function UploadPage() {
   };
 
   const handleUpload = async () => {
-    if (!file || !user || !title) return;
+    if (!file || !user || !title || !currentWorkspaceId) return;
     setState('uploading');
 
     try {
       // 1. Create contract record
       const { data: contract, error: contractError } = await supabase
         .from('contracts')
-        .insert({ title, counterparty: counterparty || null, user_id: user.id })
+        .insert({ title, counterparty: counterparty || null, user_id: user.id, workspace_id: currentWorkspaceId })
         .select()
         .single();
 
@@ -154,7 +156,7 @@ export default function UploadPage() {
               <Label>Counterparty (optional)</Label>
               <Input value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
             </div>
-            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title}>
+            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title || !currentWorkspaceId}>
               <Upload className="h-4 w-4" /> Upload & Create Contract
             </Button>
           </CardContent>
