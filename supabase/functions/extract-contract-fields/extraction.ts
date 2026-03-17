@@ -114,7 +114,7 @@ function parseExtractionJson(content: string): ContractExtractionResult {
   const computedMissing = buildMissingFields(normalized);
   const missingFieldSet = new Set<SupportedExtractionField>([
     ...declaredMissing,
-    ...computedMissing,
+    ...(computedMissing as SupportedExtractionField[]),
   ]);
   normalized.missing_fields = Array.from(missingFieldSet);
   normalized.needs_review =
