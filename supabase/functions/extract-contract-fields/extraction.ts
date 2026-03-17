@@ -1,4 +1,4 @@
-import { getDocument } from "https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs";
+import { getDocument } from "https://esm.sh/pdfjs-serverless@0.6.0";
 
 export const SUPPORTED_EXTRACTION_FIELDS = [
   "contract_title",
