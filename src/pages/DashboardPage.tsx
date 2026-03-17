@@ -11,9 +11,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 
+type DashboardFilter = 'all' | 'needs_review' | 'expiring_soon' | 'active' | 'overdue';
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all');
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id],
@@ -47,10 +50,49 @@ export default function DashboardPage() {
     .filter(c => c.days_until_next_deadline !== null && c.days_until_next_deadline! >= 0)
     .sort((a, b) => (a.days_until_next_deadline ?? 999) - (b.days_until_next_deadline ?? 999))[0]?.days_until_next_deadline;
 
-  const filtered = allContracts.filter(c =>
-    (c.title?.toLowerCase().includes(search.toLowerCase()) || '') ||
-    (c.counterparty?.toLowerCase().includes(search.toLowerCase()) || '')
-  );
+  const filters: Array<{ key: DashboardFilter; label: string }> = [
+    { key: 'all', label: 'All' },
+    { key: 'needs_review', label: 'Needs Review' },
+    { key: 'expiring_soon', label: 'Expiring Soon' },
+    { key: 'active', label: 'Active' },
+    { key: 'overdue', label: 'Overdue' },
+  ];
+
+  const matchesFilter = (contract: (typeof allContracts)[number], filter: DashboardFilter) => {
+    switch (filter) {
+      case 'needs_review':
+        return Boolean(
+          contract.needs_review
+          || contract.health_status === 'needs_review'
+          || (contract.missing_fields && contract.missing_fields.length > 0),
+        );
+      case 'expiring_soon':
+        return Boolean(contract.expiring_within_30_days || contract.health_status === 'expiring_soon');
+      case 'active':
+        return contract.status === 'active';
+      case 'overdue':
+        return Boolean(contract.has_overdue_dates || contract.health_status === 'overdue');
+      case 'all':
+      default:
+        return true;
+    }
+  };
+
+  const filterCounts = {
+    all: allContracts.length,
+    needs_review: allContracts.filter(c => matchesFilter(c, 'needs_review')).length,
+    expiring_soon: allContracts.filter(c => matchesFilter(c, 'expiring_soon')).length,
+    active: allContracts.filter(c => matchesFilter(c, 'active')).length,
+    overdue: allContracts.filter(c => matchesFilter(c, 'overdue')).length,
+  };
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = allContracts.filter((contract) => {
+    const matchesSearch = normalizedSearch.length === 0
+      || Boolean(contract.title?.toLowerCase().includes(normalizedSearch))
+      || Boolean(contract.counterparty?.toLowerCase().includes(normalizedSearch));
+    return matchesSearch && matchesFilter(contract, activeFilter);
+  });
 
   const summaryCards = [
     { label: 'Expiring Soon', value: expiringThisMonth, icon: CalendarClock },
@@ -109,8 +151,28 @@ export default function DashboardPage() {
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search contracts..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input
+            placeholder="Search by title or counterparty..."
+            className="pl-9"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {filters.map((filter) => (
+          <Button
+            key={filter.key}
+            size="sm"
+            variant={activeFilter === filter.key ? 'default' : 'outline'}
+            onClick={() => setActiveFilter(filter.key)}
+            className="h-8"
+          >
+            {filter.label}
+            <span className="ml-2 text-xs opacity-70">{filterCounts[filter.key]}</span>
+          </Button>
+        ))}
       </div>
 
       {filtered.length === 0 ? (
@@ -119,11 +181,34 @@ export default function DashboardPage() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border bg-muted">
               <FileText className="h-5 w-5 text-muted-foreground" />
             </div>
-            <h3 className="font-semibold mb-1">No contracts found</h3>
-            <p className="text-sm text-muted-foreground mb-4">Upload your first contract to get started.</p>
-            <Link to="/app/upload">
-              <Button className="gap-2"><Plus className="h-4 w-4" /> Upload Contract</Button>
-            </Link>
+            {allContracts.length === 0 ? (
+              <>
+                <h3 className="font-semibold mb-1">No contracts found</h3>
+                <p className="text-sm text-muted-foreground mb-4">Upload your first contract to get started.</p>
+                <Link to="/app/upload">
+                  <Button className="gap-2"><Plus className="h-4 w-4" /> Upload Contract</Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <h3 className="font-semibold mb-1">No contracts match your filters</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Try adjusting your search or switching to a different filter.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {search ? (
+                    <Button variant="outline" onClick={() => setSearch('')}>
+                      Clear Search
+                    </Button>
+                  ) : null}
+                  {activeFilter !== 'all' ? (
+                    <Button variant="outline" onClick={() => setActiveFilter('all')}>
+                      Show All Contracts
+                    </Button>
+                  ) : null}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
