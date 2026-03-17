@@ -1,0 +1,21 @@
+import { Navigate, Outlet } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+
+export default function RequireWorkspace() {
+  const { loading, hasWorkspace } = useWorkspace();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!hasWorkspace) {
+    return <Navigate to="/create-workspace" replace />;
+  }
+
+  return <Outlet />;
+}

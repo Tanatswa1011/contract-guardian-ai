@@ -7,44 +7,23 @@ import { Loader2, UserPlus, Crown, User } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
 export default function WorkspaceSettings() {
   const { user } = useAuth();
+  const { currentWorkspace, currentWorkspaceId } = useWorkspace();
   const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
 
-  const { data: workspace, isLoading: wsLoading } = useQuery({
-    queryKey: ['workspace'],
-    queryFn: async () => {
-      const { data: membership, error: memErr } = await supabase
-        .from('workspace_members')
-        .select('workspace_id, role')
-        .eq('user_id', user!.id)
-        .limit(1)
-        .single();
-      if (memErr) throw memErr;
-
-      const { data: ws, error: wsErr } = await supabase
-        .from('workspaces')
-        .select('*')
-        .eq('id', membership.workspace_id)
-        .single();
-      if (wsErr) throw wsErr;
-
-      return { ...ws, currentRole: membership.role };
-    },
-    enabled: !!user,
-  });
-
   const { data: members = [], isLoading: membersLoading } = useQuery({
-    queryKey: ['workspace-members', workspace?.id],
+    queryKey: ['workspace-members', currentWorkspaceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('workspace_members')
         .select('*')
-        .eq('workspace_id', workspace!.id);
+        .eq('workspace_id', currentWorkspaceId!);
       if (error) throw error;
 
       // Fetch profiles for display names
@@ -63,31 +42,31 @@ export default function WorkspaceSettings() {
         };
       });
     },
-    enabled: !!workspace?.id,
+    enabled: !!currentWorkspaceId,
   });
 
   const { data: invites = [] } = useQuery({
-    queryKey: ['workspace-invites', workspace?.id],
+    queryKey: ['workspace-invites', currentWorkspaceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('workspace_invites')
         .select('*')
-        .eq('workspace_id', workspace!.id)
+        .eq('workspace_id', currentWorkspaceId!)
         .eq('status', 'pending');
       if (error) throw error;
       return data;
     },
-    enabled: !!workspace?.id,
+    enabled: !!currentWorkspaceId,
   });
 
   const sendInvite = useMutation({
     mutationFn: async () => {
       const trimmedEmail = inviteEmail.trim().toLowerCase();
-      if (!trimmedEmail || !workspace?.id) return;
+      if (!trimmedEmail || !currentWorkspaceId) return;
       const { error } = await supabase
         .from('workspace_invites')
         .insert({
-          workspace_id: workspace.id,
+          workspace_id: currentWorkspaceId,
           email: trimmedEmail,
           role: 'member',
           invited_by: user!.id,
@@ -101,7 +80,7 @@ export default function WorkspaceSettings() {
       supabase.functions.invoke('send-workspace-invite', {
         body: {
           email: trimmedEmail,
-          workspace_id: workspace.id,
+          workspace_id: currentWorkspaceId,
           app_url: window.location.origin,
         },
       }).catch((err) => console.error('Invite email failed:', err));
@@ -109,12 +88,12 @@ export default function WorkspaceSettings() {
     onSuccess: () => {
       toast.success('Invitation sent');
       setInviteEmail('');
-      queryClient.invalidateQueries({ queryKey: ['workspace-invites'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-invites', currentWorkspaceId] });
     },
     onError: (err: Error) => toast.error(err.message || 'Failed to send invitation'),
   });
 
-  if (wsLoading || membersLoading) {
+  if (membersLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -122,7 +101,11 @@ export default function WorkspaceSettings() {
     );
   }
 
-  const isOwner = workspace?.currentRole === 'owner';
+  if (!currentWorkspace) {
+    return null;
+  }
+
+  const isOwner = currentWorkspace.role === 'owner';
 
   return (
     <div className="space-y-6">
@@ -134,13 +117,13 @@ export default function WorkspaceSettings() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Workspace Name</Label>
-            <Input value={workspace?.name || ''} disabled className="bg-muted" />
+            <Input value={currentWorkspace.name} disabled className="bg-muted" />
           </div>
           <div className="space-y-2">
             <Label>Your Role</Label>
             <div>
               <Badge variant="secondary" className="normal-case tracking-normal capitalize">
-                {workspace?.currentRole}
+                {currentWorkspace.role}
               </Badge>
             </div>
           </div>
