@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -86,17 +86,16 @@ export default function ContractDetailPage() {
   const [endDate, setEndDate] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newDeadline, setNewDeadline] = useState({ type: 'renewal', due_date: '', label: '', note: '' });
-  const [isFormInitialized, setIsFormInitialized] = useState(false);
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'An unexpected error occurred');
 
+  // Sync form state from contract when id or contract data changes (avoids flicker, resets on contract change)
   useEffect(() => {
-    if (!contract || isFormInitialized) return;
-    setTitle(contract.title);
-    setCounterparty(contract.counterparty || '');
-    setStartDate(contract.start_date || '');
-    setEndDate(contract.end_date || '');
-    setIsFormInitialized(true);
-  }, [contract, isFormInitialized]);
+    if (!contract || contract.id !== id) return;
+    setTitle(contract.title ?? '');
+    setCounterparty(contract.counterparty ?? '');
+    setStartDate(contract.start_date ?? '');
+    setEndDate(contract.end_date ?? '');
+  }, [id, contract]);
 
   const updateContract = useMutation({
     mutationFn: async () => {
@@ -251,23 +250,76 @@ export default function ContractDetailPage() {
     return `${(bytes / 1048576).toFixed(1)} MB`;
   };
 
+  const missingFields = extractionSuggestion?.missing_fields ?? extraction?.missing_fields ?? [];
+  const needsReview = extraction?.needs_review ?? extractionSuggestion?.needs_review ?? false;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="truncate text-xl font-semibold tracking-tight">{contract.title}</h1>
+    <div className="space-y-8">
+      {/* Page header: title as clear top-level heading, counterparty directly under */}
+      <header className="space-y-1">
+        <div className="flex items-center gap-3">
+          <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors shrink-0" aria-label="Back to Dashboard">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap">
+            <h1 className="truncate text-2xl font-semibold tracking-tight">{contract.title || 'Untitled Contract'}</h1>
             <StatusBadge status={contract.status} />
+            {needsReview && (
+              <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-medium">
+                Needs Review
+              </Badge>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground">{contract.counterparty || 'No counterparty'}</p>
         </div>
-        <div className="flex gap-2">
+        <p className="text-muted-foreground pl-8">
+          {contract.counterparty || 'No counterparty specified'}
+        </p>
+      </header>
+
+      {/* Contract Information */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium tracking-tight">Contract Information</h2>
+        <Card>
+          <CardContent className="pt-6 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="contract-title">Title</Label>
+                <Input id="contract-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Contract title" />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="contract-counterparty">Counterparty</Label>
+                <Input id="contract-counterparty" value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contract-start">Start Date</Label>
+                <Input id="contract-start" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contract-end">End Date</Label>
+                <Input id="contract-end" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </div>
+            </div>
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => updateContract.mutate()}
+              disabled={updateContract.isPending}
+            >
+              {updateContract.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Important Dates / Deadlines */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-lg font-medium tracking-tight">Important Dates / Deadlines</h2>
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-2"><Plus className="h-3 w-3" /> Add Deadline</Button>
+              <Button size="sm" variant="outline" className="gap-2 shrink-0">
+                <Plus className="h-3 w-3" /> Add Deadline
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Add Deadline</DialogTitle></DialogHeader>
@@ -304,169 +356,33 @@ export default function ContractDetailPage() {
             </DialogContent>
           </Dialog>
         </div>
-      </div>
-
-      {extraction?.needs_review && (
-        <Card className="border-destructive/30 bg-card">
-          <CardContent className="py-4 px-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-destructive" />
-              <div>
-                <p className="font-medium text-sm">This contract needs manual review</p>
-                <p className="text-xs text-muted-foreground mt-1">Missing fields:</p>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {(extractionSuggestion?.missing_fields ?? extraction.missing_fields).map((f: string) => (
-                    <Badge key={f} variant="outline" className="text-xs capitalize">{f.replace('_', ' ')}</Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">AI Extraction Review</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!extraction ? (
-            <p className="text-sm text-muted-foreground">
-              No extraction run yet. You can start extraction from the uploaded PDF at any time.
-            </p>
-          ) : (
-            <>
-              {extraction.status === 'processing' && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Extracting fields from the contract...
-                </div>
-              )}
-
-              {extraction.status === 'failed' && (
-                <div className="rounded-md border border-destructive/30 bg-card p-3">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 mt-0.5 text-destructive" />
-                    <div>
-                      <p className="text-sm font-medium">Extraction failed</p>
-                      <p className="text-xs text-muted-foreground">
-                        {extraction.error || 'You can continue manually or re-run extraction.'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {extractionSuggestion && (
-                <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {(
-                      [
-                        ['contract_title', extractionSuggestion.contract_title],
-                        ['counterparty', extractionSuggestion.counterparty],
-                        ['start_date', extractionSuggestion.start_date],
-                        ['end_date', extractionSuggestion.end_date],
-                        ['renewal_date', extractionSuggestion.renewal_date],
-                        ['notice_date', extractionSuggestion.notice_date],
-                        ['payment_date', extractionSuggestion.payment_date],
-                      ] as Array<[SupportedExtractionField, string | null]>
-                    ).map(([field, value]) => (
-                      <div key={field} className="space-y-1">
-                        <p className="text-xs text-muted-foreground">{EXTRACTION_FIELD_LABELS[field]}</p>
-                        <p className="text-sm font-medium">{formatSuggestionValue(value)}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {extractionSuggestion.notes && (
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Extraction Notes</p>
-                      <p className="text-sm">{extractionSuggestion.notes}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={applySuggestionsToForm}
-              disabled={!extractionSuggestion || extraction?.status === 'processing'}
-            >
-              Apply Suggestions to Form
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => addSuggestedDeadlines.mutate()}
-              disabled={!suggestedDeadlines.length || addSuggestedDeadlines.isPending}
-            >
-              {addSuggestedDeadlines.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Add Suggested Deadlines
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => startExtraction.mutate()}
-              disabled={startExtraction.isPending || files.length === 0}
-            >
-              {startExtraction.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {extraction ? 'Re-run Extraction' : 'Run Extraction'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader><CardTitle className="text-base">Contract Information</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Title</Label>
-              <Input value={title} onChange={e => setTitle(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Counterparty</Label>
-              <Input value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Start Date</Label>
-                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>End Date</Label>
-                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-              </div>
-            </div>
-            <Button className="w-full" onClick={() => updateContract.mutate()} disabled={updateContract.isPending}>
-              {updateContract.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Save Changes
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="text-base">Deadlines</CardTitle></CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             {dates.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No deadlines added yet.</p>
+              <div className="text-center py-10 text-muted-foreground">
+                <p className="text-sm">No deadlines added yet.</p>
+                <p className="text-xs mt-1">Add renewal, notice, or payment dates to track important milestones.</p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {dates.map(d => (
-                  <div key={d.id} className="flex items-start justify-between border bg-muted/40 p-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                  <div key={d.id} className="flex items-start justify-between gap-4 border rounded-md bg-muted/30 p-4">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge className={`normal-case text-xs capitalize tracking-normal ${typeColors[d.type] || ''}`}>{d.type}</Badge>
                         <span className="text-sm font-medium">{d.label || d.type}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">{new Date(d.due_date).toLocaleDateString()}</p>
+                      <p className="text-sm text-muted-foreground">{new Date(d.due_date).toLocaleDateString()}</p>
                       {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
                     </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteDeadline.mutate(d.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => deleteDeadline.mutate(d.id)}
+                      disabled={deleteDeadline.isPending}
+                      aria-label="Delete deadline"
+                    >
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -475,72 +391,206 @@ export default function ContractDetailPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </section>
 
-      {files.length > 0 && (
+      {/* AI Extraction Review */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium tracking-tight">AI Extraction Review</h2>
         <Card>
-          <CardHeader><CardTitle className="text-base">Files</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {files.map(f => (
-                <div key={f.id} className="flex items-center justify-between border bg-muted/40 p-3">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium">{f.file_name}</p>
-                      <p className="text-xs text-muted-foreground">{formatFileSize(f.size_bytes)} • {new Date(f.created_at).toLocaleDateString()}</p>
+          <CardContent className="pt-6 space-y-4">
+            {!extraction ? (
+              <p className="text-sm text-muted-foreground">
+                No extraction run yet. Upload a contract file and run extraction to get AI-suggested values.
+              </p>
+            ) : (
+              <>
+                {extraction.status === 'processing' && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Extracting fields from the contract...
+                  </div>
+                )}
+
+                {extraction.status === 'failed' && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Extraction failed</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {extraction.error || 'You can continue manually or re-run extraction.'}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDownload(f.storage_path, f.file_name)}>
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+                )}
+
+                {extractionSuggestion && extraction.status !== 'processing' && (
+                  <div className="space-y-4">
+                    {missingFields.length > 0 && (
+                      <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-500 shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium">Some fields need confirmation</p>
+                            <p className="text-xs text-muted-foreground mt-1">Review and fill in missing values:</p>
+                            <div className="flex gap-2 mt-2 flex-wrap">
+                              {missingFields.map((f: string) => (
+                                <Badge key={f} variant="outline" className="text-xs capitalize border-amber-500/40 bg-amber-500/10">
+                                  {f.replace(/_/g, ' ')}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {(
+                        [
+                          ['contract_title', extractionSuggestion.contract_title],
+                          ['counterparty', extractionSuggestion.counterparty],
+                          ['start_date', extractionSuggestion.start_date],
+                          ['end_date', extractionSuggestion.end_date],
+                          ['renewal_date', extractionSuggestion.renewal_date],
+                          ['notice_date', extractionSuggestion.notice_date],
+                          ['payment_date', extractionSuggestion.payment_date],
+                        ] as Array<[SupportedExtractionField, string | null]>
+                      ).map(([field, value]) => {
+                        const isMissing = missingFields.includes(field);
+                        return (
+                          <div key={field} className={`space-y-1 p-3 rounded-md ${isMissing ? 'bg-amber-500/5 border border-amber-500/20' : 'bg-muted/30'}`}>
+                            <p className="text-xs text-muted-foreground">{EXTRACTION_FIELD_LABELS[field]}</p>
+                            <p className={`text-sm font-medium ${isMissing ? 'text-amber-700 dark:text-amber-400' : ''}`}>
+                              {formatSuggestionValue(value)}
+                              {isMissing && <span className="text-amber-600 dark:text-amber-500 ml-1">— needs review</span>}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {extractionSuggestion.notes && (
+                      <div className="space-y-1 p-3 rounded-md bg-muted/30">
+                        <p className="text-xs text-muted-foreground">Extraction Notes</p>
+                        <p className="text-sm">{extractionSuggestion.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={applySuggestionsToForm}
+                disabled={!extractionSuggestion || extraction?.status === 'processing'}
+              >
+                Apply AI Suggestions
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => addSuggestedDeadlines.mutate()}
+                disabled={!suggestedDeadlines.length || addSuggestedDeadlines.isPending}
+              >
+                {addSuggestedDeadlines.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Add Suggested Deadlines
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => startExtraction.mutate()}
+                disabled={startExtraction.isPending || files.length === 0}
+              >
+                {startExtraction.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {extraction ? 'Re-run Extraction' : 'Run Extraction'}
+              </Button>
             </div>
+            {extractionSuggestion && (
+              <p className="text-xs text-muted-foreground">
+                Applying suggestions updates the form above. Review and click Save Changes to confirm.
+              </p>
+            )}
           </CardContent>
         </Card>
-      )}
+      </section>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Reminder History</CardTitle></CardHeader>
-        <CardContent>
-          {notifications.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No reminders have been sent for this contract yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Sent To</TableHead>
-                  <TableHead>Channel</TableHead>
-                  <TableHead>Sent At</TableHead>
-                  <TableHead>Error</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {notifications.map(n => (
-                  <TableRow key={n.id}>
-                    <TableCell>
-                      <Badge
-                        variant={n.status === 'sent' ? 'secondary' : n.status === 'failed' ? 'destructive' : 'outline'}
-                        className="normal-case text-xs capitalize tracking-normal"
-                      >
-                        {n.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">{n.subject || '—'}</TableCell>
-                    <TableCell className="text-sm">{n.sent_to}</TableCell>
-                    <TableCell className="text-sm capitalize">{n.channel}</TableCell>
-                    <TableCell className="text-sm">{new Date(n.sent_at).toLocaleString()}</TableCell>
-                    <TableCell className="text-sm text-destructive">{n.status === 'failed' ? (n.error || '—') : '—'}</TableCell>
-                  </TableRow>
+      {/* Files */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium tracking-tight">Files</h2>
+        <Card>
+          <CardContent className="pt-6">
+            {files.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-10">No files uploaded for this contract.</p>
+            ) : (
+              <div className="space-y-3">
+                {files.map(f => (
+                  <div key={f.id} className="flex items-center justify-between gap-4 border rounded-md bg-muted/30 p-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{f.file_name}</p>
+                        <p className="text-xs text-muted-foreground">{formatFileSize(f.size_bytes)} • {new Date(f.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => handleDownload(f.storage_path, f.file_name)} className="shrink-0 gap-2">
+                      <Download className="h-4 w-4" /> Download
+                    </Button>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Reminder History */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium tracking-tight">Reminder History</h2>
+        <Card>
+          <CardContent className="pt-6">
+            {notifications.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-10">No reminders have been sent for this contract yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Sent To</TableHead>
+                    <TableHead>Channel</TableHead>
+                    <TableHead>Sent At</TableHead>
+                    <TableHead>Error</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {notifications.map(n => (
+                    <TableRow key={n.id}>
+                      <TableCell>
+                        <Badge
+                          variant={n.status === 'sent' ? 'secondary' : n.status === 'failed' ? 'destructive' : 'outline'}
+                          className="normal-case text-xs capitalize tracking-normal"
+                        >
+                          {n.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{n.subject || '—'}</TableCell>
+                      <TableCell className="text-sm">{n.sent_to}</TableCell>
+                      <TableCell className="text-sm capitalize">{n.channel}</TableCell>
+                      <TableCell className="text-sm">{new Date(n.sent_at).toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-destructive">{n.status === 'failed' ? (n.error || '—') : '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
