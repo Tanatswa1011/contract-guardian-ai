@@ -124,23 +124,37 @@ function parseExtractionJson(content: string): ContractExtractionResult {
 }
 
 export async function extractTextFromPdf(pdfBytes: Uint8Array): Promise<string> {
-  const loadingTask = getDocument({ data: pdfBytes });
-  const pdf = await loadingTask.promise;
-  const pages: string[] = [];
+  try {
+    // Edge runtime is server-side; force workerless parsing.
+    const loadingTask = getDocument({
+      data: pdfBytes,
+      disableWorker: true,
+      isEvalSupported: false,
+      useWorkerFetch: false,
+    });
+    const pdf = await loadingTask.promise;
+    const pages: string[] = [];
 
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-    const page = await pdf.getPage(pageNumber);
-    const textContent = await page.getTextContent();
-    const pageText = (textContent.items as Array<Record<string, unknown>>)
-      .map((item) => (typeof item.str === "string" ? item.str : ""))
-      .join(" ");
-    const normalizedPage = normalizeWhitespace(pageText);
-    if (normalizedPage) {
-      pages.push(normalizedPage);
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const pageText = (textContent.items as Array<Record<string, unknown>>)
+        .map((item) => (typeof item.str === "string" ? item.str : ""))
+        .join(" ");
+      const normalizedPage = normalizeWhitespace(pageText);
+      if (normalizedPage) {
+        pages.push(normalizedPage);
+      }
     }
-  }
 
-  return pages.join("\n\n").trim();
+    return pages.join("\n\n").trim();
+  } catch (error) {
+    throw new Error(
+      `PDF_PARSE_ERROR: ${
+        error instanceof Error ? error.message : "Failed to parse PDF text"
+      }`,
+    );
+  }
 }
 
 export function clipDocumentText(text: string): string {

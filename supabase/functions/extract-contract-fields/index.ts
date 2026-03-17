@@ -145,7 +145,22 @@ Deno.serve(async (req) => {
     if (!fileData) throw new Error("Contract file download returned empty response.");
 
     const pdfBytes = new Uint8Array(await fileData.arrayBuffer());
-    const contractText = await extractTextFromPdf(pdfBytes);
+    let contractText: string;
+    try {
+      contractText = await extractTextFromPdf(pdfBytes);
+    } catch (error) {
+      const parserMessage = getErrorMessage(error);
+      console.error("extract-contract-fields pdf parsing failed", {
+        contract_id: contractId,
+        extraction_run_id: extractionRunId,
+        storage_path: contractFile.storage_path,
+        file_name: contractFile.file_name,
+        size_bytes: pdfBytes.byteLength,
+        parser_error: parserMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw new Error(`PDF parsing step failed: ${parserMessage}`);
+    }
 
     if (!contractText) {
       throw new Error("No readable text was found in the uploaded PDF.");
