@@ -124,23 +124,33 @@ function parseExtractionJson(content: string): ContractExtractionResult {
 }
 
 export async function extractTextFromPdf(pdfBytes: Uint8Array): Promise<string> {
-  const loadingTask = getDocument({ data: pdfBytes });
-  const pdf = await loadingTask.promise;
-  const pages: string[] = [];
+  console.log(`[pdf-parse] Starting PDF text extraction (${pdfBytes.byteLength} bytes)`);
+  try {
+    const loadingTask = getDocument(pdfBytes);
+    const pdf = await loadingTask.promise;
+    console.log(`[pdf-parse] PDF loaded successfully. Pages: ${pdf.numPages}`);
+    const pages: string[] = [];
 
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-    const page = await pdf.getPage(pageNumber);
-    const textContent = await page.getTextContent();
-    const pageText = (textContent.items as Array<Record<string, unknown>>)
-      .map((item) => (typeof item.str === "string" ? item.str : ""))
-      .join(" ");
-    const normalizedPage = normalizeWhitespace(pageText);
-    if (normalizedPage) {
-      pages.push(normalizedPage);
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const pageText = (textContent.items as Array<Record<string, unknown>>)
+        .map((item) => (typeof item.str === "string" ? item.str : ""))
+        .join(" ");
+      const normalizedPage = normalizeWhitespace(pageText);
+      if (normalizedPage) {
+        pages.push(normalizedPage);
+      }
     }
-  }
 
-  return pages.join("\n\n").trim();
+    const result = pages.join("\n\n").trim();
+    console.log(`[pdf-parse] Extraction complete. Characters: ${result.length}`);
+    return result;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[pdf-parse] PDF parsing failed: ${msg}`);
+    throw new Error(`PDF text extraction failed: ${msg}`);
+  }
 }
 
 export function clipDocumentText(text: string): string {

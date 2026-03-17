@@ -107,8 +107,8 @@ Deno.serve(async (req) => {
       });
 
       sent++;
-    } catch (e) {
-      const errMsg = `Exception sending to ${sendTo}: ${e.message}`;
+    } catch (e: unknown) {
+      const errMsg = `Exception sending to ${sendTo}: ${e instanceof Error ? e.message : String(e)}`;
       console.error(errMsg);
       errors.push(errMsg);
     }
