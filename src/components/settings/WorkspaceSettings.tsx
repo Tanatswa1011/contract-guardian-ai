@@ -7,36 +7,25 @@ import { Loader2, UserPlus, Crown, User } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
 export default function WorkspaceSettings() {
   const { user } = useAuth();
+  const { currentWorkspaceId, memberships, membershipsLoading } = useWorkspace();
   const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
 
-  const { data: workspace, isLoading: wsLoading } = useQuery({
-    queryKey: ['workspace'],
-    queryFn: async () => {
-      const { data: membership, error: memErr } = await supabase
-        .from('workspace_members')
-        .select('workspace_id, role')
-        .eq('user_id', user!.id)
-        .limit(1)
-        .single();
-      if (memErr) throw memErr;
-
-      const { data: ws, error: wsErr } = await supabase
-        .from('workspaces')
-        .select('*')
-        .eq('id', membership.workspace_id)
-        .single();
-      if (wsErr) throw wsErr;
-
-      return { ...ws, currentRole: membership.role };
-    },
-    enabled: !!user,
-  });
+  const currentMembership = memberships.find((m) => m.workspace_id === currentWorkspaceId);
+  const workspace = currentMembership
+    ? {
+        id: currentMembership.workspace_id,
+        name: currentMembership.workspace_name,
+        currentRole: currentMembership.role,
+      }
+    : null;
+  const wsLoading = membershipsLoading;
 
   const { data: members = [], isLoading: membersLoading } = useQuery({
     queryKey: ['workspace-members', workspace?.id],

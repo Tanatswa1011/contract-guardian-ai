@@ -5,9 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import PublicLayout from "@/components/layout/PublicLayout";
 import AppLayout from "@/components/layout/AppLayout";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
+import WorkspaceRequiredRoute from "@/components/layout/WorkspaceRequiredRoute";
+import CreateWorkspacePage from "@/pages/CreateWorkspacePage";
 import LandingPage from "@/pages/LandingPage";
 import PricingPage from "@/pages/PricingPage";
 import LoginPage from "@/pages/LoginPage";
@@ -44,12 +47,17 @@ const App = () => (
               </Route>
 
               <Route element={<ProtectedRoute />}>
-                <Route element={<AppLayout />}>
-                  <Route path="/app" element={<DashboardPage />} />
-                  <Route path="/app/upload" element={<UploadPage />} />
-                  <Route path="/app/contracts/:id" element={<ContractDetailPage />} />
-                  <Route path="/app/settings" element={<SettingsPage />} />
-                  <Route path="/app/billing" element={<BillingPage />} />
+                <Route element={<WorkspaceProvider />}>
+                  <Route path="/create-workspace" element={<CreateWorkspacePage />} />
+                  <Route path="/app" element={<WorkspaceRequiredRoute />}>
+                    <Route element={<AppLayout />}>
+                      <Route index element={<DashboardPage />} />
+                      <Route path="upload" element={<UploadPage />} />
+                      <Route path="contracts/:id" element={<ContractDetailPage />} />
+                      <Route path="settings" element={<SettingsPage />} />
+                      <Route path="billing" element={<BillingPage />} />
+                    </Route>
+                  </Route>
                 </Route>
               </Route>
 

@@ -9,23 +9,31 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Badge } from '@/components/ui/badge';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { currentWorkspaceId } = useWorkspace();
   const [search, setSearch] = useState('');
 
   const { data: contracts, isLoading } = useQuery({
-    queryKey: ['contracts-dashboard', user?.id],
+    queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('contracts_dashboard')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+      if (currentWorkspaceId) {
+        query = query.or(
+          `workspace_id.eq.${currentWorkspaceId},workspace_id.is.null`
+        );
+      }
+      const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!user,
   });
