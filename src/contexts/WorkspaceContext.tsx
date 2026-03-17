@@ -1,117 +1,171 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-const STORAGE_KEY = 'contractguard_current_workspace_id';
+const CURRENT_WORKSPACE_STORAGE_KEY = 'contractguard.currentWorkspaceId';
 
-export type WorkspaceMembership = {
-  workspace_id: string;
-  workspace_name: string;
+type WorkspaceSummary = {
+  id: string;
+  name: string;
   role: string;
 };
 
 interface WorkspaceContextType {
+  loading: boolean;
+  workspaces: WorkspaceSummary[];
+  hasWorkspace: boolean;
   currentWorkspaceId: string | null;
-  setCurrentWorkspaceId: (id: string) => void;
-  memberships: WorkspaceMembership[];
-  membershipsLoading: boolean;
-  refetchMemberships: () => Promise<void>;
+  currentWorkspace: WorkspaceSummary | null;
+  setCurrentWorkspaceId: (workspaceId: string) => void;
+  createWorkspace: (name: string) => Promise<string>;
+  refetchWorkspaces: () => Promise<void>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const [memberships, setMemberships] = useState<WorkspaceMembership[]>([]);
-  const [membershipsLoading, setMembershipsLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
   const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
 
-  const fetchMemberships = useCallback(async () => {
-    if (!user) {
-      setMemberships([]);
-      setMembershipsLoading(false);
-      return;
-    }
-    setMembershipsLoading(true);
-    try {
-      const { data: membershipRows, error: memErr } = await supabase
+  const workspacesQuery = useQuery({
+    queryKey: ['workspace-memberships', user?.id],
+    queryFn: async (): Promise<WorkspaceSummary[]> => {
+      if (!user) return [];
+
+      const { data: memberships, error: membershipError } = await supabase
         .from('workspace_members')
         .select('workspace_id, role')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+        .eq('user_id', user.id);
 
-      if (memErr) throw memErr;
+      if (membershipError) throw membershipError;
+      if (!memberships?.length) return [];
 
-      if (!membershipRows?.length) {
-        setMemberships([]);
-        setMembershipsLoading(false);
-        setInitialized(true);
-        return;
-      }
+      const workspaceIds = memberships.map((membership) => membership.workspace_id);
 
-      const workspaceIds = membershipRows.map((m) => m.workspace_id);
-      const { data: workspaces, error: wsErr } = await supabase
+      const { data: workspaceRows, error: workspaceError } = await supabase
         .from('workspaces')
         .select('id, name')
         .in('id', workspaceIds);
 
-      if (wsErr) throw wsErr;
+      if (workspaceError) throw workspaceError;
 
-      const workspaceMap = new Map((workspaces || []).map((w) => [w.id, w.name]));
-      const result: WorkspaceMembership[] = membershipRows.map((m) => ({
-        workspace_id: m.workspace_id,
-        workspace_name: workspaceMap.get(m.workspace_id) || 'Unknown',
-        role: m.role,
-      }));
+      const workspaceMap = new Map((workspaceRows ?? []).map((workspace) => [workspace.id, workspace.name]));
 
-      setMemberships(result);
-      setInitialized(true);
-    } catch (err) {
-      console.error('Failed to fetch workspace memberships:', err);
-      setMemberships([]);
-    } finally {
-      setMembershipsLoading(false);
-    }
-  }, [user?.id]);
+      return memberships
+        .map((membership) => ({
+          id: membership.workspace_id,
+          role: membership.role,
+          name: workspaceMap.get(membership.workspace_id) ?? 'Untitled Workspace',
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+    enabled: !!user,
+    refetchInterval: (query) => (query.state.data?.length ? false : 3000),
+  });
 
   useEffect(() => {
-    fetchMemberships();
-  }, [fetchMemberships]);
-
-  useEffect(() => {
-    if (!initialized || membershipsLoading) return;
-
-    const savedId = localStorage.getItem(STORAGE_KEY);
-    const validIds = new Set(memberships.map((m) => m.workspace_id));
-
-    if (savedId && validIds.has(savedId)) {
-      setCurrentWorkspaceIdState(savedId);
-    } else if (memberships.length > 0) {
-      const firstId = memberships[0].workspace_id;
-      setCurrentWorkspaceIdState(firstId);
-      localStorage.setItem(STORAGE_KEY, firstId);
-    } else {
+    if (!user) {
       setCurrentWorkspaceIdState(null);
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(CURRENT_WORKSPACE_STORAGE_KEY);
+      return;
     }
-  }, [initialized, membershipsLoading, memberships]);
 
-  const setCurrentWorkspaceId = useCallback((id: string) => {
-    setCurrentWorkspaceIdState(id);
-    localStorage.setItem(STORAGE_KEY, id);
-  }, []);
+    if (workspacesQuery.isLoading) return;
+
+    const availableWorkspaces = workspacesQuery.data ?? [];
+    if (!availableWorkspaces.length) {
+      setCurrentWorkspaceIdState(null);
+      localStorage.removeItem(CURRENT_WORKSPACE_STORAGE_KEY);
+      return;
+    }
+
+    const savedWorkspaceId = localStorage.getItem(CURRENT_WORKSPACE_STORAGE_KEY);
+    const currentWorkspaceStillValid = currentWorkspaceId && availableWorkspaces.some((workspace) => workspace.id === currentWorkspaceId);
+    const savedWorkspaceStillValid = savedWorkspaceId && availableWorkspaces.some((workspace) => workspace.id === savedWorkspaceId);
+
+    const nextWorkspaceId = savedWorkspaceStillValid
+      ? savedWorkspaceId
+      : currentWorkspaceStillValid
+        ? currentWorkspaceId
+        : availableWorkspaces[0].id;
+
+    if (nextWorkspaceId !== currentWorkspaceId) {
+      setCurrentWorkspaceIdState(nextWorkspaceId);
+    }
+
+    if (savedWorkspaceId !== nextWorkspaceId) {
+      localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, nextWorkspaceId);
+    }
+  }, [user, workspacesQuery.data, workspacesQuery.isLoading, currentWorkspaceId]);
+
+  const setCurrentWorkspaceId = useCallback((workspaceId: string) => {
+    const availableWorkspaces = workspacesQuery.data ?? [];
+    if (!availableWorkspaces.some((workspace) => workspace.id === workspaceId)) return;
+
+    setCurrentWorkspaceIdState(workspaceId);
+    localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, workspaceId);
+  }, [workspacesQuery.data]);
+
+  const createWorkspace = useCallback(async (name: string) => {
+    if (!user) throw new Error('You must be signed in to create a workspace.');
+
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new Error('Workspace name is required.');
+
+    const { data: workspace, error: workspaceError } = await supabase
+      .from('workspaces')
+      .insert({ name: trimmedName, created_by: user.id })
+      .select('id')
+      .single();
+
+    if (workspaceError) throw workspaceError;
+
+    const { error: membershipError } = await supabase
+      .from('workspace_members')
+      .insert({
+        workspace_id: workspace.id,
+        user_id: user.id,
+        role: 'owner',
+      });
+
+    if (membershipError) throw membershipError;
+
+    await workspacesQuery.refetch();
+    setCurrentWorkspaceIdState(workspace.id);
+    localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, workspace.id);
+
+    return workspace.id;
+  }, [user, workspacesQuery]);
+
+  const refetchWorkspaces = useCallback(async () => {
+    await workspacesQuery.refetch();
+  }, [workspacesQuery]);
+
+  const value = useMemo<WorkspaceContextType>(() => {
+    const workspaces = workspacesQuery.data ?? [];
+    return {
+      loading: authLoading || workspacesQuery.isLoading,
+      workspaces,
+      hasWorkspace: workspaces.length > 0,
+      currentWorkspaceId,
+      currentWorkspace: workspaces.find((workspace) => workspace.id === currentWorkspaceId) ?? null,
+      setCurrentWorkspaceId,
+      createWorkspace,
+      refetchWorkspaces,
+    };
+  }, [
+    authLoading,
+    workspacesQuery.data,
+    workspacesQuery.isLoading,
+    currentWorkspaceId,
+    setCurrentWorkspaceId,
+    createWorkspace,
+    refetchWorkspaces,
+  ]);
 
   return (
-    <WorkspaceContext.Provider
-      value={{
-        currentWorkspaceId,
-        setCurrentWorkspaceId,
-        memberships,
-        membershipsLoading,
-        refetchMemberships: fetchMemberships,
-      }}
-    >
+    <WorkspaceContext.Provider value={value}>
       {children}
     </WorkspaceContext.Provider>
   );

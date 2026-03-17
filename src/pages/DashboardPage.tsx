@@ -20,11 +20,23 @@ export default function DashboardPage() {
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
     queryFn: async () => {
-      if (!user) return [];
-      let query = supabase
+      if (!user || !currentWorkspaceId) return [];
+
+      const { data: workspaceContracts, error: workspaceContractsError } = await supabase
+        .from('contracts')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('workspace_id', currentWorkspaceId);
+
+      if (workspaceContractsError) throw workspaceContractsError;
+      if (!workspaceContracts?.length) return [];
+
+      const contractIds = workspaceContracts.map((contract) => contract.id);
+      const { data, error } = await supabase
         .from('contracts_dashboard')
         .select('*')
         .eq('user_id', user.id)
+        .in('id', contractIds)
         .order('created_at', { ascending: false });
       if (currentWorkspaceId) {
         query = query.or(
@@ -35,7 +47,7 @@ export default function DashboardPage() {
       if (error) throw error;
       return data ?? [];
     },
-    enabled: !!user,
+    enabled: !!user && !!currentWorkspaceId,
   });
 
   if (isLoading) {

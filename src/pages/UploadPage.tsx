@@ -43,19 +43,14 @@ export default function UploadPage() {
   };
 
   const handleUpload = async () => {
-    if (!file || !user || !title) return;
+    if (!file || !user || !title || !currentWorkspaceId) return;
     setState('uploading');
 
     try {
       // 1. Create contract record
       const { data: contract, error: contractError } = await supabase
         .from('contracts')
-        .insert({
-          title,
-          counterparty: counterparty || null,
-          user_id: user.id,
-          workspace_id: currentWorkspaceId || null,
-        })
+        .insert({ title, counterparty: counterparty || null, user_id: user.id, workspace_id: currentWorkspaceId })
         .select()
         .single();
 
@@ -161,7 +156,7 @@ export default function UploadPage() {
               <Label>Counterparty (optional)</Label>
               <Input value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
             </div>
-            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title}>
+            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title || !currentWorkspaceId}>
               <Upload className="h-4 w-4" /> Upload & Create Contract
             </Button>
           </CardContent>
