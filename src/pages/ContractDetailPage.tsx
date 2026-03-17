@@ -13,7 +13,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import {
   parseExtractionSuggestion,
   type SupportedExtractionField,
@@ -66,63 +65,56 @@ const EXTRACTION_FIELDS_IN_ORDER: SupportedExtractionField[] = [
 export default function ContractDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
-  const { currentWorkspaceId } = useWorkspace();
 
   const { data: contract, isLoading: contractLoading } = useQuery({
-    queryKey: ['contract', id, currentWorkspaceId],
+    queryKey: ['contract', id],
     queryFn: async () => {
-      if (!id || !currentWorkspaceId) return null;
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('*')
-        .eq('id', id)
-        .eq('workspace_id', currentWorkspaceId)
-        .maybeSingle();
+      const { data, error } = await supabase.from('contracts').select('*').eq('id', id!).single();
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!currentWorkspaceId,
+    enabled: !!id,
   });
 
   const { data: dates = [] } = useQuery({
-    queryKey: ['contract-dates', id, currentWorkspaceId],
+    queryKey: ['contract-dates', id],
     queryFn: async () => {
       const { data, error } = await supabase.from('contract_dates').select('*').eq('contract_id', id!).order('due_date');
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!contract?.id && !!currentWorkspaceId,
+    enabled: !!id,
   });
 
   const { data: files = [] } = useQuery({
-    queryKey: ['contract-files', id, currentWorkspaceId],
+    queryKey: ['contract-files', id],
     queryFn: async () => {
       const { data, error } = await supabase.from('contract_files').select('*').eq('contract_id', id!).order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!contract?.id && !!currentWorkspaceId,
+    enabled: !!id,
   });
 
   const { data: extraction } = useQuery({
-    queryKey: ['extraction', id, currentWorkspaceId],
+    queryKey: ['extraction', id],
     queryFn: async () => {
       const { data, error } = await supabase.from('extraction_runs').select('*').eq('contract_id', id!).order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (error) throw error;
       return data;
     },
     refetchInterval: (query) => query.state.data?.status === 'processing' ? 3000 : false,
-    enabled: !!id && !!contract?.id && !!currentWorkspaceId,
+    enabled: !!id,
   });
 
   const { data: notifications = [] } = useQuery({
-    queryKey: ['notifications', id, currentWorkspaceId],
+    queryKey: ['notifications', id],
     queryFn: async () => {
       const { data, error } = await supabase.from('notification_log').select('*').eq('contract_id', id!).order('sent_at', { ascending: false });
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!contract?.id && !!currentWorkspaceId,
+    enabled: !!id,
   });
 
   const [formValues, setFormValues] = useState<ContractFormValues>(EMPTY_FORM_VALUES);
@@ -205,13 +197,12 @@ export default function ContractDetailPage() {
 
   const updateContract = useMutation({
     mutationFn: async (values: ContractFormValues) => {
-      if (!currentWorkspaceId) throw new Error('No active workspace selected.');
       const { error } = await supabase.from('contracts').update({
         title: values.title.trim(),
         counterparty: values.counterparty || null,
         start_date: values.startDate || null,
         end_date: values.endDate || null,
-      }).eq('id', id!).eq('workspace_id', currentWorkspaceId);
+      }).eq('id', id!);
       if (error) throw error;
     },
     onSuccess: (_, values) => {
@@ -225,9 +216,8 @@ export default function ContractDetailPage() {
 
   const addDeadline = useMutation({
     mutationFn: async () => {
-      if (!contract?.id) throw new Error('Contract not found.');
       const { error } = await supabase.from('contract_dates').insert({
-        contract_id: contract.id, type: newDeadline.type, due_date: newDeadline.due_date,
+        contract_id: id!, type: newDeadline.type, due_date: newDeadline.due_date,
         label: newDeadline.label || null, note: newDeadline.note || null,
       });
       if (error) throw error;
@@ -243,8 +233,7 @@ export default function ContractDetailPage() {
 
   const deleteDeadline = useMutation({
     mutationFn: async (deadlineId: string) => {
-      if (!contract?.id) throw new Error('Contract not found.');
-      const { error } = await supabase.from('contract_dates').delete().eq('id', deadlineId).eq('contract_id', contract.id);
+      const { error } = await supabase.from('contract_dates').delete().eq('id', deadlineId);
       if (error) throw error;
     },
     onSuccess: () => { toast.success('Deadline deleted'); queryClient.invalidateQueries({ queryKey: ['contract-dates', id] }); },
@@ -263,12 +252,12 @@ export default function ContractDetailPage() {
 
   const startExtraction = useMutation({
     mutationFn: async () => {
-      if (!contract?.id) throw new Error('Missing contract id.');
+      if (!id) throw new Error('Missing contract id.');
       const latestFile = files[0];
       if (!latestFile) throw new Error('No uploaded contract file found.');
       const { error } = await supabase.functions.invoke('extract-contract-fields', {
         body: {
-          contractId: contract.id,
+          contractId: id,
           filePath: latestFile.storage_path,
         },
       });
@@ -283,7 +272,7 @@ export default function ContractDetailPage() {
 
   const addSuggestedDeadlines = useMutation({
     mutationFn: async () => {
-      if (!contract?.id || !extractionSuggestion) throw new Error('No AI suggestions available.');
+      if (!id || !extractionSuggestion) throw new Error('No AI suggestions available.');
 
       const existingPairs = new Set(
         dates.map((date) => `${date.type}:${date.due_date}`),
@@ -292,7 +281,7 @@ export default function ContractDetailPage() {
       const inserts = suggestedDeadlines
         .filter((suggestion) => !existingPairs.has(`${suggestion.type}:${suggestion.due_date}`))
         .map((suggestion) => ({
-          contract_id: contract.id,
+          contract_id: id,
           type: suggestion.type,
           due_date: suggestion.due_date,
           label: `AI suggested ${suggestion.type} date`,

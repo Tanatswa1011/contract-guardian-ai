@@ -9,45 +9,25 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Badge } from '@/components/ui/badge';
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { currentWorkspaceId } = useWorkspace();
   const [search, setSearch] = useState('');
 
   const { data: contracts, isLoading } = useQuery({
-    queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
+    queryKey: ['contracts-dashboard', user?.id],
     queryFn: async () => {
-      if (!user || !currentWorkspaceId) return [];
-
-      const { data: workspaceContracts, error: workspaceContractsError } = await supabase
-        .from('contracts')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('workspace_id', currentWorkspaceId);
-
-      if (workspaceContractsError) throw workspaceContractsError;
-      if (!workspaceContracts?.length) return [];
-
-      const contractIds = workspaceContracts.map((contract) => contract.id);
+      if (!user) return [];
       const { data, error } = await supabase
         .from('contracts_dashboard')
         .select('*')
         .eq('user_id', user.id)
-        .in('id', contractIds)
         .order('created_at', { ascending: false });
-      if (currentWorkspaceId) {
-        query = query.or(
-          `workspace_id.eq.${currentWorkspaceId},workspace_id.is.null`
-        );
-      }
-      const { data, error } = await query;
       if (error) throw error;
-      return data ?? [];
+      return data;
     },
-    enabled: !!user && !!currentWorkspaceId,
+    enabled: !!user,
   });
 
   if (isLoading) {
