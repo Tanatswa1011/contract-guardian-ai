@@ -107,7 +107,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const resolvedMemberships = user ? memberships : [];
+  const resolvedMemberships = useMemo(
+    () => (user ? memberships : []),
+    [memberships, user],
+  );
 
   useEffect(() => {
     if (!user) {
