@@ -1,4 +1,4 @@
-import { getDocument } from "https://esm.sh/pdfjs-serverless@0.6.0";
+import { getDocumentProxy, extractText as unpdfExtractText } from "https://esm.sh/unpdf@0.12.1";
 
 export const SUPPORTED_EXTRACTION_FIELDS = [
   "contract_title",
