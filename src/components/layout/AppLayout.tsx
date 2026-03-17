@@ -4,6 +4,7 @@ import { Shield, LayoutDashboard, Upload, Settings, CreditCard, LogOut, Menu, X 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 
 const navItems = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard },
@@ -27,11 +28,12 @@ export default function AppLayout() {
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 z-30 hidden w-64 flex-col border-r bg-sidebar lg:flex">
-        <div className="border-b px-6 py-5">
+        <div className="space-y-4 border-b px-6 py-5">
           <Link to="/app" className="flex items-center gap-2 text-sm font-semibold tracking-wide">
             <Shield className="h-4 w-4 text-foreground" />
             ContractGuardAI
           </Link>
+          <WorkspaceSwitcher />
         </div>
         <nav className="flex-1 space-y-1 p-4">
           {navItems.map(item => (
@@ -71,6 +73,7 @@ export default function AppLayout() {
         </div>
         {mobileOpen && (
           <nav className="space-y-1 border-t bg-background p-4">
+            <WorkspaceSwitcher className="mb-3" onSelect={() => setMobileOpen(false)} />
             {navItems.map(item => (
               <Link
                 key={item.to}

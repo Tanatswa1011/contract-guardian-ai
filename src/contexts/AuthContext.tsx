@@ -21,30 +21,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const acceptPendingInvites = async (u: User) => {
     try {
-      const email = u.email;
-      if (!email) return;
-
-      const { data: invites } = await supabase
-        .from('workspace_invites')
-        .select('id, workspace_id, role')
-        .eq('email', email.toLowerCase())
-        .eq('status', 'pending');
-
-      if (!invites?.length) return;
-
-      for (const inv of invites) {
-        await supabase
-          .from('workspace_members')
-          .upsert(
-            { workspace_id: inv.workspace_id, user_id: u.id, role: inv.role },
-            { onConflict: 'workspace_id,user_id' }
-          );
-
-        await supabase
-          .from('workspace_invites')
-          .update({ status: 'accepted', accepted_at: new Date().toISOString() })
-          .eq('id', inv.id);
+      if (!u.email) {
+        return;
       }
+
+      const { error } = await supabase.rpc('accept_my_pending_workspace_invites');
+      if (error) throw error;
     } catch {
       // Silent fail — invites will be retried on next login
     }
