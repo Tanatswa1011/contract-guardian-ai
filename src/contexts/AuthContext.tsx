@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -19,10 +19,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const acceptPendingInvites = async () => {
-    // Pending invite acceptance is currently handled elsewhere.
-    // Keep auth flow resilient until the RPC is added back to the database/types.
-  };
+  const acceptPendingInvites = useCallback(async () => {
+    const { error } = await supabase.rpc('accept_my_pending_workspace_invites');
+    if (error) {
+      console.warn('Unable to accept pending workspace invites.', error);
+    }
+  }, []);
 
   const navigate = useNavigate();
 
@@ -64,10 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      if (session?.user) {
+        setTimeout(() => acceptPendingInvites(), 0);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [acceptPendingInvites, navigate]);
 
   const signUp = async (email: string, password: string, displayName: string) => {
     const { error } = await supabase.auth.signUp({

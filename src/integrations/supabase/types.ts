@@ -756,9 +756,17 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      create_workspace_with_owner: {
+        Args: { p_name: string }
+        Returns: string
+      }
       handle_notification_failure: {
         Args: { error_message: string; queue_id: string }
         Returns: undefined
+      }
+      accept_my_pending_workspace_invites: {
+        Args: never
+        Returns: number
       }
       is_contract_owner: { Args: { p_contract_id: string }; Returns: boolean }
       is_workspace_member: {

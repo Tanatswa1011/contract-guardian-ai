@@ -58,8 +58,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return [];
       }
 
-      // Pending invite acceptance RPC is not available in the current schema.
-      // Memberships are fetched directly from workspace_members.
+      const { error: inviteError } = await supabase.rpc('accept_my_pending_workspace_invites');
+      if (inviteError) {
+        console.warn('Unable to accept pending workspace invites automatically.', inviteError);
+      }
 
       const { data: membershipRows, error: membershipError } = await supabase
         .from('workspace_members')
@@ -113,6 +115,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) {
       setCurrentWorkspaceIdState(null);
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(CURRENT_WORKSPACE_STORAGE_KEY);
+      }
       return;
     }
 
@@ -169,38 +174,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       throw new Error('You must be signed in to create a workspace.');
     }
 
-    const { data: workspace, error: workspaceError } = await supabase
-      .from('workspaces')
-      .insert({
-        name: trimmedName,
-        created_by: user.id,
-      })
-      .select('*')
-      .single();
+    const { data: workspaceId, error: workspaceError } = await supabase.rpc('create_workspace_with_owner', {
+      p_name: trimmedName,
+    });
 
     if (workspaceError) {
       throw workspaceError;
     }
 
-    const { error: membershipError } = await supabase
-      .from('workspace_members')
-      .insert({
-        workspace_id: workspace.id,
-        user_id: user.id,
-        role: 'owner',
-      });
-
-    if (membershipError) {
-      throw membershipError;
+    if (!workspaceId) {
+      throw new Error('Workspace creation did not return an id.');
     }
 
     await refetch();
-    setCurrentWorkspaceIdState(workspace.id);
+    setCurrentWorkspaceIdState(workspaceId);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, workspace.id);
+      window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, workspaceId);
     }
 
-    return workspace.id;
+    return workspaceId;
   }, [refetch, user]);
 
   const currentMembership = useMemo(

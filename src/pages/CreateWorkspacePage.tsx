@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { getErrorMessage } from '@/lib/supabaseError';
 
 export default function CreateWorkspacePage() {
   const navigate = useNavigate();
@@ -23,8 +24,7 @@ export default function CreateWorkspacePage() {
       toast.success('Workspace created successfully.');
       navigate('/app', { replace: true });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to create workspace.';
-      toast.error(message);
+      toast.error(getErrorMessage(error, 'Unable to create workspace.'));
     } finally {
       setIsSubmitting(false);
     }
