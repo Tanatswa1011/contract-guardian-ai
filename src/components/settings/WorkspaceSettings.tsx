@@ -154,10 +154,42 @@ export default function WorkspaceSettings() {
 
   const memberToRemove = removeMemberId ? members.find(m => m.id === removeMemberId) : null;
 
-  if (!currentWorkspace || !currentMembership || membersLoading) {
+  if (workspaceLoading || membersLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!currentWorkspace || !currentMembership) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">No Workspace</CardTitle>
+            <CardDescription>You don't have a workspace yet. Create one to get started.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3">
+              <Input
+                value={newWorkspaceName}
+                onChange={e => setNewWorkspaceName(e.target.value)}
+                placeholder="e.g., Acme Legal"
+                className="max-w-sm"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateWorkspace}
+                disabled={isCreatingWorkspace || !newWorkspaceName.trim()}
+              >
+                {isCreatingWorkspace && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Create
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
