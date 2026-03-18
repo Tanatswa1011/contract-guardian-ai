@@ -47,7 +47,7 @@ Rules:
 - If a field is uncertain, ambiguous, or not explicitly present, return null.
 - Never invent data.
 - For dates, return ISO format YYYY-MM-DD only when clearly supported by text; otherwise null.
-- For *_days fields, return an integer day count only when clearly supported (e.g. "30 days notice", "net 45").
+- For *_days fields, return an integer day count only when clearly supported (e.g. "30 days notice").
 - Include missing_fields for any null extraction among supported fields.
 - Set needs_review=true whenever any field is missing or uncertain.
 - Keep notes concise.`;
