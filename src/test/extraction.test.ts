@@ -47,7 +47,7 @@ describe('parseExtractionSuggestion', () => {
 });
 
 describe('generateSuggestedDeadlines', () => {
-  it('builds date offsets from extracted dates', () => {
+  it('generates one deadline per date type, prioritizing renewal_date over end_date', () => {
     const suggestions = generateSuggestedDeadlines({
       end_date: '2026-12-31',
       renewal_date: '2026-11-30',
@@ -69,13 +69,17 @@ describe('generateSuggestedDeadlines', () => {
         date_type: 'renewal',
         source_date: '2026-11-30',
       },
-      {
-        due_date: '2026-11-15',
-        offset_value: 15,
-        offset_unit: 'days',
-        date_type: 'renewal',
-        source_date: '2026-11-30',
-      },
+    ]);
+  });
+
+  it('falls back to end_date for renewal suggestion when renewal_date is absent', () => {
+    const suggestions = generateSuggestedDeadlines({
+      end_date: '2026-12-31',
+      renewal_date: null,
+      notice_date: null,
+    });
+
+    expect(suggestions).toEqual([
       {
         due_date: '2026-12-01',
         offset_value: 30,
@@ -83,19 +87,24 @@ describe('generateSuggestedDeadlines', () => {
         date_type: 'end',
         source_date: '2026-12-31',
       },
+    ]);
+  });
+
+  it('generates payment deadline from payment_date', () => {
+    const suggestions = generateSuggestedDeadlines({
+      end_date: null,
+      renewal_date: null,
+      notice_date: null,
+      payment_date: '2026-06-15',
+    });
+
+    expect(suggestions).toEqual([
       {
-        due_date: '2026-12-16',
-        offset_value: 15,
-        offset_unit: 'days',
-        date_type: 'end',
-        source_date: '2026-12-31',
-      },
-      {
-        due_date: '2026-12-24',
+        due_date: '2026-06-08',
         offset_value: 7,
         offset_unit: 'days',
-        date_type: 'end',
-        source_date: '2026-12-31',
+        date_type: 'payment',
+        source_date: '2026-06-15',
       },
     ]);
   });
