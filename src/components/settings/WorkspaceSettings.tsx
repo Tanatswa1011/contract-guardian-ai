@@ -15,12 +15,27 @@ import { useNavigate } from 'react-router-dom';
 
 export default function WorkspaceSettings() {
   const { user } = useAuth();
-  const { currentMembership, currentWorkspace, refreshMemberships } = useWorkspace();
+  const { currentMembership, currentWorkspace, refreshMemberships, createWorkspace } = useWorkspace();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [inviteEmail, setInviteEmail] = useState('');
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
   const [showDeleteWorkspace, setShowDeleteWorkspace] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  const handleCreateWorkspace = async () => {
+    try {
+      setIsCreatingWorkspace(true);
+      await createWorkspace(newWorkspaceName);
+      toast.success('Workspace created! Switched to new workspace.');
+      setNewWorkspaceName('');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create workspace.');
+    } finally {
+      setIsCreatingWorkspace(false);
+    }
+  };
 
   const { data: members = [], isLoading: membersLoading } = useQuery({
     queryKey: ['workspace-members', currentWorkspace?.id],
@@ -214,6 +229,32 @@ export default function WorkspaceSettings() {
                 {currentMembership.role}
               </Badge>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Create New Workspace</CardTitle>
+          <CardDescription>Start a new workspace for a different team or project.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            <Input
+              value={newWorkspaceName}
+              onChange={e => setNewWorkspaceName(e.target.value)}
+              placeholder="e.g., Acme Legal"
+              className="max-w-sm"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCreateWorkspace}
+              disabled={isCreatingWorkspace || !newWorkspaceName.trim()}
+            >
+              {isCreatingWorkspace && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Create
+            </Button>
           </div>
         </CardContent>
       </Card>
