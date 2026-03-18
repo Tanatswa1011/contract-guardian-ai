@@ -408,7 +408,7 @@ export default function ContractDetailPage() {
       payment_terms_days: extractionSuggestion.payment_terms_days,
       computed_deadlines: extractionSuggestion.computed_deadlines,
     });
-  }, [contract?.id, extractionSuggestion]);
+  }, [extractionSuggestion]);
 
   const startExtraction = useMutation({
     mutationFn: async () => {
