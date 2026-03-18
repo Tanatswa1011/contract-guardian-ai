@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Accept pending workspace invites on sign-in
       if (event === 'SIGNED_IN' && session?.user) {
-        setTimeout(() => acceptPendingInvites(session.user), 0);
+        setTimeout(() => acceptPendingInvites(), 0);
       }
     });
 
