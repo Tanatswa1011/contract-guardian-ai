@@ -17,7 +17,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import {
   parseExtractionSuggestion,
+  generateSuggestedDeadlines,
   type SupportedExtractionField,
+  type SuggestedDeadline,
 } from '@/lib/extraction';
 import { cn } from '@/lib/utils';
 
@@ -304,14 +306,11 @@ export default function ContractDetailPage() {
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 
-  const suggestedDeadlines = useMemo(() => {
-    if (!extractionSuggestion) return [] as Array<{ type: 'renewal' | 'notice' | 'payment'; due_date: string }>;
-    const suggestions = [
-      { type: 'renewal' as const, due_date: extractionSuggestion.renewal_date },
-      { type: 'notice' as const, due_date: extractionSuggestion.notice_date },
-      { type: 'payment' as const, due_date: extractionSuggestion.payment_date },
-    ];
-    return suggestions.filter((suggestion) => Boolean(suggestion.due_date)) as Array<{ type: 'renewal' | 'notice' | 'payment'; due_date: string }>;
+  const suggestedDeadlines = useMemo((): SuggestedDeadline[] => {
+    if (!extractionSuggestion) return [];
+    const deadlines = generateSuggestedDeadlines(extractionSuggestion);
+    console.log('[ContractDetail] Generated suggested deadlines:', deadlines);
+    return deadlines;
   }, [extractionSuggestion]);
 
   const startExtraction = useMutation({
@@ -337,27 +336,26 @@ export default function ContractDetailPage() {
   const addSuggestedDeadlines = useMutation({
     mutationFn: async () => {
       if (!contract || !extractionSuggestion) throw new Error('No AI suggestions available.');
+      if (suggestedDeadlines.length === 0) throw new Error('No suggested deadlines to apply — extraction may be missing date fields.');
 
-      const existingTypes = new Set(
-        dates.map((date) => date.type),
-      );
+      const existingLabels = new Set(dates.map((d) => d.label));
 
       const inserts = suggestedDeadlines
-        .filter((suggestion) => !existingTypes.has(suggestion.type))
-        .map((suggestion) => ({
+        .filter((sd) => !existingLabels.has(sd.label))
+        .map((sd) => ({
           contract_id: contract.id,
-          type: suggestion.type,
-          due_date: suggestion.due_date,
-          label: `AI suggested ${suggestion.type} date`,
-          note: 'Please review and edit if needed.',
+          type: 'custom' as const,
+          due_date: sd.due_date,
+          label: sd.label,
+          note: `Auto-generated: ${sd.offset_value} ${sd.offset_unit} before ${sd.date_type} date. Please review.`,
         }));
+
+      console.log('[ContractDetail] Suggested deadlines to insert:', inserts);
 
       if (inserts.length === 0) return 0;
 
-      const { error } = await supabase.from('contract_dates').upsert(inserts, {
-        onConflict: 'contract_id,type',
-        ignoreDuplicates: true,
-      });
+      const { data, error } = await supabase.from('contract_dates').insert(inserts).select('id');
+      console.log('[ContractDetail] Supabase insert result:', { data, error });
       if (error) throw error;
       return inserts.length;
     },
@@ -370,7 +368,10 @@ export default function ContractDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+    onError: (error: unknown) => {
+      console.error('[ContractDetail] addSuggestedDeadlines failed:', error);
+      toast.error(getErrorMessage(error));
+    },
   });
 
   const applySuggestionsToForm = () => {
@@ -909,7 +910,7 @@ export default function ContractDetailPage() {
                 disabled={!suggestedDeadlines.length || addSuggestedDeadlines.isPending}
               >
                 {addSuggestedDeadlines.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Add Suggested Deadlines
+                Apply Suggested Deadlines{suggestedDeadlines.length > 0 ? ` (${suggestedDeadlines.length})` : ''}
               </Button>
               <Button
                 variant="outline"

@@ -25,6 +25,14 @@ export type ExtractionSuggestion = {
   notes: string | null;
 };
 
+export type SuggestedDeadline = {
+  offset_value: number;
+  offset_unit: 'days';
+  date_type: 'end' | 'renewal' | 'notice';
+  due_date: string;
+  label: string;
+};
+
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 function normalizeString(input: unknown): string | null {
@@ -51,6 +59,49 @@ function toSupportedField(value: unknown): SupportedExtractionField | null {
   return SUPPORTED_EXTRACTION_FIELDS.includes(value as SupportedExtractionField)
     ? (value as SupportedExtractionField)
     : null;
+}
+
+function subtractDays(isoDate: string, days: number): string | null {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+const DATE_TYPE_LABELS: Record<SuggestedDeadline['date_type'], string> = {
+  end: 'contract end date',
+  renewal: 'renewal date',
+  notice: 'notice date',
+};
+
+export function generateSuggestedDeadlines(suggestion: ExtractionSuggestion): SuggestedDeadline[] {
+  const deadlines: SuggestedDeadline[] = [];
+
+  const rules: Array<{ field: keyof ExtractionSuggestion; dateType: SuggestedDeadline['date_type']; offsets: number[] }> = [
+    { field: 'end_date', dateType: 'end', offsets: [30, 15, 7] },
+    { field: 'renewal_date', dateType: 'renewal', offsets: [30, 15] },
+    { field: 'notice_date', dateType: 'notice', offsets: [7] },
+  ];
+
+  for (const rule of rules) {
+    const sourceDate = suggestion[rule.field];
+    if (typeof sourceDate !== 'string' || !isIsoDate(sourceDate)) continue;
+
+    for (const offset of rule.offsets) {
+      const due = subtractDays(sourceDate, offset);
+      if (due) {
+        deadlines.push({
+          offset_value: offset,
+          offset_unit: 'days',
+          date_type: rule.dateType,
+          due_date: due,
+          label: `${offset} days before ${DATE_TYPE_LABELS[rule.dateType]}`,
+        });
+      }
+    }
+  }
+
+  return deadlines;
 }
 
 export function parseExtractionSuggestion(rawJson: Json): ExtractionSuggestion | null {
