@@ -52,9 +52,7 @@ export function generateSuggestedDeadlines(input: SuggestionInput): SuggestedDea
     end_date: normalizeIsoDate(input.end_date),
     renewal_date: normalizeIsoDate(input.renewal_date),
     notice_date: normalizeIsoDate(input.notice_date),
-    payment_date: normalizeIsoDate(input.payment_date),
     notice_period_days: normalizePositiveInteger(input.notice_period_days),
-    payment_terms_days: normalizePositiveInteger(input.payment_terms_days),
   };
 
   const renewalDate = normalizedInput.renewal_date
