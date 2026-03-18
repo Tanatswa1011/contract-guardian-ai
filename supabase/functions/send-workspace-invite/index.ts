@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { sendInviteEmail } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,9 +23,7 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY")!;
 
-    // Verify the caller
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -39,7 +38,6 @@ Deno.serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub;
-
     const { email, workspace_id, app_url } = await req.json();
 
     if (!email || !workspace_id || !app_url) {
@@ -49,7 +47,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch workspace name
     const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const { data: workspace } = await serviceClient
@@ -58,7 +55,6 @@ Deno.serve(async (req) => {
       .eq("id", workspace_id)
       .single();
 
-    // Fetch inviter display name
     const { data: profile } = await serviceClient
       .from("profiles")
       .select("display_name")
@@ -69,39 +65,22 @@ Deno.serve(async (req) => {
     const inviterName = profile?.display_name || "A teammate";
     const signupLink = `${app_url}/signup?invite_email=${encodeURIComponent(email)}`;
 
-    const html = `
-      <h2>You've been invited to join ${workspaceName}</h2>
-      <p><strong>${inviterName}</strong> has invited you to collaborate on <strong>${workspaceName}</strong>.</p>
-      <p>Click the link below to create your account and get started:</p>
-      <p><a href="${signupLink}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">Accept Invitation</a></p>
-      <p style="margin-top:16px;color:#6b7280;font-size:14px;">Or copy this link: ${signupLink}</p>
-    `;
-
-    const emailRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "Invitations <onboarding@resend.dev>",
-        to: [email],
-        subject: `${inviterName} invited you to ${workspaceName}`,
-        html,
-      }),
+    const result = await sendInviteEmail({
+      to: email,
+      inviteLink: signupLink,
+      workspaceName,
+      inviterName,
     });
 
-    const emailResult = await emailRes.json();
-
-    if (!emailRes.ok) {
-      console.error("Resend error:", emailResult);
-      return new Response(JSON.stringify({ error: "Failed to send email", details: emailResult }), {
+    if (!result.success) {
+      console.error("Email send failed:", result.error);
+      return new Response(JSON.stringify({ error: "Failed to send email", details: result.error }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ success: true, id: emailResult.id }), {
+    return new Response(JSON.stringify({ success: true, id: result.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: unknown) {
