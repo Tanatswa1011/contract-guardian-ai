@@ -60,10 +60,9 @@ const EXTRACTION_FIELDS_IN_ORDER: SupportedExtractionField[] = [
   'end_date',
   'renewal_date',
   'notice_date',
-  'payment_date',
 ];
 
-const DEADLINE_REVIEW_FIELDS: SupportedExtractionField[] = ['renewal_date', 'notice_date', 'payment_date'];
+const DEADLINE_REVIEW_FIELDS: SupportedExtractionField[] = ['renewal_date', 'notice_date'];
 
 const REVIEW_TARGET_ID_BY_FIELD: Record<SupportedExtractionField, string> = {
   contract_title: 'contract-title-input',
@@ -72,7 +71,6 @@ const REVIEW_TARGET_ID_BY_FIELD: Record<SupportedExtractionField, string> = {
   end_date: 'contract-end-date-input',
   renewal_date: 'important-dates-section',
   notice_date: 'important-dates-section',
-  payment_date: 'important-dates-section',
 };
 
 export default function ContractDetailPage() {
