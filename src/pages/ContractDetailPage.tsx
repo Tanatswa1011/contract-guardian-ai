@@ -309,7 +309,11 @@ export default function ContractDetailPage() {
   const suggestedDeadlines = useMemo((): SuggestedDeadline[] => {
     if (!extractionSuggestion) return [];
     const deadlines = generateSuggestedDeadlines(extractionSuggestion);
-    console.log('[ContractDetail] Generated suggested deadlines:', deadlines);
+    const hasDateFields = !!(extractionSuggestion.end_date || extractionSuggestion.renewal_date || extractionSuggestion.notice_date);
+    if (hasDateFields && deadlines.length === 0) {
+      console.warn('[ContractDetail] Dates exist but no suggested deadlines were generated — check generateSuggestedDeadlines logic');
+    }
+    console.log('[ContractDetail] Generated suggested deadlines:', { count: deadlines.length, hasDateFields, deadlines });
     return deadlines;
   }, [extractionSuggestion]);
 
