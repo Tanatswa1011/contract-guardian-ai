@@ -89,7 +89,6 @@ function parseComputedDeadlines(input: unknown): ExtractionSuggestion['computed_
   return {
     renewal_date: normalizeIsoDate(source.renewal_date),
     notice_date: normalizeIsoDate(source.notice_date),
-    payment_date: normalizeIsoDate(source.payment_date),
   };
 }
 
