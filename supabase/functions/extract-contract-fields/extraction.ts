@@ -110,24 +110,17 @@ function computeDerivedDeadlines(
     (extraction.notice_period_days && noticeAnchorDate
       ? subtractDays(noticeAnchorDate, extraction.notice_period_days)
       : null);
-  const paymentDate = extraction.payment_date ??
-    (extraction.payment_terms_days && extraction.start_date
-      ? addDays(extraction.start_date, extraction.payment_terms_days)
-      : null);
 
   return {
     ...extraction,
     renewal_date: renewalDate,
     notice_date: noticeDate,
-    payment_date: paymentDate,
     computed_deadlines: {
       renewal_date: renewalDate,
       notice_date: noticeDate,
-      payment_date: paymentDate,
       sources: {
         renewal_date: extraction.renewal_date ? "extracted" : renewalDate ? "computed" : null,
         notice_date: extraction.notice_date ? "extracted" : noticeDate ? "computed" : null,
-        payment_date: extraction.payment_date ? "extracted" : paymentDate ? "computed" : null,
       },
     },
   };
