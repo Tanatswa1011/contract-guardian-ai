@@ -29,7 +29,6 @@ const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
   end_date: 'End Date',
   renewal_date: 'Renewal Date',
   notice_date: 'Notice Date',
-  payment_date: 'Payment Date',
 };
 
 const formatSuggestionValue = (value: string | null) => value ?? '—';
