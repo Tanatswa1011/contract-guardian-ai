@@ -9,7 +9,7 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import PublicLayout from "@/components/layout/PublicLayout";
 import AppLayout from "@/components/layout/AppLayout";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
-import RequireWorkspace from "@/components/layout/RequireWorkspace";
+// RequireWorkspace removed — workspace is created at signup
 import LandingPage from "@/pages/LandingPage";
 import PricingPage from "@/pages/PricingPage";
 import LoginPage from "@/pages/LoginPage";
