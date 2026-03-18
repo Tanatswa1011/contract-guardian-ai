@@ -62,10 +62,6 @@ export function generateSuggestedDeadlines(input: SuggestionInput): SuggestedDea
     ?? (normalizedInput.notice_period_days && noticeAnchorDate
       ? subtractDays(noticeAnchorDate, normalizedInput.notice_period_days)
       : null);
-  const paymentDate = normalizedInput.payment_date
-    ?? (normalizedInput.payment_terms_days && normalizedInput.start_date
-      ? addDays(normalizedInput.start_date, normalizedInput.payment_terms_days)
-      : null);
 
   const suggestions: SuggestedDeadline[] = [];
   if (renewalDate) {
