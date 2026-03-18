@@ -12,9 +12,7 @@ type SuggestionInput = {
   end_date?: string | null;
   renewal_date?: string | null;
   notice_date?: string | null;
-  payment_date?: string | null;
   notice_period_days?: number | null;
-  payment_terms_days?: number | null;
 };
 
 function isIsoDate(value: string): boolean {
