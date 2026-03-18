@@ -9,6 +9,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Plus, Download, AlertTriangle, FileText, Trash2, Loader2, CalendarClock } from 'lucide-react';
+import { ExtractionPreviewModal } from '@/components/ExtractionPreviewModal';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import {
   parseExtractionSuggestion,
+  generateSuggestedDeadlines,
   type SupportedExtractionField,
 } from '@/lib/extraction';
 import { cn } from '@/lib/utils';
@@ -38,6 +40,12 @@ const DEADLINE_TYPE_LABELS: Record<string, string> = {
   notice: 'Notice',
   payment: 'Payment',
   custom: 'Custom',
+  end_30d: '30 days before end',
+  end_15d: '15 days before end',
+  end_7d: '7 days before end',
+  renewal_30d: '30 days before renewal',
+  renewal_15d: '15 days before renewal',
+  notice_7d: '7 days before notice',
 };
 
 type ContractFormValues = {
@@ -168,6 +176,8 @@ export default function ContractDetailPage() {
   const [aiSuggestionsApplied, setAiSuggestionsApplied] = useState(false);
   const [deletingDeadlineId, setDeletingDeadlineId] = useState<string | null>(null);
   const [activeReviewField, setActiveReviewField] = useState<SupportedExtractionField | null>(null);
+  const [showExtractionPreview, setShowExtractionPreview] = useState(false);
+  const [dismissedExtractionId, setDismissedExtractionId] = useState<string | null>(null);
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'An unexpected error occurred');
 
   const hasUnsavedChanges = useMemo(
@@ -231,6 +241,17 @@ export default function ContractDetailPage() {
     const timeoutId = window.setTimeout(() => setActiveReviewField(null), 1800);
     return () => window.clearTimeout(timeoutId);
   }, [activeReviewField]);
+
+  // Show extraction preview when extraction completes (do not navigate away)
+  useEffect(() => {
+    if (
+      extraction?.status === 'completed' &&
+      extractionSuggestion &&
+      extraction.id !== dismissedExtractionId
+    ) {
+      setShowExtractionPreview(true);
+    }
+  }, [extraction?.status, extraction?.id, extractionSuggestion, dismissedExtractionId]);
 
   const updateContract = useMutation({
     mutationFn: async (values: ContractFormValues) => {
@@ -304,15 +325,10 @@ export default function ContractDetailPage() {
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 
-  const suggestedDeadlines = useMemo(() => {
-    if (!extractionSuggestion) return [] as Array<{ type: 'renewal' | 'notice' | 'payment'; due_date: string }>;
-    const suggestions = [
-      { type: 'renewal' as const, due_date: extractionSuggestion.renewal_date },
-      { type: 'notice' as const, due_date: extractionSuggestion.notice_date },
-      { type: 'payment' as const, due_date: extractionSuggestion.payment_date },
-    ];
-    return suggestions.filter((suggestion) => Boolean(suggestion.due_date)) as Array<{ type: 'renewal' | 'notice' | 'payment'; due_date: string }>;
-  }, [extractionSuggestion]);
+  const suggestedDeadlines = useMemo(
+    () => generateSuggestedDeadlines(extractionSuggestion),
+    [extractionSuggestion],
+  );
 
   const startExtraction = useMutation({
     mutationFn: async () => {
@@ -336,41 +352,55 @@ export default function ContractDetailPage() {
 
   const addSuggestedDeadlines = useMutation({
     mutationFn: async () => {
-      if (!contract || !extractionSuggestion) throw new Error('No AI suggestions available.');
+      if (!contract || !currentWorkspaceId) throw new Error('Contract or workspace not found.');
+      if (suggestedDeadlines.length === 0) throw new Error('No suggested deadlines to add.');
 
-      const existingTypes = new Set(
-        dates.map((date) => date.type),
-      );
-
+      const existingTypes = new Set(dates.map((date) => date.type));
       const inserts = suggestedDeadlines
-        .filter((suggestion) => !existingTypes.has(suggestion.type))
-        .map((suggestion) => ({
+        .filter((s) => !existingTypes.has(s.type))
+        .map((s) => ({
           contract_id: contract.id,
-          type: suggestion.type,
-          due_date: suggestion.due_date,
-          label: `AI suggested ${suggestion.type} date`,
-          note: 'Please review and edit if needed.',
+          type: s.type,
+          due_date: s.due_date,
+          label: s.label,
+          note: `Suggested: ${s.offset_value} days before ${s.date_type} date`,
         }));
 
-      if (inserts.length === 0) return 0;
+      if (inserts.length === 0) {
+        return { insertedCount: 0, alreadyExists: true };
+      }
 
-      const { error } = await supabase.from('contract_dates').upsert(inserts, {
-        onConflict: 'contract_id,type',
-        ignoreDuplicates: true,
-      });
-      if (error) throw error;
-      return inserts.length;
+      // Debug: log before applying
+      console.debug('[Apply Suggested Deadlines] Suggested deadlines:', suggestedDeadlines);
+      console.debug('[Apply Suggested Deadlines] Inserting:', inserts, 'contract_id:', contract.id, 'workspace_id:', currentWorkspaceId);
+
+      const { data, error } = await supabase
+        .from('contract_dates')
+        .insert(inserts)
+        .select('id');
+
+      if (error) {
+        console.error('[Apply Suggested Deadlines] Supabase insert error:', error);
+        throw error;
+      }
+      console.debug('[Apply Suggested Deadlines] Insert result:', data);
+      return { insertedCount: inserts.length, alreadyExists: false };
     },
-    onSuccess: (insertedCount) => {
-      if (insertedCount === 0) {
+    onSuccess: (result) => {
+      const count = typeof result === 'object' ? result.insertedCount : result;
+      const alreadyExists = typeof result === 'object' && result.alreadyExists;
+      if (alreadyExists || count === 0) {
         toast.success('Suggested deadlines are already added.');
       } else {
-        toast.success(`${insertedCount} suggested deadline${insertedCount > 1 ? 's' : ''} added.`);
+        toast.success(`${count} suggested deadline${count > 1 ? 's' : ''} added.`);
       }
       queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+    onError: (error: unknown) => {
+      console.error('[Apply Suggested Deadlines] Mutation error:', error);
+      toast.error(getErrorMessage(error));
+    },
   });
 
   const applySuggestionsToForm = () => {
@@ -403,6 +433,26 @@ export default function ContractDetailPage() {
     setFormValues(nextValues);
     setAiSuggestionsApplied(true);
     toast.success('AI suggestions applied. Review the fields, then click Save Changes.');
+  };
+
+  const handleSaveFromPreview = async (applyDeadlines: boolean) => {
+    if (!contract || !extractionSuggestion) return;
+    const values: ContractFormValues = {
+      title: extractionSuggestion.contract_title || contract.title || '',
+      counterparty: extractionSuggestion.counterparty ?? '',
+      startDate: extractionSuggestion.start_date ?? '',
+      endDate: extractionSuggestion.end_date ?? '',
+    };
+    try {
+      await updateContract.mutateAsync(values);
+      if (applyDeadlines && suggestedDeadlines.length > 0) {
+        await addSuggestedDeadlines.mutateAsync();
+      }
+      setDismissedExtractionId(extraction?.id ?? null);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+      throw err;
+    }
   };
 
   const handleDeleteDeadline = (deadlineId: string) => {
@@ -460,6 +510,12 @@ export default function ContractDetailPage() {
     notice: 'border-border bg-secondary text-foreground',
     payment: 'border-border bg-muted text-foreground',
     custom: 'border-border bg-background text-muted-foreground',
+    end_30d: 'border-border bg-accent text-foreground',
+    end_15d: 'border-border bg-accent text-foreground',
+    end_7d: 'border-border bg-accent text-foreground',
+    renewal_30d: 'border-border bg-accent text-foreground',
+    renewal_15d: 'border-border bg-accent text-foreground',
+    notice_7d: 'border-border bg-secondary text-foreground',
   };
 
   const formatFileSize = (bytes: number | null) => {
@@ -909,7 +965,7 @@ export default function ContractDetailPage() {
                 disabled={!suggestedDeadlines.length || addSuggestedDeadlines.isPending}
               >
                 {addSuggestedDeadlines.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Add Suggested Deadlines
+                Apply Suggested Deadlines
               </Button>
               <Button
                 variant="outline"
@@ -959,6 +1015,19 @@ export default function ContractDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <ExtractionPreviewModal
+        open={showExtractionPreview}
+        onOpenChange={setShowExtractionPreview}
+        contractTitle={contract?.title ?? ''}
+        extractionSuggestion={extractionSuggestion}
+        suggestedDeadlines={suggestedDeadlines}
+        missingFields={extractionMissingFields.filter(isFieldMissingNow)}
+        needsReview={needsReview}
+        onSave={handleSaveFromPreview}
+        onReviewEdit={() => setDismissedExtractionId(extraction?.id ?? null)}
+        isSaving={updateContract.isPending || addSuggestedDeadlines.isPending}
+      />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Reminder History</CardTitle></CardHeader>
