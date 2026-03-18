@@ -14,7 +14,7 @@ export default function RequireWorkspace() {
   }
 
   if (!hasWorkspace) {
-    return <Navigate to="/create-workspace" replace />;
+    return <Navigate to="/create-workspace?onboarding=1" replace />;
   }
 
   return <Outlet />;
