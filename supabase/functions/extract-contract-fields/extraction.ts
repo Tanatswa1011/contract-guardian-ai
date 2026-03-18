@@ -1,4 +1,4 @@
-import { getDocument } from "https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs";
+import { extractText as unpdfExtractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 
 export const SUPPORTED_EXTRACTION_FIELDS = [
   "contract_title",
@@ -125,29 +125,9 @@ function parseExtractionJson(content: string): ContractExtractionResult {
 
 export async function extractTextFromPdf(pdfBytes: Uint8Array): Promise<string> {
   try {
-    // Edge runtime is server-side; force workerless parsing.
-    const loadingTask = getDocument({
-      data: pdfBytes,
-      disableWorker: true,
-      isEvalSupported: false,
-      useWorkerFetch: false,
-    });
-    const pdf = await loadingTask.promise;
-    const pages: string[] = [];
-
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const textContent = await page.getTextContent();
-      const pageText = (textContent.items as Array<Record<string, unknown>>)
-        .map((item) => (typeof item.str === "string" ? item.str : ""))
-        .join(" ");
-      const normalizedPage = normalizeWhitespace(pageText);
-      if (normalizedPage) {
-        pages.push(normalizedPage);
-      }
-    }
-
-    return pages.join("\n\n").trim();
+    const pdf = await getDocumentProxy(pdfBytes);
+    const { text } = await unpdfExtractText(pdf, { mergePages: true });
+    return normalizeWhitespace(text).trim();
   } catch (error) {
     throw new Error(
       `PDF_PARSE_ERROR: ${

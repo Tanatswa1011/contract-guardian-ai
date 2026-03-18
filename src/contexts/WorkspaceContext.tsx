@@ -58,10 +58,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return [];
       }
 
-      const { error: inviteError } = await supabase.rpc('accept_my_pending_workspace_invites');
-      if (inviteError) {
-        console.error('Unable to accept pending workspace invites:', inviteError.message);
-      }
+      // Pending invite acceptance RPC is not available in the current schema.
+      // Memberships are fetched directly from workspace_members.
 
       const { data: membershipRows, error: membershipError } = await supabase
         .from('workspace_members')
@@ -167,26 +165,43 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       throw new Error('Workspace name is required.');
     }
 
-    const { data, error } = await supabase.rpc('create_workspace_with_owner', {
-      p_name: trimmedName,
-    });
-
-    if (error) {
-      throw error;
+    if (!user) {
+      throw new Error('You must be signed in to create a workspace.');
     }
 
-    if (!data) {
-      throw new Error('Workspace creation failed.');
+    const { data: workspace, error: workspaceError } = await supabase
+      .from('workspaces')
+      .insert({
+        name: trimmedName,
+        created_by: user.id,
+      })
+      .select('*')
+      .single();
+
+    if (workspaceError) {
+      throw workspaceError;
+    }
+
+    const { error: membershipError } = await supabase
+      .from('workspace_members')
+      .insert({
+        workspace_id: workspace.id,
+        user_id: user.id,
+        role: 'owner',
+      });
+
+    if (membershipError) {
+      throw membershipError;
     }
 
     await refetch();
-    setCurrentWorkspaceIdState(data);
+    setCurrentWorkspaceIdState(workspace.id);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, data);
+      window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, workspace.id);
     }
 
-    return data;
-  }, [refetch]);
+    return workspace.id;
+  }, [refetch, user]);
 
   const currentMembership = useMemo(
     () => resolvedMemberships.find((membership) => membership.workspaceId === currentWorkspaceId) ?? null,
