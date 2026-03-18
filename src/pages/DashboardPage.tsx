@@ -241,7 +241,6 @@ export default function DashboardPage() {
       case 'overdue': return 'destructive';
       case 'expiring_soon': return 'secondary';
       case 'needs_review': return 'secondary';
-      case 'missing_dates': return 'outline';
       default: return 'outline';
     }
   };
@@ -251,7 +250,6 @@ export default function DashboardPage() {
       case 'overdue': return 'Overdue';
       case 'expiring_soon': return 'Expiring Soon';
       case 'needs_review': return 'Needs Review';
-      case 'missing_dates': return 'Missing Dates';
       case 'ok': return 'Healthy';
       default: return status || 'Unknown';
     }
