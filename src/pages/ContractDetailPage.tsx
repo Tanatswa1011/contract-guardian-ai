@@ -376,17 +376,29 @@ export default function ContractDetailPage() {
         throw new Error('Contract is not available in the selected workspace.');
       }
 
-      const upserts = suggestedDeadlines.map((suggestion) => ({
-        contract_id: contract.id,
-        type: suggestion.type,
-        due_date: suggestion.due_date,
-        label: suggestion.label,
-        note: suggestion.note,
-      }));
+      // Fetch existing deadline types to avoid partial unique index conflict
+      const { data: existingDates } = await supabase
+        .from('contract_dates')
+        .select('type')
+        .eq('contract_id', contract.id);
+
+      const existingTypes = new Set((existingDates ?? []).map((d) => d.type));
+
+      const inserts = suggestedDeadlines
+        .filter((suggestion) => !existingTypes.has(suggestion.type))
+        .map((suggestion) => ({
+          contract_id: contract.id,
+          type: suggestion.type,
+          due_date: suggestion.due_date,
+          label: suggestion.label,
+          note: suggestion.note,
+        }));
+
+      if (inserts.length === 0) return [];
 
       const { data: insertedRows, error: insertError } = await supabase
         .from('contract_dates')
-        .upsert(upserts, { onConflict: 'contract_id,type' })
+        .insert(inserts)
         .select('id, contract_id, type, due_date, label, note, created_at');
 
       if (insertError) {
