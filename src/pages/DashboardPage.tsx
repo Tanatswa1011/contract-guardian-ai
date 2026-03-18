@@ -131,17 +131,13 @@ export default function DashboardPage() {
 
         const nextDeadline = upcomingDates.find((date) => date.daysUntil >= 0) ?? null;
         const hasOverdueDates = upcomingDates.some((date) => date.daysUntil < 0);
-        const needsReview = Boolean(
-          latestExtraction?.needs_review || (latestExtraction?.missing_fields?.length ?? 0) > 0,
-        );
+        const needsReview = contractDates.length === 0 && !nextDeadline;
 
         let healthStatus = 'ok';
         if (hasOverdueDates) {
           healthStatus = 'overdue';
         } else if (needsReview) {
           healthStatus = 'needs_review';
-        } else if (contractDates.length === 0) {
-          healthStatus = 'missing_dates';
         } else if (nextDeadline && nextDeadline.daysUntil <= 30) {
           healthStatus = 'expiring_soon';
         }
