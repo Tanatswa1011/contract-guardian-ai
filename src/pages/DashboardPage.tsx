@@ -6,11 +6,14 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@
 import { StatusBadge } from '@/components/StatusBadge';
 import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Badge } from '@/components/ui/badge';
+import { SwipeableContractCard } from '@/components/SwipeableContractCard';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 type DashboardFilter = 'all' | 'needs_review' | 'expiring_soon' | 'active' | 'overdue';
 type DashboardContractRow = {
@@ -67,8 +70,11 @@ const getDaysUntilDate = (value: string) => {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { currentWorkspaceId } = useWorkspace();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
@@ -255,8 +261,38 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteContract = async () => {
+    if (!deleteId) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from('contracts').delete().eq('id', deleteId);
+      if (error) throw error;
+      toast.success('Contract deleted');
+      queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
+    } catch {
+      toast.error('Failed to delete contract');
+    } finally {
+      setIsDeleting(false);
+      setDeleteId(null);
+    }
+  };
+
   return (
     <div className="space-y-8">
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete contract?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete the contract and all associated data. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteContract} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isDeleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Contract Command Center</h1>
@@ -385,22 +421,13 @@ export default function DashboardPage() {
 
           <div className="md:hidden space-y-3">
             {filtered.map(contract => (
-              <Link key={contract.id} to={`/app/contracts/${contract.id}`}>
-                <Card>
-                  <CardContent className="pt-4 pb-3 px-4">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <p className="font-medium text-sm leading-tight">{contract.title}</p>
-                        <StatusBadge status={contract.status || 'draft'} />
-                      </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{contract.next_deadline_date ? `Next: ${new Date(contract.next_deadline_date).toLocaleDateString()}` : 'No upcoming'}</span>
-                      <Badge variant={healthVariant(contract.health_status)} className="normal-case text-xs capitalize tracking-normal">
-                        {healthLabel(contract.health_status)}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+              <SwipeableContractCard
+                key={contract.id}
+                contract={contract}
+                healthVariant={healthVariant}
+                healthLabel={healthLabel}
+                onDelete={(id) => setDeleteId(id)}
+              />
             ))}
           </div>
         </>
