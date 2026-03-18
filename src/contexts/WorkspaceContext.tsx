@@ -202,7 +202,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     currentWorkspaceId,
     currentWorkspace: currentMembership?.workspace ?? null,
     currentMembership,
-    isLoading: !!user && (isLoading || (resolvedMemberships.length > 0 && !currentWorkspaceId)),
+    isLoading: !!user && isLoading,
     hasWorkspace: resolvedMemberships.length > 0,
     setCurrentWorkspaceId,
     refreshMemberships,
