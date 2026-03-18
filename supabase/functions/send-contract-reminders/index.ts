@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { sendContractReminderEmail } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,11 +14,8 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const resendApiKey = Deno.env.get("RESEND_API_KEY")!;
-
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // Use the existing reminders_due_today() DB function
   const { data: reminders, error } = await supabase.rpc("reminders_due_today");
 
   if (error) {
@@ -46,38 +44,22 @@ Deno.serve(async (req) => {
     }
 
     const subject = r.subject || `Contract Reminder: ${r.title}`;
-    const body = [
-      `<h2>Contract Reminder</h2>`,
-      `<p><strong>Contract:</strong> ${r.title}</p>`,
-      `<p><strong>Deadline type:</strong> ${r.date_type}</p>`,
-      `<p><strong>Due date:</strong> ${r.due_date}</p>`,
-      `<p><strong>Reminder:</strong> ${r.offset_value} ${r.offset_unit}(s) before deadline</p>`,
-    ].join("\n");
 
     try {
-      // Send via Resend
-      const emailRes = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "Reminders <onboarding@resend.dev>",
-          to: [sendTo],
-          subject,
-          html: body,
-        }),
+      const result = await sendContractReminderEmail({
+        to: sendTo,
+        contractName: r.title,
+        expiryDate: r.due_date,
+        dateType: r.date_type,
+        offsetValue: r.offset_value,
+        offsetUnit: r.offset_unit,
       });
 
-      const emailResult = await emailRes.json();
-
-      if (!emailRes.ok) {
-        const errMsg = `Failed to send to ${sendTo}: ${JSON.stringify(emailResult)}`;
+      if (!result.success) {
+        const errMsg = `Failed to send to ${sendTo}: ${result.error}`;
         console.error(errMsg);
         errors.push(errMsg);
 
-        // Log failure
         await supabase.rpc("log_notification", {
           p_user_id: r.user_id,
           p_contract_id: r.contract_id,
@@ -88,12 +70,11 @@ Deno.serve(async (req) => {
           p_subject: subject,
           p_dedupe_key: r.dedupe_key,
           p_status: "failed",
-          p_error: JSON.stringify(emailResult),
+          p_error: result.error || "Unknown error",
         });
         continue;
       }
 
-      // Log success
       await supabase.rpc("log_notification", {
         p_user_id: r.user_id,
         p_contract_id: r.contract_id,
