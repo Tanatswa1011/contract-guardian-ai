@@ -1,7 +1,7 @@
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export type SuggestedDeadline = {
-  type: 'renewal' | 'notice' | 'payment';
+  type: 'renewal' | 'notice';
   due_date: string;
   label: string;
   note: string;
