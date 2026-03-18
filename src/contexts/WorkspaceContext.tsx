@@ -169,38 +169,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       throw new Error('You must be signed in to create a workspace.');
     }
 
-    const { data: workspace, error: workspaceError } = await supabase
-      .from('workspaces')
-      .insert({
-        name: trimmedName,
-        created_by: user.id,
-      })
-      .select('*')
-      .single();
+    const { data, error } = await supabase.rpc('create_workspace_with_owner', {
+      p_name: trimmedName,
+    });
 
-    if (workspaceError) {
-      throw workspaceError;
+    if (error) {
+      throw error;
     }
 
-    const { error: membershipError } = await supabase
-      .from('workspace_members')
-      .insert({
-        workspace_id: workspace.id,
-        user_id: user.id,
-        role: 'owner',
-      });
-
-    if (membershipError) {
-      throw membershipError;
+    if (typeof data !== 'string' || !data) {
+      throw new Error('Workspace creation failed. Please try again.');
     }
 
-    await refetch();
-    setCurrentWorkspaceIdState(workspace.id);
+    setCurrentWorkspaceIdState(data);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, workspace.id);
+      window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, data);
     }
+    await refetch();
 
-    return workspace.id;
+    return data;
   }, [refetch, user]);
 
   const currentMembership = useMemo(

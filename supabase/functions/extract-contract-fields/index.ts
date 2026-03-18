@@ -14,11 +14,19 @@ const corsHeaders = {
 type ExtractContractRequest = {
   contractId?: string;
   filePath?: string;
+  workspaceId?: string;
 };
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "Unexpected extraction error";
+}
+
+function jsonResponse(payload: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 Deno.serve(async (req) => {
@@ -34,20 +42,14 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization");
 
   if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey || !openAiApiKey) {
-    return new Response(
-      JSON.stringify({ error: "Server is missing required environment values." }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+    return jsonResponse(
+      { ok: false, error: "Server is missing required environment values." },
+      500,
     );
   }
 
   if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ ok: false, error: "Unauthorized" }, 401);
   }
 
   const userClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -65,36 +67,35 @@ Deno.serve(async (req) => {
     } = await userClient.auth.getUser();
 
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ ok: false, error: "Unauthorized" }, 401);
     }
 
     const body = (await req.json()) as ExtractContractRequest;
     const contractId = body.contractId;
     const requestedFilePath = body.filePath;
+    const workspaceId = body.workspaceId ?? null;
     contractIdForErrorLog = contractId ?? null;
 
     if (!contractId) {
-      return new Response(JSON.stringify({ error: "contractId is required." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ ok: false, error: "contractId is required." }, 400);
     }
 
     const { data: contract, error: contractError } = await userClient
       .from("contracts")
-      .select("id")
+      .select("id, workspace_id")
       .eq("id", contractId)
       .maybeSingle();
 
     if (contractError) throw contractError;
     if (!contract) {
-      return new Response(JSON.stringify({ error: "Contract not found." }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ ok: false, error: "Contract not found." }, 404);
+    }
+
+    if (workspaceId && contract.workspace_id !== workspaceId) {
+      return jsonResponse(
+        { ok: false, error: "Contract does not belong to the active workspace." },
+        403,
+      );
     }
 
     let fileQuery = userClient
@@ -114,10 +115,7 @@ Deno.serve(async (req) => {
     const contractFile = fileRows?.[0];
 
     if (!contractFile) {
-      return new Response(JSON.stringify({ error: "Contract file not found." }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ ok: false, error: "Contract file not found." }, 404);
     }
 
     const { data: createdRun, error: createRunError } = await serviceClient
@@ -180,6 +178,9 @@ Deno.serve(async (req) => {
       renewal_date: extraction.renewal_date,
       notice_date: extraction.notice_date,
       payment_date: extraction.payment_date,
+      notice_period_days: extraction.notice_period_days,
+      payment_terms_days: extraction.payment_terms_days,
+      computed_deadlines: extraction.computed_deadlines,
       missing_fields: extraction.missing_fields,
       needs_review: extraction.needs_review,
     });
@@ -205,17 +206,13 @@ Deno.serve(async (req) => {
       throw updateRunError;
     }
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        extraction_run_id: extractionRunId,
-        needs_review: extraction.needs_review,
-        extraction,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return jsonResponse({
+      ok: true,
+      extraction_run_id: extractionRunId,
+      needs_review: extraction.needs_review,
+      missing_fields: extraction.missing_fields,
+      extraction,
+    });
   } catch (error) {
     const message = getErrorMessage(error);
     console.error("extract-contract-fields failed", {
@@ -248,14 +245,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        error: "Contract extraction failed. You can still fill details manually.",
-      }),
+    return jsonResponse(
       {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        ok: false,
+        error: "Contract extraction failed. You can still fill details manually.",
       },
+      500,
     );
   }
 });

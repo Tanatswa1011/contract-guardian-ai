@@ -27,12 +27,6 @@ const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
   payment_date: 'Payment Date',
 };
 
-const SUGGESTION_DATE_TYPE_LABELS: Record<'end' | 'renewal' | 'notice', string> = {
-  end: 'End',
-  renewal: 'Renewal',
-  notice: 'Notice',
-};
-
 function formatDateValue(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
@@ -63,50 +57,19 @@ export default function UploadPage() {
   );
 
   const suggestedDeadlines = useMemo(() => {
-    if (!extractionSuggestion) return [] as Array<{
-      type: 'renewal' | 'notice' | 'custom';
-      due_date: string;
-      label: string;
-      note: string;
-      offset_value: number;
-      offset_unit: 'days';
-      date_type: 'end' | 'renewal' | 'notice';
-      source_date: string;
-    }>;
-
-    console.log('[UploadPage] extracted dates', {
-      contract_id: contractId,
+    if (!extractionSuggestion) {
+      return [];
+    }
+    return generateSuggestedDeadlines({
+      start_date: extractionSuggestion.start_date,
       end_date: extractionSuggestion.end_date,
       renewal_date: extractionSuggestion.renewal_date,
       notice_date: extractionSuggestion.notice_date,
+      payment_date: extractionSuggestion.payment_date,
+      notice_period_days: extractionSuggestion.notice_period_days,
+      payment_terms_days: extractionSuggestion.payment_terms_days,
     });
-
-    const generated = generateSuggestedDeadlines({
-      end_date: extractionSuggestion.end_date,
-      renewal_date: extractionSuggestion.renewal_date,
-      notice_date: extractionSuggestion.notice_date,
-    });
-
-    console.log('[UploadPage] generated suggested deadlines', {
-      contract_id: contractId,
-      suggested: generated,
-    });
-
-    return generated.map((suggestion) => ({
-      type: suggestion.date_type === 'renewal'
-        ? 'renewal'
-        : suggestion.date_type === 'notice'
-          ? 'notice'
-          : 'custom',
-      due_date: suggestion.due_date,
-      label: `${SUGGESTION_DATE_TYPE_LABELS[suggestion.date_type]} reminder (${suggestion.offset_value} days before)`,
-      note: `Suggested from extracted ${suggestion.date_type} date (${suggestion.source_date}).`,
-      offset_value: suggestion.offset_value,
-      offset_unit: suggestion.offset_unit,
-      date_type: suggestion.date_type,
-      source_date: suggestion.source_date,
-    }));
-  }, [contractId, extractionSuggestion]);
+  }, [extractionSuggestion]);
 
   const resetUploadFlow = () => {
     setState('idle');
@@ -143,7 +106,22 @@ export default function UploadPage() {
   };
 
   const handleUpload = async () => {
-    if (!file || !user || !title || !currentWorkspaceId) return;
+    if (!file) {
+      toast.error('Select a PDF file first.');
+      return;
+    }
+    if (!user) {
+      toast.error('You must be signed in to upload a contract.');
+      return;
+    }
+    if (!title.trim()) {
+      toast.error('Contract title is required.');
+      return;
+    }
+    if (!currentWorkspaceId) {
+      toast.error('Select a workspace before uploading a contract.');
+      return;
+    }
     setState('uploading');
     setExtractionError(null);
 
@@ -196,7 +174,31 @@ export default function UploadPage() {
   };
 
   const runExtraction = async () => {
-    if (!contractId || !uploadedFilePath) return;
+    if (!currentWorkspaceId) {
+      toast.error('Select a workspace before running extraction.');
+      return;
+    }
+    if (!contractId || !uploadedFilePath) {
+      toast.error('Upload a contract file before running extraction.');
+      return;
+    }
+
+    const { data: scopedContract, error: scopeError } = await supabase
+      .from('contracts')
+      .select('id')
+      .eq('id', contractId)
+      .eq('workspace_id', currentWorkspaceId)
+      .maybeSingle();
+
+    if (scopeError) {
+      toast.error(getErrorMessage(scopeError));
+      return;
+    }
+    if (!scopedContract) {
+      toast.error('Contract is not available in the selected workspace.');
+      return;
+    }
+
     setState('extracting');
     setExtractionError(null);
 
@@ -205,40 +207,36 @@ export default function UploadPage() {
         body: {
           contractId,
           filePath: uploadedFilePath,
+          workspaceId: currentWorkspaceId,
         },
       });
       if (invokeError) throw invokeError;
-
-      const { data: latestRun, error: latestRunError } = await supabase
-        .from('extraction_runs')
-        .select('status, raw_json, missing_fields, needs_review, error')
-        .eq('contract_id', contractId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (latestRunError) throw latestRunError;
-      if (!latestRun) throw new Error('No extraction run was created.');
-
-      if (latestRun.status === 'failed') {
-        const failedMessage = latestRun.error || 'Extraction failed. You can continue manually.';
-        setExtractionError(failedMessage);
-        setState('uploaded');
-        toast.error(failedMessage);
-        return;
+      if (!data || typeof data !== 'object') {
+        throw new Error('Extraction service returned an invalid response.');
       }
 
-      const fallbackRaw = (data as { extraction?: Json } | null)?.extraction ?? null;
-      const rawSuggestion = latestRun.raw_json ?? fallbackRaw;
+      const response = data as {
+        ok?: boolean;
+        error?: string;
+        extraction?: Json;
+        needs_review?: boolean;
+        missing_fields?: unknown[];
+      };
+
+      if (response.ok === false || response.error) {
+        throw new Error(response.error || 'Extraction failed. You can continue manually.');
+      }
+
+      const rawSuggestion = response.extraction ?? null;
       const parsedSuggestion = parseExtractionSuggestion(rawSuggestion as Json);
       const normalizedMissingFields = (
         parsedSuggestion?.missing_fields
-        ?? (Array.isArray(latestRun.missing_fields) ? latestRun.missing_fields : [])
+        ?? (Array.isArray(response.missing_fields) ? response.missing_fields : [])
       ).filter((field): field is SupportedExtractionField => typeof field === 'string' && field in EXTRACTION_FIELD_LABELS);
 
       setExtractionSuggestionRaw((rawSuggestion ?? null) as Json | null);
       setExtractionMissingFields(normalizedMissingFields);
-      setExtractionNeedsReview(Boolean(latestRun.needs_review || normalizedMissingFields.length > 0));
+      setExtractionNeedsReview(Boolean(response.needs_review || normalizedMissingFields.length > 0));
       setState('preview');
       toast.success('Extraction complete. Review the preview and save when ready.');
     } catch (error: unknown) {
@@ -285,26 +283,7 @@ export default function UploadPage() {
 
       let insertedDeadlines = 0;
       if (saveWithSuggestedDeadlines && suggestedDeadlines.length > 0) {
-        const { data: existingDates, error: existingDatesError } = await supabase
-          .from('contract_dates')
-          .select('type, due_date, label')
-          .eq('contract_id', contractId);
-
-        if (existingDatesError) throw existingDatesError;
-
-        const existingTypes = new Set(
-          (existingDates ?? []).map((date) => date.type),
-        );
-
-        // Deduplicate by type (DB has unique constraint on contract_id+type)
-        const seenTypes = new Set<string>();
-        const inserts = suggestedDeadlines
-          .filter((deadline) => {
-            if (existingTypes.has(deadline.type) || seenTypes.has(deadline.type)) return false;
-            seenTypes.add(deadline.type);
-            return true;
-          })
-          .map((deadline) => ({
+        const upserts = suggestedDeadlines.map((deadline) => ({
             contract_id: contractId,
             type: deadline.type,
             due_date: deadline.due_date,
@@ -312,35 +291,17 @@ export default function UploadPage() {
             note: deadline.note,
           }));
 
-        console.log('[UploadPage] applying suggested deadlines', {
-          workspace_id: currentWorkspaceId,
-          contract_id: contractId,
-          suggested_deadlines: suggestedDeadlines,
-          inserts,
-        });
-
-        if (inserts.length > 0) {
+        if (upserts.length > 0) {
           const { data: insertResult, error: insertError } = await supabase
             .from('contract_dates')
-            .upsert(inserts, { onConflict: 'contract_id,type', ignoreDuplicates: true })
+            .upsert(upserts, { onConflict: 'contract_id,type' })
             .select('id, type, due_date, label');
 
-          console.log('[UploadPage] suggested deadline insert result', {
-            workspace_id: currentWorkspaceId,
-            contract_id: contractId,
-            inserted: insertResult ?? [],
-          });
-
           if (insertError) {
-            console.error('[UploadPage] suggested deadline insert error', {
-              workspace_id: currentWorkspaceId,
-              contract_id: contractId,
-              error: insertError,
-            });
             throw insertError;
           }
 
-          insertedDeadlines = insertResult?.length ?? inserts.length;
+          insertedDeadlines = insertResult?.length ?? upserts.length;
         }
       }
 
@@ -460,7 +421,7 @@ export default function UploadPage() {
                 Run Extraction
               </Button>
               <Button variant="outline" onClick={() => navigate(`/app/contracts/${contractId}`)}>
-                Review & Edit
+                Review Details
               </Button>
             </div>
           </CardContent>
@@ -477,7 +438,7 @@ export default function UploadPage() {
               </div>
               {extractionNeedsReview ? (
                 <Badge variant="outline" className="border-destructive/30 bg-destructive/5 text-foreground">
-                  Needs Review
+                  ⚠️ Needs Review
                 </Badge>
               ) : (
                 <Badge variant="outline">Looks Good</Badge>
@@ -522,7 +483,7 @@ export default function UploadPage() {
                 <div className="space-y-2">
                   {suggestedDeadlines.map((deadline) => (
                     <div
-                      key={`${deadline.date_type}-${deadline.offset_value}-${deadline.due_date}`}
+                      key={`${deadline.type}-${deadline.due_date}`}
                       className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
                     >
                       <p className="text-sm text-foreground">{deadline.label}</p>
@@ -564,7 +525,7 @@ export default function UploadPage() {
                 Save Contract
               </Button>
               <Button variant="outline" onClick={() => navigate(`/app/contracts/${contractId}`)}>
-                Review & Edit
+                Review Details
               </Button>
             </div>
           </CardContent>
@@ -580,7 +541,7 @@ export default function UploadPage() {
               Your extracted data was saved. You can review and edit later anytime.
             </p>
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => navigate(`/app/contracts/${contractId}`)}>Review & Edit</Button>
+              <Button onClick={() => navigate(`/app/contracts/${contractId}`)}>Review Details</Button>
               <Button variant="outline" onClick={resetUploadFlow}>Upload Another</Button>
             </div>
           </CardContent>

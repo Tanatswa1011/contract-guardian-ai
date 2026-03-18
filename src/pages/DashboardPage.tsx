@@ -78,7 +78,7 @@ export default function DashboardPage() {
       const { data: contractRows, error: contractError } = await supabase
         .from('contracts')
         .select('id, title, counterparty, created_at, updated_at, start_date, end_date, status, user_id, workspace_id')
-        .or(`workspace_id.eq.${currentWorkspaceId},and(workspace_id.is.null,user_id.eq.${user.id})`)
+        .eq('workspace_id', currentWorkspaceId)
         .order('created_at', { ascending: false });
       if (contractError) throw contractError;
 

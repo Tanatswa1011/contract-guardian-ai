@@ -47,7 +47,7 @@ describe('parseExtractionSuggestion', () => {
 });
 
 describe('generateSuggestedDeadlines', () => {
-  it('builds date offsets from extracted dates', () => {
+  it('builds deadline suggestions from extracted dates', () => {
     const suggestions = generateSuggestedDeadlines({
       end_date: '2026-12-31',
       renewal_date: '2026-11-30',
@@ -56,55 +56,50 @@ describe('generateSuggestedDeadlines', () => {
 
     expect(suggestions).toEqual([
       {
-        due_date: '2026-10-08',
-        offset_value: 7,
-        offset_unit: 'days',
-        date_type: 'notice',
-        source_date: '2026-10-15',
+        type: 'notice',
+        due_date: '2026-10-15',
+        label: 'Notice Deadline',
+        note: 'Derived from extracted notice date.',
       },
       {
-        due_date: '2026-10-31',
-        offset_value: 30,
-        offset_unit: 'days',
-        date_type: 'renewal',
-        source_date: '2026-11-30',
-      },
-      {
-        due_date: '2026-11-15',
-        offset_value: 15,
-        offset_unit: 'days',
-        date_type: 'renewal',
-        source_date: '2026-11-30',
-      },
-      {
-        due_date: '2026-12-01',
-        offset_value: 30,
-        offset_unit: 'days',
-        date_type: 'end',
-        source_date: '2026-12-31',
-      },
-      {
-        due_date: '2026-12-16',
-        offset_value: 15,
-        offset_unit: 'days',
-        date_type: 'end',
-        source_date: '2026-12-31',
-      },
-      {
-        due_date: '2026-12-24',
-        offset_value: 7,
-        offset_unit: 'days',
-        date_type: 'end',
-        source_date: '2026-12-31',
+        type: 'renewal',
+        due_date: '2026-11-30',
+        label: 'Renewal Deadline',
+        note: 'Derived from extracted renewal date.',
       },
     ]);
   });
 
-  it('returns empty suggestions for invalid dates', () => {
-    expect(generateSuggestedDeadlines({
-      end_date: '12/31/2026',
-      renewal_date: null,
-      notice_date: '2026-02-31',
-    })).toEqual([]);
+  it('computes deadlines when extracted dates are missing', () => {
+    expect(
+      generateSuggestedDeadlines({
+        start_date: '2026-01-01',
+        end_date: '2026-12-31',
+        renewal_date: null,
+        notice_date: null,
+        payment_date: null,
+        notice_period_days: 45,
+        payment_terms_days: 30,
+      }),
+    ).toEqual([
+      {
+        type: 'payment',
+        due_date: '2026-01-31',
+        label: 'Payment Deadline',
+        note: 'Computed from detected payment terms.',
+      },
+      {
+        type: 'notice',
+        due_date: '2026-10-17',
+        label: 'Notice Deadline',
+        note: 'Computed from detected notice period.',
+      },
+      {
+        type: 'renewal',
+        due_date: '2026-12-01',
+        label: 'Renewal Deadline',
+        note: 'Computed as 30 days before contract end date.',
+      },
+    ]);
   });
 });
