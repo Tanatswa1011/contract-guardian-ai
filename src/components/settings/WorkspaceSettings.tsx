@@ -220,6 +220,32 @@ export default function WorkspaceSettings() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Create New Workspace</CardTitle>
+          <CardDescription>Start a new workspace for a different team or project.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            <Input
+              value={newWorkspaceName}
+              onChange={e => setNewWorkspaceName(e.target.value)}
+              placeholder="e.g., Acme Legal"
+              className="max-w-sm"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCreateWorkspace}
+              disabled={isCreatingWorkspace || !newWorkspaceName.trim()}
+            >
+              {isCreatingWorkspace && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Create
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Members</CardTitle>
           <CardDescription>People in your workspace.</CardDescription>
         </CardHeader>
