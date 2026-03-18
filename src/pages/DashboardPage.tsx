@@ -421,22 +421,13 @@ export default function DashboardPage() {
 
           <div className="md:hidden space-y-3">
             {filtered.map(contract => (
-              <Link key={contract.id} to={`/app/contracts/${contract.id}`}>
-                <Card>
-                  <CardContent className="pt-4 pb-3 px-4">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <p className="font-medium text-sm leading-tight">{contract.title}</p>
-                        <StatusBadge status={contract.status || 'draft'} />
-                      </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{contract.next_deadline_date ? `Next: ${new Date(contract.next_deadline_date).toLocaleDateString()}` : 'No upcoming'}</span>
-                      <Badge variant={healthVariant(contract.health_status)} className="normal-case text-xs capitalize tracking-normal">
-                        {healthLabel(contract.health_status)}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+              <SwipeableContractCard
+                key={contract.id}
+                contract={contract}
+                healthVariant={healthVariant}
+                healthLabel={healthLabel}
+                onDelete={(id) => setDeleteId(id)}
+              />
             ))}
           </div>
         </>
