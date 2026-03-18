@@ -24,7 +24,6 @@ const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
   end_date: 'End Date',
   renewal_date: 'Renewal Date',
   notice_date: 'Notice Date',
-  payment_date: 'Payment Date',
 };
 
 function formatDateValue(value: string | null | undefined): string {
@@ -65,9 +64,7 @@ export default function UploadPage() {
       end_date: extractionSuggestion.end_date,
       renewal_date: extractionSuggestion.renewal_date,
       notice_date: extractionSuggestion.notice_date,
-      payment_date: extractionSuggestion.payment_date,
       notice_period_days: extractionSuggestion.notice_period_days,
-      payment_terms_days: extractionSuggestion.payment_terms_days,
     });
   }, [extractionSuggestion]);
 

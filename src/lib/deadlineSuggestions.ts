@@ -1,7 +1,7 @@
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export type SuggestedDeadline = {
-  type: 'renewal' | 'notice' | 'payment';
+  type: 'renewal' | 'notice';
   due_date: string;
   label: string;
   note: string;
@@ -12,9 +12,7 @@ type SuggestionInput = {
   end_date?: string | null;
   renewal_date?: string | null;
   notice_date?: string | null;
-  payment_date?: string | null;
   notice_period_days?: number | null;
-  payment_terms_days?: number | null;
 };
 
 function isIsoDate(value: string): boolean {
@@ -37,11 +35,6 @@ function subtractDays(isoDate: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-function addDays(isoDate: string, days: number): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
 
 function normalizePositiveInteger(value: number | null | undefined): number | null {
   if (!Number.isInteger(value) || !value || value < 0) return null;
@@ -54,9 +47,7 @@ export function generateSuggestedDeadlines(input: SuggestionInput): SuggestedDea
     end_date: normalizeIsoDate(input.end_date),
     renewal_date: normalizeIsoDate(input.renewal_date),
     notice_date: normalizeIsoDate(input.notice_date),
-    payment_date: normalizeIsoDate(input.payment_date),
     notice_period_days: normalizePositiveInteger(input.notice_period_days),
-    payment_terms_days: normalizePositiveInteger(input.payment_terms_days),
   };
 
   const renewalDate = normalizedInput.renewal_date
@@ -65,10 +56,6 @@ export function generateSuggestedDeadlines(input: SuggestionInput): SuggestedDea
   const noticeDate = normalizedInput.notice_date
     ?? (normalizedInput.notice_period_days && noticeAnchorDate
       ? subtractDays(noticeAnchorDate, normalizedInput.notice_period_days)
-      : null);
-  const paymentDate = normalizedInput.payment_date
-    ?? (normalizedInput.payment_terms_days && normalizedInput.start_date
-      ? addDays(normalizedInput.start_date, normalizedInput.payment_terms_days)
       : null);
 
   const suggestions: SuggestedDeadline[] = [];
@@ -90,16 +77,6 @@ export function generateSuggestedDeadlines(input: SuggestionInput): SuggestedDea
       note: normalizedInput.notice_date
         ? 'Derived from extracted notice date.'
         : 'Computed from detected notice period.',
-    });
-  }
-  if (paymentDate) {
-    suggestions.push({
-      type: 'payment',
-      due_date: paymentDate,
-      label: 'Payment Deadline',
-      note: normalizedInput.payment_date
-        ? 'Derived from extracted payment date.'
-        : 'Computed from detected payment terms.',
     });
   }
 

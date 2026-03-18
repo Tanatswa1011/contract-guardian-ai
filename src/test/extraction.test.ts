@@ -77,17 +77,9 @@ describe('generateSuggestedDeadlines', () => {
         end_date: '2026-12-31',
         renewal_date: null,
         notice_date: null,
-        payment_date: null,
         notice_period_days: 45,
-        payment_terms_days: 30,
       }),
     ).toEqual([
-      {
-        type: 'payment',
-        due_date: '2026-01-31',
-        label: 'Payment Deadline',
-        note: 'Computed from detected payment terms.',
-      },
       {
         type: 'notice',
         due_date: '2026-10-17',

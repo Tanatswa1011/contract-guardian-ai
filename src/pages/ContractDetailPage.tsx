@@ -29,7 +29,6 @@ const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
   end_date: 'End Date',
   renewal_date: 'Renewal Date',
   notice_date: 'Notice Date',
-  payment_date: 'Payment Date',
 };
 
 const formatSuggestionValue = (value: string | null) => value ?? '—';
@@ -37,7 +36,6 @@ const formatSuggestionValue = (value: string | null) => value ?? '—';
 const DEADLINE_TYPE_LABELS: Record<string, string> = {
   renewal: 'Renewal',
   notice: 'Notice',
-  payment: 'Payment',
   custom: 'Custom',
 };
 
@@ -62,10 +60,9 @@ const EXTRACTION_FIELDS_IN_ORDER: SupportedExtractionField[] = [
   'end_date',
   'renewal_date',
   'notice_date',
-  'payment_date',
 ];
 
-const DEADLINE_REVIEW_FIELDS: SupportedExtractionField[] = ['renewal_date', 'notice_date', 'payment_date'];
+const DEADLINE_REVIEW_FIELDS: SupportedExtractionField[] = ['renewal_date', 'notice_date'];
 
 const REVIEW_TARGET_ID_BY_FIELD: Record<SupportedExtractionField, string> = {
   contract_title: 'contract-title-input',
@@ -74,7 +71,6 @@ const REVIEW_TARGET_ID_BY_FIELD: Record<SupportedExtractionField, string> = {
   end_date: 'contract-end-date-input',
   renewal_date: 'important-dates-section',
   notice_date: 'important-dates-section',
-  payment_date: 'important-dates-section',
 };
 
 export default function ContractDetailPage() {
@@ -322,9 +318,7 @@ export default function ContractDetailPage() {
       end_date: extractionSuggestion.end_date,
       renewal_date: extractionSuggestion.renewal_date,
       notice_date: extractionSuggestion.notice_date,
-      payment_date: extractionSuggestion.payment_date,
       notice_period_days: extractionSuggestion.notice_period_days,
-      payment_terms_days: extractionSuggestion.payment_terms_days,
     });
   }, [extractionSuggestion]);
 
@@ -605,7 +599,6 @@ export default function ContractDetailPage() {
     if (field === 'end_date') currentValue = visibleFormValues.endDate || null;
     if (field === 'renewal_date') currentValue = currentDeadlineByType.renewal;
     if (field === 'notice_date') currentValue = currentDeadlineByType.notice;
-    if (field === 'payment_date') currentValue = currentDeadlineByType.payment;
 
     return {
       field,

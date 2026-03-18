@@ -7,7 +7,6 @@ export const SUPPORTED_EXTRACTION_FIELDS = [
   'end_date',
   'renewal_date',
   'notice_date',
-  'payment_date',
 ] as const;
 
 export type SupportedExtractionField = (typeof SUPPORTED_EXTRACTION_FIELDS)[number];
@@ -19,13 +18,10 @@ export type ExtractionSuggestion = {
   end_date: string | null;
   renewal_date: string | null;
   notice_date: string | null;
-  payment_date: string | null;
   notice_period_days: number | null;
-  payment_terms_days: number | null;
   computed_deadlines: {
     renewal_date: string | null;
     notice_date: string | null;
-    payment_date: string | null;
   } | null;
   missing_fields: SupportedExtractionField[];
   needs_review: boolean;
@@ -93,7 +89,6 @@ function parseComputedDeadlines(input: unknown): ExtractionSuggestion['computed_
   return {
     renewal_date: normalizeIsoDate(source.renewal_date),
     notice_date: normalizeIsoDate(source.notice_date),
-    payment_date: normalizeIsoDate(source.payment_date),
   };
 }
 
@@ -117,9 +112,7 @@ export function parseExtractionSuggestion(rawJson: Json): ExtractionSuggestion |
     end_date: normalizeIsoDate(source.end_date),
     renewal_date: normalizeIsoDate(source.renewal_date) ?? computedDeadlines?.renewal_date ?? null,
     notice_date: normalizeIsoDate(source.notice_date) ?? computedDeadlines?.notice_date ?? null,
-    payment_date: normalizeIsoDate(source.payment_date) ?? computedDeadlines?.payment_date ?? null,
     notice_period_days: normalizeNullablePositiveInteger(source.notice_period_days),
-    payment_terms_days: normalizeNullablePositiveInteger(source.payment_terms_days),
     computed_deadlines: computedDeadlines,
     missing_fields: [],
     needs_review: true,

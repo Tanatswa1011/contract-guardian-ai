@@ -7,7 +7,6 @@ export const SUPPORTED_EXTRACTION_FIELDS = [
   "end_date",
   "renewal_date",
   "notice_date",
-  "payment_date",
 ] as const;
 
 type SupportedExtractionField = (typeof SUPPORTED_EXTRACTION_FIELDS)[number];
@@ -19,17 +18,13 @@ export type ContractExtractionResult = {
   end_date: string | null;
   renewal_date: string | null;
   notice_date: string | null;
-  payment_date: string | null;
   notice_period_days: number | null;
-  payment_terms_days: number | null;
   computed_deadlines: {
     renewal_date: string | null;
     notice_date: string | null;
-    payment_date: string | null;
     sources: {
       renewal_date: "extracted" | "computed" | null;
       notice_date: "extracted" | "computed" | null;
-      payment_date: "extracted" | "computed" | null;
     };
   } | null;
   missing_fields: string[];
@@ -44,16 +39,14 @@ const OPENAI_PROMPT = `Extract only these fields from the contract text:
 - end_date
 - renewal_date
 - notice_date
-- payment_date
 - notice_period_days
-- payment_terms_days
 
 Rules:
 - Return only valid JSON that matches the requested schema.
 - If a field is uncertain, ambiguous, or not explicitly present, return null.
 - Never invent data.
 - For dates, return ISO format YYYY-MM-DD only when clearly supported by text; otherwise null.
-- For *_days fields, return an integer day count only when clearly supported (e.g. "30 days notice", "net 45").
+- For *_days fields, return an integer day count only when clearly supported (e.g. "30 days notice").
 - Include missing_fields for any null extraction among supported fields.
 - Set needs_review=true whenever any field is missing or uncertain.
 - Keep notes concise.`;
@@ -116,24 +109,17 @@ function computeDerivedDeadlines(
     (extraction.notice_period_days && noticeAnchorDate
       ? subtractDays(noticeAnchorDate, extraction.notice_period_days)
       : null);
-  const paymentDate = extraction.payment_date ??
-    (extraction.payment_terms_days && extraction.start_date
-      ? addDays(extraction.start_date, extraction.payment_terms_days)
-      : null);
 
   return {
     ...extraction,
     renewal_date: renewalDate,
     notice_date: noticeDate,
-    payment_date: paymentDate,
     computed_deadlines: {
       renewal_date: renewalDate,
       notice_date: noticeDate,
-      payment_date: paymentDate,
       sources: {
         renewal_date: extraction.renewal_date ? "extracted" : renewalDate ? "computed" : null,
         notice_date: extraction.notice_date ? "extracted" : noticeDate ? "computed" : null,
-        payment_date: extraction.payment_date ? "extracted" : paymentDate ? "computed" : null,
       },
     },
   };
@@ -219,9 +205,7 @@ function parseExtractionJson(content: string): ContractExtractionResult {
     end_date: normalizeNullableIsoDate(source.end_date),
     renewal_date: normalizeNullableIsoDate(source.renewal_date),
     notice_date: normalizeNullableIsoDate(source.notice_date),
-    payment_date: normalizeNullableIsoDate(source.payment_date),
     notice_period_days: normalizeNullablePositiveInteger(source.notice_period_days),
-    payment_terms_days: normalizeNullablePositiveInteger(source.payment_terms_days),
     computed_deadlines: null,
     missing_fields: [],
     needs_review: true,
@@ -301,9 +285,7 @@ export async function extractContractFieldsWithOpenAi({
               end_date: { type: ["string", "null"] },
               renewal_date: { type: ["string", "null"] },
               notice_date: { type: ["string", "null"] },
-              payment_date: { type: ["string", "null"] },
               notice_period_days: { type: ["integer", "null"] },
-              payment_terms_days: { type: ["integer", "null"] },
               missing_fields: {
                 type: "array",
                 items: {
@@ -321,9 +303,7 @@ export async function extractContractFieldsWithOpenAi({
               "end_date",
               "renewal_date",
               "notice_date",
-              "payment_date",
               "notice_period_days",
-              "payment_terms_days",
               "missing_fields",
               "needs_review",
               "notes",
