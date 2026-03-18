@@ -1,16 +1,43 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Upload, FileText, CheckCircle, AlertTriangle, Loader2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { parseExtractionSuggestion, type SupportedExtractionField } from '@/lib/extraction';
+import { generateSuggestedDeadlines } from '@/lib/deadlineSuggestions';
 import { toast } from 'sonner';
 
-type UploadState = 'idle' | 'selected' | 'uploading' | 'completed' | 'failed';
+type UploadState = 'idle' | 'selected' | 'uploading' | 'uploaded' | 'extracting' | 'preview' | 'saved' | 'failed';
+
+const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
+  contract_title: 'Contract Title',
+  counterparty: 'Counterparty',
+  start_date: 'Start Date',
+  end_date: 'End Date',
+  renewal_date: 'Renewal Date',
+  notice_date: 'Notice Date',
+  payment_date: 'Payment Date',
+};
+
+const SUGGESTION_DATE_TYPE_LABELS: Record<'end' | 'renewal' | 'notice', string> = {
+  end: 'End',
+  renewal: 'Renewal',
+  notice: 'Notice',
+};
+
+function formatDateValue(value: string | null | undefined): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+}
 
 export default function UploadPage() {
   const [state, setState] = useState<UploadState>('idle');
@@ -18,10 +45,83 @@ export default function UploadPage() {
   const [title, setTitle] = useState('');
   const [counterparty, setCounterparty] = useState('');
   const [contractId, setContractId] = useState<string | null>(null);
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
+  const [extractionMissingFields, setExtractionMissingFields] = useState<SupportedExtractionField[]>([]);
+  const [extractionNeedsReview, setExtractionNeedsReview] = useState(false);
+  const [extractionSuggestionRaw, setExtractionSuggestionRaw] = useState<Json | null>(null);
+  const [saveWithSuggestedDeadlines, setSaveWithSuggestedDeadlines] = useState(true);
+  const [savePending, setSavePending] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentWorkspaceId } = useWorkspace();
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Upload failed');
+
+  const extractionSuggestion = useMemo(
+    () => (extractionSuggestionRaw ? parseExtractionSuggestion(extractionSuggestionRaw) : null),
+    [extractionSuggestionRaw],
+  );
+
+  const suggestedDeadlines = useMemo(() => {
+    if (!extractionSuggestion) return [] as Array<{
+      type: 'renewal' | 'notice' | 'custom';
+      due_date: string;
+      label: string;
+      note: string;
+      offset_value: number;
+      offset_unit: 'days';
+      date_type: 'end' | 'renewal' | 'notice';
+      source_date: string;
+    }>;
+
+    console.log('[UploadPage] extracted dates', {
+      contract_id: contractId,
+      end_date: extractionSuggestion.end_date,
+      renewal_date: extractionSuggestion.renewal_date,
+      notice_date: extractionSuggestion.notice_date,
+    });
+
+    const generated = generateSuggestedDeadlines({
+      end_date: extractionSuggestion.end_date,
+      renewal_date: extractionSuggestion.renewal_date,
+      notice_date: extractionSuggestion.notice_date,
+    });
+
+    console.log('[UploadPage] generated suggested deadlines', {
+      contract_id: contractId,
+      suggested: generated,
+    });
+
+    return generated.map((suggestion) => ({
+      type: suggestion.date_type === 'renewal'
+        ? 'renewal'
+        : suggestion.date_type === 'notice'
+          ? 'notice'
+          : 'custom',
+      due_date: suggestion.due_date,
+      label: `${SUGGESTION_DATE_TYPE_LABELS[suggestion.date_type]} reminder (${suggestion.offset_value} days before)`,
+      note: `Suggested from extracted ${suggestion.date_type} date (${suggestion.source_date}).`,
+      offset_value: suggestion.offset_value,
+      offset_unit: suggestion.offset_unit,
+      date_type: suggestion.date_type,
+      source_date: suggestion.source_date,
+    }));
+  }, [contractId, extractionSuggestion]);
+
+  const resetUploadFlow = () => {
+    setState('idle');
+    setFile(null);
+    setTitle('');
+    setCounterparty('');
+    setContractId(null);
+    setUploadedFilePath(null);
+    setExtractionError(null);
+    setExtractionMissingFields([]);
+    setExtractionNeedsReview(false);
+    setExtractionSuggestionRaw(null);
+    setSaveWithSuggestedDeadlines(true);
+    setSavePending(false);
+  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -45,6 +145,7 @@ export default function UploadPage() {
   const handleUpload = async () => {
     if (!file || !user || !title || !currentWorkspaceId) return;
     setState('uploading');
+    setExtractionError(null);
 
     try {
       // 1. Create contract record
@@ -83,32 +184,171 @@ export default function UploadPage() {
 
       if (fileError) throw fileError;
 
-      // 4. Trigger extraction in background (non-blocking for upload success)
-      void supabase.functions
-        .invoke('extract-contract-fields', {
-          body: {
-            contractId: contract.id,
-            filePath,
-          },
-        })
-        .then(({ error: extractionError }) => {
-          if (extractionError) {
-            console.error('Extraction trigger error:', extractionError);
-            toast.error('Contract uploaded. AI extraction could not start, but you can add details manually.');
-          }
-        })
-        .catch((extractionError: unknown) => {
-          console.error('Extraction trigger exception:', extractionError);
-          toast.error('Contract uploaded. AI extraction could not start, but you can add details manually.');
-        });
-
       setContractId(contract.id);
-      setState('completed');
-      toast.success('Contract uploaded successfully!');
+      setUploadedFilePath(filePath);
+      setState('uploaded');
+      toast.success('Contract uploaded. Run extraction to preview fields.');
     } catch (err: unknown) {
       console.error('Upload error:', err);
       setState('failed');
       toast.error(getErrorMessage(err));
+    }
+  };
+
+  const runExtraction = async () => {
+    if (!contractId || !uploadedFilePath) return;
+    setState('extracting');
+    setExtractionError(null);
+
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke('extract-contract-fields', {
+        body: {
+          contractId,
+          filePath: uploadedFilePath,
+        },
+      });
+      if (invokeError) throw invokeError;
+
+      const { data: latestRun, error: latestRunError } = await supabase
+        .from('extraction_runs')
+        .select('status, raw_json, missing_fields, needs_review, error')
+        .eq('contract_id', contractId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestRunError) throw latestRunError;
+      if (!latestRun) throw new Error('No extraction run was created.');
+
+      if (latestRun.status === 'failed') {
+        const failedMessage = latestRun.error || 'Extraction failed. You can continue manually.';
+        setExtractionError(failedMessage);
+        setState('uploaded');
+        toast.error(failedMessage);
+        return;
+      }
+
+      const fallbackRaw = (data as { extraction?: Json } | null)?.extraction ?? null;
+      const rawSuggestion = latestRun.raw_json ?? fallbackRaw;
+      const parsedSuggestion = parseExtractionSuggestion(rawSuggestion as Json);
+      const normalizedMissingFields = (
+        parsedSuggestion?.missing_fields
+        ?? (Array.isArray(latestRun.missing_fields) ? latestRun.missing_fields : [])
+      ).filter((field): field is SupportedExtractionField => typeof field === 'string' && field in EXTRACTION_FIELD_LABELS);
+
+      setExtractionSuggestionRaw((rawSuggestion ?? null) as Json | null);
+      setExtractionMissingFields(normalizedMissingFields);
+      setExtractionNeedsReview(Boolean(latestRun.needs_review || normalizedMissingFields.length > 0));
+      setState('preview');
+      toast.success('Extraction complete. Review the preview and save when ready.');
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      console.error('Extraction run failed:', error);
+      setExtractionError(message);
+      setState('uploaded');
+      toast.error(`${message}. You can continue manually.`);
+    }
+  };
+
+  const saveContract = async () => {
+    if (!contractId || !currentWorkspaceId) return;
+    setSavePending(true);
+
+    try {
+      const { data: scopedContract, error: scopeError } = await supabase
+        .from('contracts')
+        .select('id')
+        .eq('id', contractId)
+        .eq('workspace_id', currentWorkspaceId)
+        .maybeSingle();
+
+      if (scopeError) throw scopeError;
+      if (!scopedContract) {
+        throw new Error('Contract is not available in the selected workspace.');
+      }
+
+      const contractUpdate: Record<string, string | null> = {};
+      if (extractionSuggestion?.contract_title) contractUpdate.title = extractionSuggestion.contract_title;
+      if (extractionSuggestion?.counterparty) contractUpdate.counterparty = extractionSuggestion.counterparty;
+      if (extractionSuggestion?.start_date) contractUpdate.start_date = extractionSuggestion.start_date;
+      if (extractionSuggestion?.end_date) contractUpdate.end_date = extractionSuggestion.end_date;
+
+      if (Object.keys(contractUpdate).length > 0) {
+        const { error: updateError } = await supabase
+          .from('contracts')
+          .update(contractUpdate)
+          .eq('id', contractId)
+          .eq('workspace_id', currentWorkspaceId);
+
+        if (updateError) throw updateError;
+      }
+
+      let insertedDeadlines = 0;
+      if (saveWithSuggestedDeadlines && suggestedDeadlines.length > 0) {
+        const { data: existingDates, error: existingDatesError } = await supabase
+          .from('contract_dates')
+          .select('type, due_date, label')
+          .eq('contract_id', contractId);
+
+        if (existingDatesError) throw existingDatesError;
+
+        const existingKeys = new Set(
+          (existingDates ?? []).map((date) => `${date.type}|${date.due_date}|${date.label ?? ''}`),
+        );
+
+        const inserts = suggestedDeadlines
+          .map((deadline) => ({
+            contract_id: contractId,
+            type: deadline.type,
+            due_date: deadline.due_date,
+            label: deadline.label,
+            note: deadline.note,
+          }))
+          .filter((deadline) => !existingKeys.has(`${deadline.type}|${deadline.due_date}|${deadline.label ?? ''}`));
+
+        console.log('[UploadPage] applying suggested deadlines', {
+          workspace_id: currentWorkspaceId,
+          contract_id: contractId,
+          suggested_deadlines: suggestedDeadlines,
+          inserts,
+        });
+
+        if (inserts.length > 0) {
+          const { data: insertResult, error: insertError } = await supabase
+            .from('contract_dates')
+            .insert(inserts)
+            .select('id, type, due_date, label');
+
+          console.log('[UploadPage] suggested deadline insert result', {
+            workspace_id: currentWorkspaceId,
+            contract_id: contractId,
+            inserted: insertResult ?? [],
+          });
+
+          if (insertError) {
+            console.error('[UploadPage] suggested deadline insert error', {
+              workspace_id: currentWorkspaceId,
+              contract_id: contractId,
+              error: insertError,
+            });
+            throw insertError;
+          }
+
+          insertedDeadlines = insertResult?.length ?? inserts.length;
+        }
+      }
+
+      toast.success(
+        insertedDeadlines > 0
+          ? `Contract saved with ${insertedDeadlines} suggested deadline${insertedDeadlines > 1 ? 's' : ''}.`
+          : 'Contract saved successfully.',
+      );
+      setState('saved');
+    } catch (error: unknown) {
+      console.error('Save contract from preview failed:', error);
+      toast.error(getErrorMessage(error));
+    } finally {
+      setSavePending(false);
     }
   };
 
@@ -162,7 +402,7 @@ export default function UploadPage() {
               <Input value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
             </div>
             <Button onClick={handleUpload} className="w-full gap-2" disabled={!title || !currentWorkspaceId}>
-              <Upload className="h-4 w-4" /> Upload & Create Contract
+              <Upload className="h-4 w-4" /> Upload Contract
             </Button>
             {!currentWorkspaceId ? (
               <p className="text-xs text-muted-foreground">
@@ -182,15 +422,160 @@ export default function UploadPage() {
         </Card>
       )}
 
-      {state === 'completed' && (
+      {(state === 'uploaded' || state === 'extracting') && contractId && (
+        <Card>
+          <CardContent className="py-6 space-y-4">
+            <div className="text-center">
+              {state === 'extracting' ? (
+                <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-3" />
+              ) : (
+                <CheckCircle className="mx-auto mb-3 h-10 w-10 text-foreground" />
+              )}
+              <h3 className="font-semibold text-lg mb-1">
+                {state === 'extracting' ? 'Running extraction...' : 'Contract uploaded'}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {state === 'extracting'
+                  ? 'Extracting fields from your contract. This may take a moment.'
+                  : 'Next: run extraction to preview fields before saving.'}
+              </p>
+            </div>
+
+            {extractionError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground mb-1">Extraction failed</p>
+                <p>{extractionError}</p>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button onClick={runExtraction} disabled={state === 'extracting' || !uploadedFilePath}>
+                {state === 'extracting' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Run Extraction
+              </Button>
+              <Button variant="outline" onClick={() => navigate(`/app/contracts/${contractId}`)}>
+                Review & Edit
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {state === 'preview' && contractId && (
+        <Card>
+          <CardContent className="py-6 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="font-semibold text-lg">Extraction Preview</h3>
+                <p className="text-xs text-muted-foreground">Review extracted fields before saving.</p>
+              </div>
+              {extractionNeedsReview ? (
+                <Badge variant="outline" className="border-destructive/30 bg-destructive/5 text-foreground">
+                  Needs Review
+                </Badge>
+              ) : (
+                <Badge variant="outline">Looks Good</Badge>
+              )}
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
+                <span className="text-muted-foreground">Contract Title</span>
+                <span className="font-medium">{extractionSuggestion?.contract_title ?? title}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
+                <span className="text-muted-foreground">Counterparty</span>
+                <span className="font-medium">{(extractionSuggestion?.counterparty ?? counterparty) || '—'}</span>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 text-sm">
+              <div className="rounded-md border bg-muted/40 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Start Date</p>
+                <p className="font-medium">{formatDateValue(extractionSuggestion?.start_date)}</p>
+              </div>
+              <div className="rounded-md border bg-muted/40 px-3 py-2">
+                <p className="text-xs text-muted-foreground">End Date</p>
+                <p className="font-medium">{formatDateValue(extractionSuggestion?.end_date)}</p>
+              </div>
+              <div className="rounded-md border bg-muted/40 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Renewal Date</p>
+                <p className="font-medium">{formatDateValue(extractionSuggestion?.renewal_date)}</p>
+              </div>
+              <div className="rounded-md border bg-muted/40 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Notice Date</p>
+                <p className="font-medium">{formatDateValue(extractionSuggestion?.notice_date)}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Suggested Deadlines</p>
+              {suggestedDeadlines.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No suggested deadlines generated from extracted dates.</p>
+              ) : (
+                <div className="space-y-2">
+                  {suggestedDeadlines.map((deadline) => (
+                    <div
+                      key={`${deadline.date_type}-${deadline.offset_value}-${deadline.due_date}`}
+                      className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+                    >
+                      <p className="text-sm text-foreground">{deadline.label}</p>
+                      <p>{formatDateValue(deadline.due_date)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Missing Fields</p>
+              {extractionMissingFields.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No missing fields detected.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {extractionMissingFields.map((field) => (
+                    <Badge key={field} variant="outline" className="text-xs">
+                      {EXTRACTION_FIELD_LABELS[field]}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {suggestedDeadlines.length > 0 ? (
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={saveWithSuggestedDeadlines}
+                  onCheckedChange={(checked) => setSaveWithSuggestedDeadlines(checked === true)}
+                />
+                Include suggested deadlines when saving
+              </label>
+            ) : null}
+
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={saveContract} disabled={savePending}>
+                {savePending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Save Contract
+              </Button>
+              <Button variant="outline" onClick={() => navigate(`/app/contracts/${contractId}`)}>
+                Review & Edit
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {state === 'saved' && contractId && (
         <Card>
           <CardContent className="py-8 text-center">
             <CheckCircle className="mx-auto mb-4 h-12 w-12 text-foreground" />
-            <h3 className="font-semibold text-lg mb-1">Contract Uploaded Successfully</h3>
-            <p className="text-sm text-muted-foreground mb-4">Your contract has been created and the file is stored securely.</p>
+            <h3 className="font-semibold text-lg mb-1">Contract Saved</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Your extracted data was saved. You can review and edit later anytime.
+            </p>
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => navigate(`/app/contracts/${contractId}`)}>View Contract</Button>
-              <Button variant="outline" onClick={() => { setState('idle'); setFile(null); setTitle(''); setCounterparty(''); }}>Upload Another</Button>
+              <Button onClick={() => navigate(`/app/contracts/${contractId}`)}>Review & Edit</Button>
+              <Button variant="outline" onClick={resetUploadFlow}>Upload Another</Button>
             </div>
           </CardContent>
         </Card>
@@ -202,7 +587,7 @@ export default function UploadPage() {
             <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h3 className="font-semibold text-lg mb-1">Upload Failed</h3>
             <p className="text-sm text-muted-foreground mb-4">Something went wrong. Please try again.</p>
-            <Button onClick={() => setState('selected')}>Try Again</Button>
+            <Button onClick={() => setState(file ? 'selected' : 'idle')}>Try Again</Button>
           </CardContent>
         </Card>
       )}

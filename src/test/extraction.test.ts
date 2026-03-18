@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseExtractionSuggestion } from '@/lib/extraction';
+import { generateSuggestedDeadlines } from '@/lib/deadlineSuggestions';
 
 describe('parseExtractionSuggestion', () => {
   it('normalizes valid extraction payload', () => {
@@ -42,5 +43,68 @@ describe('parseExtractionSuggestion', () => {
     expect(parsed?.missing_fields).toContain('start_date');
     expect(parsed?.missing_fields).toContain('end_date');
     expect(parsed?.needs_review).toBe(true);
+  });
+});
+
+describe('generateSuggestedDeadlines', () => {
+  it('builds date offsets from extracted dates', () => {
+    const suggestions = generateSuggestedDeadlines({
+      end_date: '2026-12-31',
+      renewal_date: '2026-11-30',
+      notice_date: '2026-10-15',
+    });
+
+    expect(suggestions).toEqual([
+      {
+        due_date: '2026-10-08',
+        offset_value: 7,
+        offset_unit: 'days',
+        date_type: 'notice',
+        source_date: '2026-10-15',
+      },
+      {
+        due_date: '2026-10-31',
+        offset_value: 30,
+        offset_unit: 'days',
+        date_type: 'renewal',
+        source_date: '2026-11-30',
+      },
+      {
+        due_date: '2026-11-15',
+        offset_value: 15,
+        offset_unit: 'days',
+        date_type: 'renewal',
+        source_date: '2026-11-30',
+      },
+      {
+        due_date: '2026-12-01',
+        offset_value: 30,
+        offset_unit: 'days',
+        date_type: 'end',
+        source_date: '2026-12-31',
+      },
+      {
+        due_date: '2026-12-16',
+        offset_value: 15,
+        offset_unit: 'days',
+        date_type: 'end',
+        source_date: '2026-12-31',
+      },
+      {
+        due_date: '2026-12-24',
+        offset_value: 7,
+        offset_unit: 'days',
+        date_type: 'end',
+        source_date: '2026-12-31',
+      },
+    ]);
+  });
+
+  it('returns empty suggestions for invalid dates', () => {
+    expect(generateSuggestedDeadlines({
+      end_date: '12/31/2026',
+      renewal_date: null,
+      notice_date: '2026-02-31',
+    })).toEqual([]);
   });
 });

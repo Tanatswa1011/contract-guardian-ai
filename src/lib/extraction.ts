@@ -27,6 +27,27 @@ export type ExtractionSuggestion = {
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
+function parseRawJsonObject(rawJson: Json): Record<string, unknown> | null {
+  if (rawJson && typeof rawJson === 'object' && !Array.isArray(rawJson)) {
+    return rawJson as Record<string, unknown>;
+  }
+
+  if (typeof rawJson === 'string') {
+    const trimmed = rawJson.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 function normalizeString(input: unknown): string | null {
   if (typeof input !== 'string') return null;
   const trimmed = input.trim();
@@ -54,11 +75,10 @@ function toSupportedField(value: unknown): SupportedExtractionField | null {
 }
 
 export function parseExtractionSuggestion(rawJson: Json): ExtractionSuggestion | null {
-  if (!rawJson || typeof rawJson !== 'object' || Array.isArray(rawJson)) {
+  const source = parseRawJsonObject(rawJson);
+  if (!source) {
     return null;
   }
-
-  const source = rawJson as Record<string, unknown>;
   const suggestion: ExtractionSuggestion = {
     contract_title: normalizeString(source.contract_title),
     counterparty: normalizeString(source.counterparty),
