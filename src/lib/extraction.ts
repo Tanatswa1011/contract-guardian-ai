@@ -1,4 +1,5 @@
 import type { Json } from '@/integrations/supabase/types';
+import { normalizeIsoDate } from '@/lib/contractDeadlineSuggestions';
 
 export const SUPPORTED_EXTRACTION_FIELDS = [
   'contract_title',
@@ -25,25 +26,10 @@ export type ExtractionSuggestion = {
   notes: string | null;
 };
 
-const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
 function normalizeString(input: unknown): string | null {
   if (typeof input !== 'string') return null;
-  const trimmed = input.trim();
+  const trimmed = input.replace(/\s+/g, ' ').trim();
   return trimmed.length ? trimmed : null;
-}
-
-function isIsoDate(value: string): boolean {
-  if (!ISO_DATE_REGEX.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return false;
-  return date.toISOString().slice(0, 10) === value;
-}
-
-function normalizeIsoDate(input: unknown): string | null {
-  const value = normalizeString(input);
-  if (!value) return null;
-  return isIsoDate(value) ? value : null;
 }
 
 function toSupportedField(value: unknown): SupportedExtractionField | null {
@@ -54,11 +40,21 @@ function toSupportedField(value: unknown): SupportedExtractionField | null {
 }
 
 export function parseExtractionSuggestion(rawJson: Json): ExtractionSuggestion | null {
-  if (!rawJson || typeof rawJson !== 'object' || Array.isArray(rawJson)) {
+  const parsedRawJson = typeof rawJson === 'string'
+    ? (() => {
+      try {
+        return JSON.parse(rawJson);
+      } catch {
+        return null;
+      }
+    })()
+    : rawJson;
+
+  if (!parsedRawJson || typeof parsedRawJson !== 'object' || Array.isArray(parsedRawJson)) {
     return null;
   }
 
-  const source = rawJson as Record<string, unknown>;
+  const source = parsedRawJson as Record<string, unknown>;
   const suggestion: ExtractionSuggestion = {
     contract_title: normalizeString(source.contract_title),
     counterparty: normalizeString(source.counterparty),

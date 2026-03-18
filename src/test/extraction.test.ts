@@ -43,4 +43,25 @@ describe('parseExtractionSuggestion', () => {
     expect(parsed?.missing_fields).toContain('end_date');
     expect(parsed?.needs_review).toBe(true);
   });
+
+  it('parses JSON strings and normalizes repeated whitespace', () => {
+    const parsed = parseExtractionSuggestion(JSON.stringify({
+      contract_title: '  Master   Services   Agreement  ',
+      counterparty: '  Example   Corp ',
+      start_date: '2026-04-01',
+      end_date: '2027-03-31',
+      renewal_date: '2027-03-01',
+      notice_date: '2027-02-22',
+      payment_date: null,
+      missing_fields: ['payment_date'],
+      needs_review: true,
+      notes: '  Extracted   from uploaded PDF. ',
+    }));
+
+    expect(parsed).not.toBeNull();
+    expect(parsed?.contract_title).toBe('Master Services Agreement');
+    expect(parsed?.counterparty).toBe('Example Corp');
+    expect(parsed?.notes).toBe('Extracted from uploaded PDF.');
+    expect(parsed?.missing_fields).toContain('payment_date');
+  });
 });

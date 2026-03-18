@@ -69,14 +69,21 @@ function normalizeNullableIsoDate(input: unknown): string | null {
   return isValidIsoDate(value) ? value : null;
 }
 
+function stripJsonCodeFences(content: string): string {
+  const trimmed = content.trim();
+  const fencedMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return fencedMatch ? fencedMatch[1].trim() : trimmed;
+}
+
 function buildMissingFields(result: ContractExtractionResult): string[] {
   return SUPPORTED_EXTRACTION_FIELDS.filter((field) => !result[field]);
 }
 
 function parseExtractionJson(content: string): ContractExtractionResult {
+  const normalizedContent = stripJsonCodeFences(content);
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(normalizedContent);
   } catch (error) {
     throw new Error(
       `OpenAI returned non-JSON content: ${
@@ -121,6 +128,42 @@ function parseExtractionJson(content: string): ContractExtractionResult {
     source.needs_review === true || normalized.missing_fields.length > 0;
 
   return normalized;
+}
+
+function extractMessageContent(messageContent: unknown): string | null {
+  if (typeof messageContent === "string") {
+    return messageContent;
+  }
+
+  if (!Array.isArray(messageContent)) {
+    return null;
+  }
+
+  const textParts = messageContent
+    .map((part) => {
+      if (!part || typeof part !== "object") return null;
+
+      const textValue =
+        typeof (part as Record<string, unknown>).text === "string"
+          ? (part as Record<string, unknown>).text
+          : null;
+
+      if (textValue) return textValue;
+
+      const nestedText = (part as Record<string, unknown>).text;
+      if (
+        nestedText &&
+        typeof nestedText === "object" &&
+        typeof (nestedText as Record<string, unknown>).value === "string"
+      ) {
+        return (nestedText as Record<string, unknown>).value as string;
+      }
+
+      return null;
+    })
+    .filter((part): part is string => typeof part === "string" && part.trim().length > 0);
+
+  return textParts.length > 0 ? textParts.join("\n") : null;
 }
 
 export async function extractTextFromPdf(pdfBytes: Uint8Array): Promise<string> {
@@ -220,7 +263,12 @@ export async function extractContractFieldsWithOpenAi({
   }
 
   const payload = await response.json();
-  const content = payload?.choices?.[0]?.message?.content;
+  const message = payload?.choices?.[0]?.message;
+  const content = extractMessageContent(message?.content);
+
+  if (typeof message?.refusal === "string" && message.refusal.trim().length > 0) {
+    throw new Error(`OpenAI refused extraction: ${message.refusal}`);
+  }
 
   if (typeof content !== "string") {
     throw new Error("OpenAI response did not include JSON content");

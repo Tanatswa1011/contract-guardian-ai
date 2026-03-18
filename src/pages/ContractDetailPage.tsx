@@ -19,6 +19,10 @@ import {
   parseExtractionSuggestion,
   type SupportedExtractionField,
 } from '@/lib/extraction';
+import {
+  extractSuggestedDeadlineSourceDate,
+  generateSuggestedDeadlines,
+} from '@/lib/contractDeadlineSuggestions';
 import { cn } from '@/lib/utils';
 
 const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
@@ -34,6 +38,7 @@ const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
 const formatSuggestionValue = (value: string | null) => value ?? '—';
 
 const DEADLINE_TYPE_LABELS: Record<string, string> = {
+  end: 'End',
   renewal: 'Renewal',
   notice: 'Notice',
   payment: 'Payment',
@@ -261,7 +266,7 @@ export default function ContractDetailPage() {
         if (error) {
           toast.error('Changes saved, but review status could not be refreshed.');
         } else {
-          queryClient.invalidateQueries({ queryKey: ['extraction', id] });
+          queryClient.invalidateQueries({ queryKey: ['extraction', id, currentWorkspaceId] });
         }
       }
       toast.success('Changes saved successfully.');
@@ -283,7 +288,7 @@ export default function ContractDetailPage() {
     },
     onSuccess: () => {
       toast.success('Deadline added');
-      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
+      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id, currentWorkspaceId] });
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
       setAddDialogOpen(false);
       setNewDeadline({ type: 'renewal', due_date: '', label: '', note: '' });
@@ -298,20 +303,14 @@ export default function ContractDetailPage() {
     },
     onSuccess: () => {
       toast.success('Deadline deleted');
-      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
+      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id, currentWorkspaceId] });
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 
   const suggestedDeadlines = useMemo(() => {
-    if (!extractionSuggestion) return [] as Array<{ type: 'renewal' | 'notice' | 'payment'; due_date: string }>;
-    const suggestions = [
-      { type: 'renewal' as const, due_date: extractionSuggestion.renewal_date },
-      { type: 'notice' as const, due_date: extractionSuggestion.notice_date },
-      { type: 'payment' as const, due_date: extractionSuggestion.payment_date },
-    ];
-    return suggestions.filter((suggestion) => Boolean(suggestion.due_date)) as Array<{ type: 'renewal' | 'notice' | 'payment'; due_date: string }>;
+    return generateSuggestedDeadlines(extractionSuggestion);
   }, [extractionSuggestion]);
 
   const startExtraction = useMutation({
@@ -328,8 +327,8 @@ export default function ContractDetailPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('AI extraction started');
-      queryClient.invalidateQueries({ queryKey: ['extraction', contract?.id] });
+      toast.success('AI extraction completed. Review the extracted values below.');
+      queryClient.invalidateQueries({ queryKey: ['extraction', contract?.id, currentWorkspaceId] });
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
@@ -338,39 +337,107 @@ export default function ContractDetailPage() {
     mutationFn: async () => {
       if (!contract || !extractionSuggestion) throw new Error('No AI suggestions available.');
 
-      const existingTypes = new Set(
-        dates.map((date) => date.type),
+      const existingDeadlineKeys = new Set(
+        dates.map((date) => `${date.type}|${date.due_date}`),
       );
 
+      console.log('Apply Suggested Deadlines generated suggestions', {
+        contract_id: contract.id,
+        workspace_id: currentWorkspaceId,
+        extracted_dates: {
+          end_date: extractionSuggestion.end_date,
+          renewal_date: extractionSuggestion.renewal_date,
+          notice_date: extractionSuggestion.notice_date,
+        },
+        suggested_deadlines: suggestedDeadlines,
+      });
+
       const inserts = suggestedDeadlines
-        .filter((suggestion) => !existingTypes.has(suggestion.type))
+        .filter((suggestion) => !existingDeadlineKeys.has(`${suggestion.date_type}|${suggestion.due_date}`))
         .map((suggestion) => ({
           contract_id: contract.id,
-          type: suggestion.type,
+          type: suggestion.date_type,
           due_date: suggestion.due_date,
-          label: `AI suggested ${suggestion.type} date`,
-          note: 'Please review and edit if needed.',
+          label: suggestion.label,
+          note: suggestion.note,
         }));
 
-      if (inserts.length === 0) return 0;
-
-      const { error } = await supabase.from('contract_dates').upsert(inserts, {
-        onConflict: 'contract_id,type',
-        ignoreDuplicates: true,
-      });
-      if (error) throw error;
-      return inserts.length;
-    },
-    onSuccess: (insertedCount) => {
-      if (insertedCount === 0) {
-        toast.success('Suggested deadlines are already added.');
-      } else {
-        toast.success(`${insertedCount} suggested deadline${insertedCount > 1 ? 's' : ''} added.`);
+      if (inserts.length === 0) {
+        console.log('Apply Suggested Deadlines insert skipped', {
+          contract_id: contract.id,
+          workspace_id: currentWorkspaceId,
+          reason: 'all suggestions already exist',
+        });
+        return { insertedCount: 0 };
       }
-      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
+
+      const { data, error } = await supabase
+        .from('contract_dates')
+        .insert(inserts)
+        .select('id, type, due_date, label, note');
+
+      console.log('Apply Suggested Deadlines insert result', {
+        contract_id: contract.id,
+        workspace_id: currentWorkspaceId,
+        inserted_rows: data,
+        error: error?.message ?? null,
+      });
+
+      if (error) {
+        console.error('Apply Suggested Deadlines failed', {
+          contract_id: contract.id,
+          workspace_id: currentWorkspaceId,
+          error,
+        });
+        throw error;
+      }
+
+      return { insertedCount: data?.length ?? inserts.length };
+    },
+    onSuccess: async ({ insertedCount }) => {
+      if (extraction?.id) {
+        const hasSuggestedRenewal = dates.some((date) => date.type === 'renewal')
+          || suggestedDeadlines.some((suggestion) => suggestion.date_type === 'renewal');
+        const hasSuggestedNotice = dates.some((date) => date.type === 'notice')
+          || suggestedDeadlines.some((suggestion) => suggestion.date_type === 'notice');
+
+        const nextDeadlineByType = {
+          ...currentDeadlineByType,
+          renewal: hasSuggestedRenewal ? (currentDeadlineByType.renewal ?? 'applied') : currentDeadlineByType.renewal,
+          notice: hasSuggestedNotice ? (currentDeadlineByType.notice ?? 'applied') : currentDeadlineByType.notice,
+        };
+
+        const unresolvedFields = extractionMissingFields.filter((field) => (
+          isFieldMissingForValues(field, visibleFormValues, nextDeadlineByType)
+        ));
+
+        const { error } = await supabase
+          .from('extraction_runs')
+          .update({
+            missing_fields: unresolvedFields,
+            needs_review: unresolvedFields.length > 0,
+          })
+          .eq('id', extraction.id);
+
+        if (error) {
+          console.error('Failed to refresh extraction review status after deadline insert', error);
+          toast.error('Deadlines applied, but review status could not be refreshed.');
+        }
+      }
+
+      if (insertedCount === 0) {
+        toast.success('Suggested deadlines are already applied.');
+      } else {
+        toast.success(`${insertedCount} suggested deadline${insertedCount > 1 ? 's' : ''} applied.`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id, currentWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['extraction', contract?.id, currentWorkspaceId] });
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+    onError: (error: unknown) => {
+      console.error('Apply Suggested Deadlines mutation error', error);
+      toast.error(getErrorMessage(error));
+    },
   });
 
   const applySuggestionsToForm = () => {
@@ -442,6 +509,23 @@ export default function ContractDetailPage() {
     return next;
   }, [dates]);
 
+  const appliedSuggestedSourceDateByType = useMemo(() => {
+    const next = { renewal: null, notice: null, end: null } as Record<'renewal' | 'notice' | 'end', string | null>;
+
+    for (const date of dates) {
+      if (date.type !== 'renewal' && date.type !== 'notice' && date.type !== 'end') {
+        continue;
+      }
+
+      const sourceDate = extractSuggestedDeadlineSourceDate(date.note, date.type);
+      if (sourceDate && !next[date.type]) {
+        next[date.type] = sourceDate;
+      }
+    }
+
+    return next;
+  }, [dates]);
+
   if (contractLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -456,6 +540,7 @@ export default function ContractDetailPage() {
   }
 
   const typeColors: Record<string, string> = {
+    end: 'border-border bg-accent/70 text-foreground',
     renewal: 'border-border bg-accent text-foreground',
     notice: 'border-border bg-secondary text-foreground',
     payment: 'border-border bg-muted text-foreground',
@@ -538,7 +623,12 @@ export default function ContractDetailPage() {
     return {
       field,
       suggestedValue: extractionSuggestion?.[field] ?? null,
-      currentValue,
+      currentValue:
+        field === 'renewal_date'
+          ? appliedSuggestedSourceDateByType.renewal ?? currentValue
+          : field === 'notice_date'
+            ? appliedSuggestedSourceDateByType.notice ?? currentValue
+            : currentValue,
       missing: missingFieldSet.has(field),
     };
   });
@@ -909,7 +999,7 @@ export default function ContractDetailPage() {
                 disabled={!suggestedDeadlines.length || addSuggestedDeadlines.isPending}
               >
                 {addSuggestedDeadlines.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Add Suggested Deadlines
+                Apply Suggested Deadlines
               </Button>
               <Button
                 variant="outline"
