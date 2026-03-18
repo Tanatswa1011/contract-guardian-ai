@@ -390,17 +390,10 @@ export default function DashboardPage() {
               <Link key={contract.id} to={`/app/contracts/${contract.id}`}>
                 <Card>
                   <CardContent className="pt-4 pb-3 px-4">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="space-y-1">
+                      <div className="flex items-start justify-between gap-2 mb-2">
                         <p className="font-medium text-sm leading-tight">{contract.title}</p>
-                        {contractNeedsReview(contract) ? (
-                          <Badge variant="outline" className="w-fit border-destructive/30 bg-destructive/5 text-[10px] uppercase tracking-wide">
-                            Needs Review
-                          </Badge>
-                        ) : null}
+                        <StatusBadge status={contract.status || 'draft'} />
                       </div>
-                      <StatusBadge status={contract.status || 'draft'} />
-                    </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{contract.next_deadline_date ? `Next: ${new Date(contract.next_deadline_date).toLocaleDateString()}` : 'No upcoming'}</span>
                       <Badge variant={healthVariant(contract.health_status)} className="normal-case text-xs capitalize tracking-normal">
