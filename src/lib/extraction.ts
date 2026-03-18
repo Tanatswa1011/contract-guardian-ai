@@ -22,7 +22,6 @@ export type ExtractionSuggestion = {
   computed_deadlines: {
     renewal_date: string | null;
     notice_date: string | null;
-    payment_date: string | null;
   } | null;
   missing_fields: SupportedExtractionField[];
   needs_review: boolean;
