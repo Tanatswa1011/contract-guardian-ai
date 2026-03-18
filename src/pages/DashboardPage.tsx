@@ -261,8 +261,38 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteContract = async () => {
+    if (!deleteId) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from('contracts').delete().eq('id', deleteId);
+      if (error) throw error;
+      toast.success('Contract deleted');
+      queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
+    } catch {
+      toast.error('Failed to delete contract');
+    } finally {
+      setIsDeleting(false);
+      setDeleteId(null);
+    }
+  };
+
   return (
     <div className="space-y-8">
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete contract?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete the contract and all associated data. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteContract} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isDeleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Contract Command Center</h1>
