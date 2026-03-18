@@ -8,7 +8,6 @@ import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2 } from 'l
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Badge } from '@/components/ui/badge';
 
@@ -65,20 +64,19 @@ const getDaysUntilDate = (value: string) => {
 };
 
 export default function DashboardPage() {
-  const { user } = useAuth();
   const { currentWorkspaceId } = useWorkspace();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all');
 
   const { data: contracts, isLoading } = useQuery({
-    queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
+    queryKey: ['contracts-dashboard', currentWorkspaceId],
     queryFn: async () => {
-      if (!user || !currentWorkspaceId) return [];
+      if (!currentWorkspaceId) return [];
 
       const { data: contractRows, error: contractError } = await supabase
         .from('contracts')
         .select('id, title, counterparty, created_at, updated_at, start_date, end_date, status, user_id, workspace_id')
-        .or(`workspace_id.eq.${currentWorkspaceId},and(workspace_id.is.null,user_id.eq.${user.id})`)
+        .eq('workspace_id', currentWorkspaceId)
         .order('created_at', { ascending: false });
       if (contractError) throw contractError;
 
@@ -173,7 +171,7 @@ export default function DashboardPage() {
         };
       });
     },
-    enabled: !!user && !!currentWorkspaceId,
+    enabled: !!currentWorkspaceId,
   });
 
   if (isLoading) {

@@ -1,6 +1,6 @@
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-export type SuggestedDeadlineDateType = 'end' | 'renewal' | 'notice';
+export type SuggestedDeadlineDateType = 'end' | 'renewal' | 'notice' | 'payment';
 
 export type SuggestedDeadline = {
   due_date: string;
@@ -14,6 +14,7 @@ type SuggestionInput = {
   end_date?: string | null;
   renewal_date?: string | null;
   notice_date?: string | null;
+  payment_date?: string | null;
 };
 
 function isIsoDate(value: string): boolean {
@@ -36,42 +37,52 @@ function subtractDays(isoDate: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-function buildSuggestionsForDateType(
-  dateType: SuggestedDeadlineDateType,
-  sourceDate: string | null,
-  offsetsInDays: number[],
-): SuggestedDeadline[] {
-  if (!sourceDate) return [];
-  return offsetsInDays.map((offset) => ({
-    due_date: subtractDays(sourceDate, offset),
-    offset_value: offset,
-    offset_unit: 'days' as const,
-    date_type: dateType,
-    source_date: sourceDate,
-  }));
-}
-
 export function generateSuggestedDeadlines(input: SuggestionInput): SuggestedDeadline[] {
-  const normalizedInput = {
-    end_date: normalizeIsoDate(input.end_date),
-    renewal_date: normalizeIsoDate(input.renewal_date),
-    notice_date: normalizeIsoDate(input.notice_date),
-  };
+  const endDate = normalizeIsoDate(input.end_date);
+  const renewalDate = normalizeIsoDate(input.renewal_date);
+  const noticeDate = normalizeIsoDate(input.notice_date);
+  const paymentDate = normalizeIsoDate(input.payment_date);
 
-  const suggestions = [
-    ...buildSuggestionsForDateType('end', normalizedInput.end_date, [30, 15, 7]),
-    ...buildSuggestionsForDateType('renewal', normalizedInput.renewal_date, [30, 15]),
-    ...buildSuggestionsForDateType('notice', normalizedInput.notice_date, [7]),
-  ];
+  const suggestions: SuggestedDeadline[] = [];
 
-  const seen = new Set<string>();
-  const deduped = suggestions.filter((suggestion) => {
-    const key = `${suggestion.date_type}:${suggestion.offset_value}:${suggestion.due_date}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  if (renewalDate) {
+    suggestions.push({
+      due_date: subtractDays(renewalDate, 30),
+      offset_value: 30,
+      offset_unit: 'days',
+      date_type: 'renewal',
+      source_date: renewalDate,
+    });
+  } else if (endDate) {
+    suggestions.push({
+      due_date: subtractDays(endDate, 30),
+      offset_value: 30,
+      offset_unit: 'days',
+      date_type: 'end',
+      source_date: endDate,
+    });
+  }
 
-  deduped.sort((left, right) => left.due_date.localeCompare(right.due_date));
-  return deduped;
+  if (noticeDate) {
+    suggestions.push({
+      due_date: subtractDays(noticeDate, 7),
+      offset_value: 7,
+      offset_unit: 'days',
+      date_type: 'notice',
+      source_date: noticeDate,
+    });
+  }
+
+  if (paymentDate) {
+    suggestions.push({
+      due_date: subtractDays(paymentDate, 7),
+      offset_value: 7,
+      offset_unit: 'days',
+      date_type: 'payment',
+      source_date: paymentDate,
+    });
+  }
+
+  suggestions.sort((left, right) => left.due_date.localeCompare(right.due_date));
+  return suggestions;
 }

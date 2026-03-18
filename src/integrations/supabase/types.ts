@@ -760,6 +760,14 @@ export type Database = {
         Args: { error_message: string; queue_id: string }
         Returns: undefined
       }
+      accept_my_pending_workspace_invites: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      create_workspace_with_owner: {
+        Args: { p_name: string }
+        Returns: string
+      }
       is_contract_owner: { Args: { p_contract_id: string }; Returns: boolean }
       is_workspace_member: {
         Args: { p_workspace_id: string }

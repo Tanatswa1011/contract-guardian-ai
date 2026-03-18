@@ -20,8 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const acceptPendingInvites = async () => {
-    // Pending invite acceptance is currently handled elsewhere.
-    // Keep auth flow resilient until the RPC is added back to the database/types.
+    try {
+      await supabase.rpc('accept_my_pending_workspace_invites');
+    } catch {
+      // Non-critical — invites can be accepted later
+    }
   };
 
   const navigate = useNavigate();

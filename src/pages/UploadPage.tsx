@@ -27,10 +27,11 @@ const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
   payment_date: 'Payment Date',
 };
 
-const SUGGESTION_DATE_TYPE_LABELS: Record<'end' | 'renewal' | 'notice', string> = {
-  end: 'End',
+const SUGGESTION_DATE_TYPE_LABELS: Record<'end' | 'renewal' | 'notice' | 'payment', string> = {
+  end: 'End / Renewal',
   renewal: 'Renewal',
   notice: 'Notice',
+  payment: 'Payment',
 };
 
 function formatDateValue(value: string | null | undefined): string {
@@ -64,40 +65,32 @@ export default function UploadPage() {
 
   const suggestedDeadlines = useMemo(() => {
     if (!extractionSuggestion) return [] as Array<{
-      type: 'renewal' | 'notice' | 'custom';
+      type: 'renewal' | 'notice' | 'payment' | 'custom';
       due_date: string;
       label: string;
       note: string;
       offset_value: number;
       offset_unit: 'days';
-      date_type: 'end' | 'renewal' | 'notice';
+      date_type: 'end' | 'renewal' | 'notice' | 'payment';
       source_date: string;
     }>;
-
-    console.log('[UploadPage] extracted dates', {
-      contract_id: contractId,
-      end_date: extractionSuggestion.end_date,
-      renewal_date: extractionSuggestion.renewal_date,
-      notice_date: extractionSuggestion.notice_date,
-    });
 
     const generated = generateSuggestedDeadlines({
       end_date: extractionSuggestion.end_date,
       renewal_date: extractionSuggestion.renewal_date,
       notice_date: extractionSuggestion.notice_date,
+      payment_date: extractionSuggestion.payment_date,
     });
 
-    console.log('[UploadPage] generated suggested deadlines', {
-      contract_id: contractId,
-      suggested: generated,
-    });
+    const DATE_TYPE_TO_DEADLINE_TYPE: Record<string, 'renewal' | 'notice' | 'payment' | 'custom'> = {
+      end: 'renewal',
+      renewal: 'renewal',
+      notice: 'notice',
+      payment: 'payment',
+    };
 
     return generated.map((suggestion) => ({
-      type: suggestion.date_type === 'renewal'
-        ? 'renewal'
-        : suggestion.date_type === 'notice'
-          ? 'notice'
-          : 'custom',
+      type: DATE_TYPE_TO_DEADLINE_TYPE[suggestion.date_type] ?? 'custom',
       due_date: suggestion.due_date,
       label: `${SUGGESTION_DATE_TYPE_LABELS[suggestion.date_type]} reminder (${suggestion.offset_value} days before)`,
       note: `Suggested from extracted ${suggestion.date_type} date (${suggestion.source_date}).`,
@@ -106,7 +99,7 @@ export default function UploadPage() {
       date_type: suggestion.date_type,
       source_date: suggestion.source_date,
     }));
-  }, [contractId, extractionSuggestion]);
+  }, [extractionSuggestion]);
 
   const resetUploadFlow = () => {
     setState('idle');

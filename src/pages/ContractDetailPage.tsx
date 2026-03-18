@@ -41,10 +41,11 @@ const DEADLINE_TYPE_LABELS: Record<string, string> = {
   custom: 'Custom',
 };
 
-const SUGGESTION_DATE_TYPE_LABELS: Record<'end' | 'renewal' | 'notice', string> = {
-  end: 'End',
+const SUGGESTION_DATE_TYPE_LABELS: Record<'end' | 'renewal' | 'notice' | 'payment', string> = {
+  end: 'End / Renewal',
   renewal: 'Renewal',
   notice: 'Notice',
+  payment: 'Payment',
 };
 
 type ContractFormValues = {
@@ -90,9 +91,9 @@ export default function ContractDetailPage() {
   const { currentWorkspaceId } = useWorkspace();
 
   const { data: contract, isLoading: contractLoading } = useQuery({
-    queryKey: ['contract', id, user?.id, currentWorkspaceId],
+    queryKey: ['contract', id, currentWorkspaceId],
     queryFn: async () => {
-      if (!id || !user || !currentWorkspaceId) {
+      if (!id || !currentWorkspaceId) {
         return null;
       }
 
@@ -100,12 +101,12 @@ export default function ContractDetailPage() {
         .from('contracts')
         .select('*')
         .eq('id', id)
-        .or(`workspace_id.eq.${currentWorkspaceId},and(workspace_id.is.null,user_id.eq.${user.id})`)
+        .eq('workspace_id', currentWorkspaceId)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!user && !!currentWorkspaceId,
+    enabled: !!id && !!currentWorkspaceId,
   });
 
   const { data: dates = [], isLoading: datesLoading } = useQuery({
@@ -242,13 +243,14 @@ export default function ContractDetailPage() {
   const updateContract = useMutation({
     mutationFn: async (values: ContractFormValues) => {
       if (!contract) throw new Error('Contract not found.');
+      if (!currentWorkspaceId) throw new Error('No workspace selected.');
 
       const { error } = await supabase.from('contracts').update({
         title: values.title.trim(),
         counterparty: values.counterparty || null,
         start_date: values.startDate || null,
         end_date: values.endDate || null,
-      }).eq('id', contract.id);
+      }).eq('id', contract.id).eq('workspace_id', currentWorkspaceId);
       if (error) throw error;
     },
     onSuccess: async (_, values) => {
@@ -272,7 +274,7 @@ export default function ContractDetailPage() {
         }
       }
       toast.success('Changes saved successfully.');
-      queryClient.invalidateQueries({ queryKey: ['contract', contract?.id, user?.id, currentWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['contract', contract?.id, currentWorkspaceId] });
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
@@ -313,37 +315,32 @@ export default function ContractDetailPage() {
 
   const suggestedDeadlines = useMemo(() => {
     if (!extractionSuggestion) return [] as Array<{
-      type: 'renewal' | 'notice' | 'custom';
+      type: 'renewal' | 'notice' | 'payment' | 'custom';
       due_date: string;
       label: string;
       note: string;
       offset_value: number;
       offset_unit: 'days';
-      date_type: 'end' | 'renewal' | 'notice';
+      date_type: 'end' | 'renewal' | 'notice' | 'payment';
       source_date: string;
     }>;
-
-    console.log('[ContractDetail] extracted dates', {
-      contract_id: contract?.id,
-      end_date: extractionSuggestion.end_date,
-      renewal_date: extractionSuggestion.renewal_date,
-      notice_date: extractionSuggestion.notice_date,
-    });
 
     const generated = generateSuggestedDeadlines({
       end_date: extractionSuggestion.end_date,
       renewal_date: extractionSuggestion.renewal_date,
       notice_date: extractionSuggestion.notice_date,
+      payment_date: extractionSuggestion.payment_date,
     });
 
-    console.log('[ContractDetail] generated suggested deadlines', generated);
+    const DATE_TYPE_TO_DEADLINE_TYPE: Record<string, 'renewal' | 'notice' | 'payment' | 'custom'> = {
+      end: 'renewal',
+      renewal: 'renewal',
+      notice: 'notice',
+      payment: 'payment',
+    };
 
     return generated.map((suggestion) => ({
-      type: suggestion.date_type === 'renewal'
-        ? 'renewal'
-        : suggestion.date_type === 'notice'
-          ? 'notice'
-          : 'custom',
+      type: DATE_TYPE_TO_DEADLINE_TYPE[suggestion.date_type] ?? 'custom',
       due_date: suggestion.due_date,
       label: `${SUGGESTION_DATE_TYPE_LABELS[suggestion.date_type]} reminder (${suggestion.offset_value} days before)`,
       note: `Suggested from extracted ${suggestion.date_type} date (${suggestion.source_date}).`,
@@ -352,7 +349,7 @@ export default function ContractDetailPage() {
       date_type: suggestion.date_type,
       source_date: suggestion.source_date,
     }));
-  }, [contract?.id, extractionSuggestion]);
+  }, [extractionSuggestion]);
 
   const startExtraction = useMutation({
     mutationFn: async () => {
