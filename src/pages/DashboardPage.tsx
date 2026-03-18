@@ -131,17 +131,13 @@ export default function DashboardPage() {
 
         const nextDeadline = upcomingDates.find((date) => date.daysUntil >= 0) ?? null;
         const hasOverdueDates = upcomingDates.some((date) => date.daysUntil < 0);
-        const needsReview = Boolean(
-          latestExtraction?.needs_review || (latestExtraction?.missing_fields?.length ?? 0) > 0,
-        );
+        const needsReview = contractDates.length === 0 && !nextDeadline;
 
         let healthStatus = 'ok';
         if (hasOverdueDates) {
           healthStatus = 'overdue';
         } else if (needsReview) {
           healthStatus = 'needs_review';
-        } else if (contractDates.length === 0) {
-          healthStatus = 'missing_dates';
         } else if (nextDeadline && nextDeadline.daysUntil <= 30) {
           healthStatus = 'expiring_soon';
         }
@@ -204,11 +200,7 @@ export default function DashboardPage() {
   const matchesFilter = (contract: (typeof allContracts)[number], filter: DashboardFilter) => {
     switch (filter) {
       case 'needs_review':
-        return Boolean(
-          contract.needs_review
-          || contract.health_status === 'needs_review'
-          || (contract.missing_fields && contract.missing_fields.length > 0),
-        );
+        return contract.health_status === 'needs_review';
       case 'expiring_soon':
         return Boolean(contract.expiring_within_30_days || contract.health_status === 'expiring_soon');
       case 'active':
@@ -220,8 +212,6 @@ export default function DashboardPage() {
         return true;
     }
   };
-
-  const contractNeedsReview = (contract: (typeof allContracts)[number]) => matchesFilter(contract, 'needs_review');
 
   const filterCounts = {
     all: allContracts.length,
@@ -251,7 +241,6 @@ export default function DashboardPage() {
       case 'overdue': return 'destructive';
       case 'expiring_soon': return 'secondary';
       case 'needs_review': return 'secondary';
-      case 'missing_dates': return 'outline';
       default: return 'outline';
     }
   };
@@ -261,7 +250,6 @@ export default function DashboardPage() {
       case 'overdue': return 'Overdue';
       case 'expiring_soon': return 'Expiring Soon';
       case 'needs_review': return 'Needs Review';
-      case 'missing_dates': return 'Missing Dates';
       case 'ok': return 'Healthy';
       default: return status || 'Unknown';
     }
@@ -374,16 +362,9 @@ export default function DashboardPage() {
                   {filtered.map(contract => (
                     <TableRow key={contract.id} className="cursor-pointer">
                       <TableCell>
-                        <div className="space-y-1">
-                          <Link to={`/app/contracts/${contract.id}`} className="font-medium transition-colors hover:text-foreground/70">
-                            {contract.title}
-                          </Link>
-                          {contractNeedsReview(contract) ? (
-                            <Badge variant="outline" className="w-fit border-destructive/30 bg-destructive/5 text-[10px] uppercase tracking-wide">
-                              Needs Review
-                            </Badge>
-                          ) : null}
-                        </div>
+                        <Link to={`/app/contracts/${contract.id}`} className="font-medium transition-colors hover:text-foreground/70">
+                          {contract.title}
+                        </Link>
                       </TableCell>
                       <TableCell className="text-sm">
                         {contract.next_deadline_date ? new Date(contract.next_deadline_date).toLocaleDateString() : '—'}
@@ -407,17 +388,10 @@ export default function DashboardPage() {
               <Link key={contract.id} to={`/app/contracts/${contract.id}`}>
                 <Card>
                   <CardContent className="pt-4 pb-3 px-4">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="space-y-1">
+                      <div className="flex items-start justify-between gap-2 mb-2">
                         <p className="font-medium text-sm leading-tight">{contract.title}</p>
-                        {contractNeedsReview(contract) ? (
-                          <Badge variant="outline" className="w-fit border-destructive/30 bg-destructive/5 text-[10px] uppercase tracking-wide">
-                            Needs Review
-                          </Badge>
-                        ) : null}
+                        <StatusBadge status={contract.status || 'draft'} />
                       </div>
-                      <StatusBadge status={contract.status || 'draft'} />
-                    </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{contract.next_deadline_date ? `Next: ${new Date(contract.next_deadline_date).toLocaleDateString()}` : 'No upcoming'}</span>
                       <Badge variant={healthVariant(contract.health_status)} className="normal-case text-xs capitalize tracking-normal">
