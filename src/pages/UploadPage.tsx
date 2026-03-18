@@ -283,7 +283,17 @@ export default function UploadPage() {
 
       let insertedDeadlines = 0;
       if (saveWithSuggestedDeadlines && suggestedDeadlines.length > 0) {
-        const upserts = suggestedDeadlines.map((deadline) => ({
+        // Fetch existing deadline types to avoid duplicate key errors
+        const { data: existingDates } = await supabase
+          .from('contract_dates')
+          .select('type')
+          .eq('contract_id', contractId);
+
+        const existingTypes = new Set((existingDates ?? []).map((d) => d.type));
+
+        const inserts = suggestedDeadlines
+          .filter((deadline) => !existingTypes.has(deadline.type))
+          .map((deadline) => ({
             contract_id: contractId,
             type: deadline.type,
             due_date: deadline.due_date,
@@ -291,17 +301,17 @@ export default function UploadPage() {
             note: deadline.note,
           }));
 
-        if (upserts.length > 0) {
+        if (inserts.length > 0) {
           const { data: insertResult, error: insertError } = await supabase
             .from('contract_dates')
-            .upsert(upserts, { onConflict: 'contract_id,type' })
+            .insert(inserts)
             .select('id, type, due_date, label');
 
           if (insertError) {
             throw insertError;
           }
 
-          insertedDeadlines = insertResult?.length ?? upserts.length;
+          insertedDeadlines = insertResult?.length ?? inserts.length;
         }
       }
 
