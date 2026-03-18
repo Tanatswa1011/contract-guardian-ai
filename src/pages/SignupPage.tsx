@@ -14,6 +14,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState(inviteEmail);
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [workspaceName, setWorkspaceName] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { signUp } = useAuth();
@@ -23,7 +24,7 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await signUp(email, password, name);
+    const { error } = await signUp(email, password, name, workspaceName.trim() || 'My Workspace');
     setLoading(false);
     if (error) {
       toast.error(error.message);
@@ -84,6 +85,13 @@ export default function SignupPage() {
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" placeholder="Min 8 characters" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} disabled={loading} />
             </div>
+            {!inviteEmail && (
+              <div className="space-y-2">
+                <Label htmlFor="workspace-name">Workspace Name</Label>
+                <Input id="workspace-name" placeholder="e.g., Acme Legal" value={workspaceName} onChange={e => setWorkspaceName(e.target.value)} disabled={loading} />
+                <p className="text-xs text-muted-foreground">Your team's shared space. You can change this later.</p>
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Start Free Trial
