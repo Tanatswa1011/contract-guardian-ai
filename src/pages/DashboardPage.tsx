@@ -265,7 +265,8 @@ export default function DashboardPage() {
     if (!deleteId) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase.from('contracts').delete().eq('id', deleteId);
+      if (!currentWorkspaceId) throw new Error('No workspace selected.');
+      const { error } = await supabase.from('contracts').delete().eq('id', deleteId).eq('workspace_id', currentWorkspaceId);
       if (error) throw error;
       toast.success('Contract deleted');
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });

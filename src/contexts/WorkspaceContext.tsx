@@ -58,8 +58,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return [];
       }
 
-      // Pending invite acceptance RPC is not available in the current schema.
-      // Memberships are fetched directly from workspace_members.
+      // Accept any pending workspace invites before fetching memberships
+      await (supabase.rpc as any)('accept_my_pending_workspace_invites').catch((err: unknown) => {
+        console.error('Failed to accept pending workspace invites:', err);
+      });
 
       const { data: membershipRows, error: membershipError } = await supabase
         .from('workspace_members')
