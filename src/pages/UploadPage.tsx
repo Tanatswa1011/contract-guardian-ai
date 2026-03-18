@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ export default function UploadPage() {
   const [saveWithSuggestedDeadlines, setSaveWithSuggestedDeadlines] = useState(true);
   const [savePending, setSavePending] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { currentWorkspaceId } = useWorkspace();
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Upload failed');
@@ -64,7 +66,7 @@ export default function UploadPage() {
 
   const suggestedDeadlines = useMemo(() => {
     if (!extractionSuggestion) return [] as Array<{
-      type: 'renewal' | 'notice' | 'custom';
+      type: 'renewal' | 'notice' | 'payment' | 'custom';
       due_date: string;
       label: string;
       note: string;
@@ -74,39 +76,26 @@ export default function UploadPage() {
       source_date: string;
     }>;
 
-    console.log('[UploadPage] extracted dates', {
-      contract_id: contractId,
-      end_date: extractionSuggestion.end_date,
-      renewal_date: extractionSuggestion.renewal_date,
-      notice_date: extractionSuggestion.notice_date,
-    });
-
     const generated = generateSuggestedDeadlines({
       end_date: extractionSuggestion.end_date,
       renewal_date: extractionSuggestion.renewal_date,
       notice_date: extractionSuggestion.notice_date,
-    });
-
-    console.log('[UploadPage] generated suggested deadlines', {
-      contract_id: contractId,
-      suggested: generated,
+      payment_date: extractionSuggestion.payment_date,
     });
 
     return generated.map((suggestion) => ({
-      type: suggestion.date_type === 'renewal'
-        ? 'renewal'
-        : suggestion.date_type === 'notice'
-          ? 'notice'
-          : 'custom',
+      type: suggestion.db_type,
       due_date: suggestion.due_date,
-      label: `${SUGGESTION_DATE_TYPE_LABELS[suggestion.date_type]} reminder (${suggestion.offset_value} days before)`,
-      note: `Suggested from extracted ${suggestion.date_type} date (${suggestion.source_date}).`,
+      label: suggestion.offset_value === 0
+        ? `${suggestion.db_type} deadline`
+        : `${SUGGESTION_DATE_TYPE_LABELS[suggestion.date_type]} reminder (${suggestion.offset_value} days before)`,
+      note: `Suggested from ${suggestion.date_type} date (${suggestion.source_date}).`,
       offset_value: suggestion.offset_value,
       offset_unit: suggestion.offset_unit,
       date_type: suggestion.date_type,
       source_date: suggestion.source_date,
     }));
-  }, [contractId, extractionSuggestion]);
+  }, [extractionSuggestion]);
 
   const resetUploadFlow = () => {
     setState('idle');
@@ -207,7 +196,18 @@ export default function UploadPage() {
           filePath: uploadedFilePath,
         },
       });
-      if (invokeError) throw invokeError;
+
+      if (invokeError) {
+        const errMsg = typeof invokeError === 'object' && invokeError !== null && 'message' in invokeError
+          ? String((invokeError as { message?: string }).message)
+          : getErrorMessage(invokeError);
+        throw new Error(errMsg || 'Extraction request failed.');
+      }
+
+      const responseData = data as { ok?: boolean; extraction?: Json; error?: string } | null;
+      if (responseData?.error && !responseData?.ok) {
+        throw new Error(responseData.error);
+      }
 
       const { data: latestRun, error: latestRunError } = await supabase
         .from('extraction_runs')
@@ -228,7 +228,7 @@ export default function UploadPage() {
         return;
       }
 
-      const fallbackRaw = (data as { extraction?: Json } | null)?.extraction ?? null;
+      const fallbackRaw = responseData?.extraction ?? latestRun.raw_json ?? null;
       const rawSuggestion = latestRun.raw_json ?? fallbackRaw;
       const parsedSuggestion = parseExtractionSuggestion(rawSuggestion as Json);
       const normalizedMissingFields = (
@@ -243,7 +243,6 @@ export default function UploadPage() {
       toast.success('Extraction complete. Review the preview and save when ready.');
     } catch (error: unknown) {
       const message = getErrorMessage(error);
-      console.error('Extraction run failed:', error);
       setExtractionError(message);
       setState('uploaded');
       toast.error(`${message}. You can continue manually.`);
@@ -312,33 +311,13 @@ export default function UploadPage() {
             note: deadline.note,
           }));
 
-        console.log('[UploadPage] applying suggested deadlines', {
-          workspace_id: currentWorkspaceId,
-          contract_id: contractId,
-          suggested_deadlines: suggestedDeadlines,
-          inserts,
-        });
-
         if (inserts.length > 0) {
           const { data: insertResult, error: insertError } = await supabase
             .from('contract_dates')
             .upsert(inserts, { onConflict: 'contract_id,type', ignoreDuplicates: true })
             .select('id, type, due_date, label');
 
-          console.log('[UploadPage] suggested deadline insert result', {
-            workspace_id: currentWorkspaceId,
-            contract_id: contractId,
-            inserted: insertResult ?? [],
-          });
-
-          if (insertError) {
-            console.error('[UploadPage] suggested deadline insert error', {
-              workspace_id: currentWorkspaceId,
-              contract_id: contractId,
-              error: insertError,
-            });
-            throw insertError;
-          }
+          if (insertError) throw insertError;
 
           insertedDeadlines = insertResult?.length ?? inserts.length;
         }
@@ -350,6 +329,7 @@ export default function UploadPage() {
           : 'Contract saved successfully.',
       );
       setState('saved');
+      queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     } catch (error: unknown) {
       console.error('Save contract from preview failed:', error);
       toast.error(getErrorMessage(error));
@@ -477,7 +457,7 @@ export default function UploadPage() {
               </div>
               {extractionNeedsReview ? (
                 <Badge variant="outline" className="border-destructive/30 bg-destructive/5 text-foreground">
-                  Needs Review
+                  ⚠️ Needs Review
                 </Badge>
               ) : (
                 <Badge variant="outline">Looks Good</Badge>

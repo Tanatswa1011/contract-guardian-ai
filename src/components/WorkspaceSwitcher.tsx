@@ -28,8 +28,22 @@ export default function WorkspaceSwitcher({ className, onSelect }: WorkspaceSwit
     setCurrentWorkspaceId,
   } = useWorkspace();
 
-  if (!currentWorkspace || memberships.length === 0) {
-    return null;
+  if (memberships.length === 0) {
+    return (
+      <div className="px-3 py-2 text-xs text-muted-foreground">
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em]">Workspace</p>
+        <p className="text-sm">No workspace</p>
+      </div>
+    );
+  }
+
+  if (!currentWorkspace) {
+    return (
+      <div className="px-3 py-2 text-xs text-muted-foreground">
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em]">Workspace</p>
+        <p className="text-sm">Loading...</p>
+      </div>
+    );
   }
 
   const handleWorkspaceChange = (workspaceId: string) => {

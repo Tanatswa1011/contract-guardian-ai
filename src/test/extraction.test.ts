@@ -61,20 +61,7 @@ describe('generateSuggestedDeadlines', () => {
         offset_unit: 'days',
         date_type: 'notice',
         source_date: '2026-10-15',
-      },
-      {
-        due_date: '2026-10-31',
-        offset_value: 30,
-        offset_unit: 'days',
-        date_type: 'renewal',
-        source_date: '2026-11-30',
-      },
-      {
-        due_date: '2026-11-15',
-        offset_value: 15,
-        offset_unit: 'days',
-        date_type: 'renewal',
-        source_date: '2026-11-30',
+        db_type: 'notice',
       },
       {
         due_date: '2026-12-01',
@@ -82,20 +69,7 @@ describe('generateSuggestedDeadlines', () => {
         offset_unit: 'days',
         date_type: 'end',
         source_date: '2026-12-31',
-      },
-      {
-        due_date: '2026-12-16',
-        offset_value: 15,
-        offset_unit: 'days',
-        date_type: 'end',
-        source_date: '2026-12-31',
-      },
-      {
-        due_date: '2026-12-24',
-        offset_value: 7,
-        offset_unit: 'days',
-        date_type: 'end',
-        source_date: '2026-12-31',
+        db_type: 'renewal',
       },
     ]);
   });

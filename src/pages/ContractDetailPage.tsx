@@ -100,7 +100,7 @@ export default function ContractDetailPage() {
         .from('contracts')
         .select('*')
         .eq('id', id)
-        .or(`workspace_id.eq.${currentWorkspaceId},and(workspace_id.is.null,user_id.eq.${user.id})`)
+        .eq('workspace_id', currentWorkspaceId)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -241,14 +241,18 @@ export default function ContractDetailPage() {
 
   const updateContract = useMutation({
     mutationFn: async (values: ContractFormValues) => {
-      if (!contract) throw new Error('Contract not found.');
+      if (!contract || !currentWorkspaceId) throw new Error('Contract not found.');
 
-      const { error } = await supabase.from('contracts').update({
-        title: values.title.trim(),
-        counterparty: values.counterparty || null,
-        start_date: values.startDate || null,
-        end_date: values.endDate || null,
-      }).eq('id', contract.id);
+      const { error } = await supabase
+        .from('contracts')
+        .update({
+          title: values.title.trim(),
+          counterparty: values.counterparty || null,
+          start_date: values.startDate || null,
+          end_date: values.endDate || null,
+        })
+        .eq('id', contract.id)
+        .eq('workspace_id', currentWorkspaceId);
       if (error) throw error;
     },
     onSuccess: async (_, values) => {
@@ -283,14 +287,17 @@ export default function ContractDetailPage() {
       if (!contract) throw new Error('Contract not found.');
 
       const { error } = await supabase.from('contract_dates').insert({
-        contract_id: contract.id, type: newDeadline.type, due_date: newDeadline.due_date,
-        label: newDeadline.label || null, note: newDeadline.note || null,
+        contract_id: contract.id,
+        type: newDeadline.type,
+        due_date: newDeadline.due_date,
+        label: newDeadline.label || null,
+        note: newDeadline.note || null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Deadline added');
-      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
+      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id, currentWorkspaceId] });
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
       setAddDialogOpen(false);
       setNewDeadline({ type: 'renewal', due_date: '', label: '', note: '' });
@@ -305,7 +312,7 @@ export default function ContractDetailPage() {
     },
     onSuccess: () => {
       toast.success('Deadline deleted');
-      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
+      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id, currentWorkspaceId] });
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
@@ -313,7 +320,7 @@ export default function ContractDetailPage() {
 
   const suggestedDeadlines = useMemo(() => {
     if (!extractionSuggestion) return [] as Array<{
-      type: 'renewal' | 'notice' | 'custom';
+      type: 'renewal' | 'notice' | 'payment' | 'custom';
       due_date: string;
       label: string;
       note: string;
@@ -323,36 +330,27 @@ export default function ContractDetailPage() {
       source_date: string;
     }>;
 
-    console.log('[ContractDetail] extracted dates', {
-      contract_id: contract?.id,
-      end_date: extractionSuggestion.end_date,
-      renewal_date: extractionSuggestion.renewal_date,
-      notice_date: extractionSuggestion.notice_date,
-    });
-
     const generated = generateSuggestedDeadlines({
       end_date: extractionSuggestion.end_date,
       renewal_date: extractionSuggestion.renewal_date,
       notice_date: extractionSuggestion.notice_date,
+      payment_date: extractionSuggestion.payment_date,
+      notice_period_days: contract?.notice_period_days ?? undefined,
     });
 
-    console.log('[ContractDetail] generated suggested deadlines', generated);
-
     return generated.map((suggestion) => ({
-      type: suggestion.date_type === 'renewal'
-        ? 'renewal'
-        : suggestion.date_type === 'notice'
-          ? 'notice'
-          : 'custom',
+      type: suggestion.db_type,
       due_date: suggestion.due_date,
-      label: `${SUGGESTION_DATE_TYPE_LABELS[suggestion.date_type]} reminder (${suggestion.offset_value} days before)`,
-      note: `Suggested from extracted ${suggestion.date_type} date (${suggestion.source_date}).`,
+      label: suggestion.offset_value === 0
+        ? `${suggestion.db_type} deadline`
+        : `${SUGGESTION_DATE_TYPE_LABELS[suggestion.date_type]} reminder (${suggestion.offset_value} days before)`,
+      note: `Suggested from ${suggestion.date_type} date (${suggestion.source_date}).`,
       offset_value: suggestion.offset_value,
       offset_unit: suggestion.offset_unit,
       date_type: suggestion.date_type,
       source_date: suggestion.source_date,
     }));
-  }, [contract?.id, extractionSuggestion]);
+  }, [contract?.notice_period_days, extractionSuggestion]);
 
   const startExtraction = useMutation({
     mutationFn: async () => {
@@ -411,13 +409,6 @@ export default function ContractDetailPage() {
           note: suggestion.note,
         }));
 
-      console.log('[ContractDetail] applying suggested deadlines', {
-        workspace_id: currentWorkspaceId,
-        contract_id: contract.id,
-        suggested_deadlines: suggestedDeadlines,
-        inserts,
-      });
-
       if (inserts.length === 0) return 0;
 
       const { data: insertedRows, error: insertError } = await supabase
@@ -425,20 +416,7 @@ export default function ContractDetailPage() {
         .upsert(inserts, { onConflict: 'contract_id,type', ignoreDuplicates: true })
         .select('id, type, due_date, label');
 
-      console.log('[ContractDetail] suggested deadline insert result', {
-        workspace_id: currentWorkspaceId,
-        contract_id: contract.id,
-        inserted: insertedRows ?? [],
-      });
-
-      if (insertError) {
-        console.error('[ContractDetail] suggested deadline insert error', {
-          workspace_id: currentWorkspaceId,
-          contract_id: contract.id,
-          error: insertError,
-        });
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
       return insertedRows?.length ?? inserts.length;
     },
@@ -448,7 +426,7 @@ export default function ContractDetailPage() {
       } else {
         toast.success(`${insertedCount} suggested deadline${insertedCount > 1 ? 's' : ''} added.`);
       }
-      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
+      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id, currentWorkspaceId] });
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     },
     onError: (error: unknown) => {
@@ -982,7 +960,7 @@ export default function ContractDetailPage() {
               <Button
                 size="sm"
                 onClick={applySuggestionsToForm}
-                disabled={!extractionSuggestion || extraction?.status === 'processing'}
+                disabled={!extractionSuggestion || extraction?.status === 'processing' || updateContract.isPending}
               >
                 Apply AI Suggestions
               </Button>
@@ -991,6 +969,7 @@ export default function ContractDetailPage() {
                 size="sm"
                 onClick={() => addSuggestedDeadlines.mutate()}
                 disabled={!suggestedDeadlines.length || addSuggestedDeadlines.isPending}
+                title={!suggestedDeadlines.length ? 'No deadlines to suggest. Add end date, notice date, or payment date to the contract.' : undefined}
               >
                 {addSuggestedDeadlines.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Apply Suggested Deadlines
