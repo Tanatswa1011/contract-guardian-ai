@@ -1,4 +1,8 @@
 import type { Json } from '@/integrations/supabase/types';
+import {
+  parseSuggestedDeadlines,
+  type SuggestedDeadline,
+} from '@/lib/deadlineSuggestions';
 
 export const SUPPORTED_EXTRACTION_FIELDS = [
   'contract_title',
@@ -20,6 +24,9 @@ export type ExtractionSuggestion = {
   renewal_date: string | null;
   notice_date: string | null;
   payment_date: string | null;
+  notice_period_days: number | null;
+  payment_terms_days: number | null;
+  computed_deadlines: SuggestedDeadline[];
   missing_fields: SupportedExtractionField[];
   needs_review: boolean;
   notes: string | null;
@@ -67,6 +74,14 @@ function normalizeIsoDate(input: unknown): string | null {
   return isIsoDate(value) ? value : null;
 }
 
+function normalizePositiveInteger(input: unknown): number | null {
+  if (typeof input !== 'number' || !Number.isInteger(input) || input <= 0) {
+    return null;
+  }
+
+  return input;
+}
+
 function toSupportedField(value: unknown): SupportedExtractionField | null {
   if (typeof value !== 'string') return null;
   return SUPPORTED_EXTRACTION_FIELDS.includes(value as SupportedExtractionField)
@@ -87,18 +102,41 @@ export function parseExtractionSuggestion(rawJson: Json): ExtractionSuggestion |
     renewal_date: normalizeIsoDate(source.renewal_date),
     notice_date: normalizeIsoDate(source.notice_date),
     payment_date: normalizeIsoDate(source.payment_date),
+    notice_period_days: normalizePositiveInteger(source.notice_period_days),
+    payment_terms_days: normalizePositiveInteger(source.payment_terms_days),
+    computed_deadlines: parseSuggestedDeadlines(source.computed_deadlines),
     missing_fields: [],
     needs_review: true,
     notes: normalizeString(source.notes),
   };
 
-  const declaredMissing = Array.isArray(source.missing_fields)
+  const computedDeadlineTypes = new Set(suggestion.computed_deadlines.map((deadline) => deadline.type));
+  const declaredMissing = (Array.isArray(source.missing_fields)
     ? source.missing_fields
         .map(toSupportedField)
         .filter((field): field is SupportedExtractionField => field !== null)
-    : [];
+    : []).filter((field) => {
+      if (field === 'renewal_date') return !computedDeadlineTypes.has('renewal');
+      if (field === 'notice_date') return !computedDeadlineTypes.has('notice');
+      if (field === 'payment_date') return !computedDeadlineTypes.has('payment');
+      return true;
+    });
 
-  const computedMissing = SUPPORTED_EXTRACTION_FIELDS.filter((field) => !suggestion[field]);
+  const computedMissing = SUPPORTED_EXTRACTION_FIELDS.filter((field) => {
+    if (field === 'renewal_date' && computedDeadlineTypes.has('renewal')) {
+      return false;
+    }
+
+    if (field === 'notice_date' && computedDeadlineTypes.has('notice')) {
+      return false;
+    }
+
+    if (field === 'payment_date' && computedDeadlineTypes.has('payment')) {
+      return false;
+    }
+
+    return !suggestion[field];
+  });
   const mergedMissing = new Set<SupportedExtractionField>([...declaredMissing, ...computedMissing]);
 
   suggestion.missing_fields = Array.from(mergedMissing);

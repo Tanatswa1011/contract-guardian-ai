@@ -20,6 +20,7 @@ import {
   type SupportedExtractionField,
 } from '@/lib/extraction';
 import { generateSuggestedDeadlines } from '@/lib/deadlineSuggestions';
+import { getErrorMessage } from '@/lib/supabaseError';
 import { cn } from '@/lib/utils';
 
 const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
@@ -39,12 +40,6 @@ const DEADLINE_TYPE_LABELS: Record<string, string> = {
   notice: 'Notice',
   payment: 'Payment',
   custom: 'Custom',
-};
-
-const SUGGESTION_DATE_TYPE_LABELS: Record<'end' | 'renewal' | 'notice', string> = {
-  end: 'End',
-  renewal: 'Renewal',
-  notice: 'Notice',
 };
 
 type ContractFormValues = {
@@ -100,7 +95,7 @@ export default function ContractDetailPage() {
         .from('contracts')
         .select('*')
         .eq('id', id)
-        .or(`workspace_id.eq.${currentWorkspaceId},and(workspace_id.is.null,user_id.eq.${user.id})`)
+        .eq('workspace_id', currentWorkspaceId)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -175,7 +170,6 @@ export default function ContractDetailPage() {
   const [aiSuggestionsApplied, setAiSuggestionsApplied] = useState(false);
   const [deletingDeadlineId, setDeletingDeadlineId] = useState<string | null>(null);
   const [activeReviewField, setActiveReviewField] = useState<SupportedExtractionField | null>(null);
-  const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'An unexpected error occurred');
 
   const hasUnsavedChanges = useMemo(
     () =>
@@ -239,36 +233,110 @@ export default function ContractDetailPage() {
     return () => window.clearTimeout(timeoutId);
   }, [activeReviewField]);
 
+  const buildDeadlineByType = (deadlineRows: Array<{ type: string; due_date: string }>) => {
+    const next = { renewal: null, notice: null, payment: null } as Record<'renewal' | 'notice' | 'payment', string | null>;
+    for (const date of deadlineRows) {
+      if ((date.type === 'renewal' || date.type === 'notice' || date.type === 'payment') && !next[date.type]) {
+        next[date.type] = date.due_date;
+      }
+    }
+    return next;
+  };
+
+  const currentDeadlineByType = useMemo(
+    () => buildDeadlineByType(dates),
+    [dates],
+  );
+
+  const persistedContractValues = useMemo<ContractFormValues>(() => ({
+    title: contract?.title ?? '',
+    counterparty: contract?.counterparty ?? '',
+    startDate: contract?.start_date ?? '',
+    endDate: contract?.end_date ?? '',
+  }), [contract?.counterparty, contract?.end_date, contract?.start_date, contract?.title]);
+
+  const isFieldMissingForValues = (
+    field: SupportedExtractionField,
+    values: ContractFormValues,
+    deadlines: Record<'renewal' | 'notice' | 'payment', string | null>,
+  ) => {
+    if (field === 'contract_title') return !values.title.trim();
+    if (field === 'counterparty') return !values.counterparty.trim();
+    if (field === 'start_date') return !values.startDate;
+    if (field === 'end_date') return !values.endDate;
+    if (field === 'renewal_date') return !deadlines.renewal;
+    if (field === 'notice_date') return !deadlines.notice;
+    if (field === 'payment_date') return !deadlines.payment;
+    return false;
+  };
+
+  const readCurrentDeadlines = async () => {
+    if (!contract?.id) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('contract_dates')
+      .select('*')
+      .eq('contract_id', contract.id)
+      .order('due_date');
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  };
+
+  const syncExtractionReviewStatus = async (
+    values: ContractFormValues,
+    deadlines: Record<'renewal' | 'notice' | 'payment', string | null>,
+  ) => {
+    if (!extraction?.id) {
+      return;
+    }
+
+    const unresolvedFields = extractionMissingFields.filter((field) => (
+      isFieldMissingForValues(field, values, deadlines)
+    ));
+
+    const { error } = await supabase
+      .from('extraction_runs')
+      .update({
+        missing_fields: unresolvedFields,
+        needs_review: unresolvedFields.length > 0,
+      })
+      .eq('id', extraction.id);
+
+    if (error) {
+      throw error;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['extraction', contract?.id, currentWorkspaceId] });
+    queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
+  };
+
   const updateContract = useMutation({
     mutationFn: async (values: ContractFormValues) => {
       if (!contract) throw new Error('Contract not found.');
+      if (!currentWorkspaceId) throw new Error('Workspace is required.');
 
       const { error } = await supabase.from('contracts').update({
         title: values.title.trim(),
         counterparty: values.counterparty || null,
         start_date: values.startDate || null,
         end_date: values.endDate || null,
-      }).eq('id', contract.id);
+      }).eq('id', contract.id).eq('workspace_id', currentWorkspaceId);
       if (error) throw error;
     },
     onSuccess: async (_, values) => {
       setInitialFormValues(values);
       setAiSuggestionsApplied(false);
       if (extraction?.id) {
-        const unresolvedFields = extractionMissingFields.filter((field) => (
-          isFieldMissingForValues(field, values, currentDeadlineByType)
-        ));
-        const { error } = await supabase
-          .from('extraction_runs')
-          .update({
-            missing_fields: unresolvedFields,
-            needs_review: unresolvedFields.length > 0,
-          })
-          .eq('id', extraction.id);
-        if (error) {
+        try {
+          await syncExtractionReviewStatus(values, currentDeadlineByType);
+        } catch {
           toast.error('Changes saved, but review status could not be refreshed.');
-        } else {
-          queryClient.invalidateQueries({ queryKey: ['extraction', contract?.id, currentWorkspaceId] });
         }
       }
       toast.success('Changes saved successfully.');
@@ -281,6 +349,7 @@ export default function ContractDetailPage() {
   const addDeadline = useMutation({
     mutationFn: async () => {
       if (!contract) throw new Error('Contract not found.');
+      if (!currentWorkspaceId) throw new Error('Workspace is required.');
 
       const { error } = await supabase.from('contract_dates').insert({
         contract_id: contract.id, type: newDeadline.type, due_date: newDeadline.due_date,
@@ -288,9 +357,16 @@ export default function ContractDetailPage() {
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Deadline added');
-      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
+      try {
+        const nextDates = await readCurrentDeadlines();
+        queryClient.setQueryData(['contract-dates', contract?.id, currentWorkspaceId], nextDates);
+        queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id, currentWorkspaceId] });
+        await syncExtractionReviewStatus(persistedContractValues, buildDeadlineByType(nextDates));
+      } catch {
+        toast.error('Deadline added, but review status could not be refreshed.');
+      }
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
       setAddDialogOpen(false);
       setNewDeadline({ type: 'renewal', due_date: '', label: '', note: '' });
@@ -303,55 +379,35 @@ export default function ContractDetailPage() {
       const { error } = await supabase.from('contract_dates').delete().eq('id', deadlineId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Deadline deleted');
-      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
+      try {
+        const nextDates = await readCurrentDeadlines();
+        queryClient.setQueryData(['contract-dates', contract?.id, currentWorkspaceId], nextDates);
+        queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id, currentWorkspaceId] });
+        await syncExtractionReviewStatus(persistedContractValues, buildDeadlineByType(nextDates));
+      } catch {
+        toast.error('Deadline deleted, but review status could not be refreshed.');
+      }
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 
   const suggestedDeadlines = useMemo(() => {
-    if (!extractionSuggestion) return [] as Array<{
-      type: 'renewal' | 'notice' | 'custom';
-      due_date: string;
-      label: string;
-      note: string;
-      offset_value: number;
-      offset_unit: 'days';
-      date_type: 'end' | 'renewal' | 'notice';
-      source_date: string;
-    }>;
+    if (!extractionSuggestion) {
+      return [];
+    }
 
-    console.log('[ContractDetail] extracted dates', {
-      contract_id: contract?.id,
+    return generateSuggestedDeadlines({
+      start_date: extractionSuggestion.start_date,
       end_date: extractionSuggestion.end_date,
-      renewal_date: extractionSuggestion.renewal_date,
       notice_date: extractionSuggestion.notice_date,
+      payment_date: extractionSuggestion.payment_date,
+      notice_period_days: extractionSuggestion.notice_period_days,
+      payment_terms_days: extractionSuggestion.payment_terms_days,
+      computed_deadlines: extractionSuggestion.computed_deadlines,
     });
-
-    const generated = generateSuggestedDeadlines({
-      end_date: extractionSuggestion.end_date,
-      renewal_date: extractionSuggestion.renewal_date,
-      notice_date: extractionSuggestion.notice_date,
-    });
-
-    console.log('[ContractDetail] generated suggested deadlines', generated);
-
-    return generated.map((suggestion) => ({
-      type: suggestion.date_type === 'renewal'
-        ? 'renewal'
-        : suggestion.date_type === 'notice'
-          ? 'notice'
-          : 'custom',
-      due_date: suggestion.due_date,
-      label: `${SUGGESTION_DATE_TYPE_LABELS[suggestion.date_type]} reminder (${suggestion.offset_value} days before)`,
-      note: `Suggested from extracted ${suggestion.date_type} date (${suggestion.source_date}).`,
-      offset_value: suggestion.offset_value,
-      offset_unit: suggestion.offset_unit,
-      date_type: suggestion.date_type,
-      source_date: suggestion.source_date,
-    }));
   }, [contract?.id, extractionSuggestion]);
 
   const startExtraction = useMutation({
@@ -359,19 +415,25 @@ export default function ContractDetailPage() {
       if (!contract) throw new Error('Missing contract id.');
       const latestFile = files[0];
       if (!latestFile) throw new Error('No uploaded contract file found.');
-      const { error } = await supabase.functions.invoke('extract-contract-fields', {
+      const { data, error } = await supabase.functions.invoke('extract-contract-fields', {
         body: {
           contractId: contract.id,
           filePath: latestFile.storage_path,
         },
       });
-      if (error) throw error;
+      const payload = data as { ok?: boolean; error?: string } | null;
+      if (error || payload?.ok === false) {
+        throw new Error(payload?.error || getErrorMessage(error, 'Extraction failed.'));
+      }
     },
     onSuccess: () => {
       toast.success('AI extraction completed.');
       queryClient.invalidateQueries({ queryKey: ['extraction', contract?.id, currentWorkspaceId] });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+    onError: (error: unknown) => {
+      queryClient.invalidateQueries({ queryKey: ['extraction', contract?.id, currentWorkspaceId] });
+      toast.error(getErrorMessage(error));
+    },
   });
 
   const addSuggestedDeadlines = useMutation({
@@ -391,18 +453,9 @@ export default function ContractDetailPage() {
         throw new Error('Contract is not available in the selected workspace.');
       }
 
-      const existingTypes = new Set(
-        dates.map((date) => date.type),
-      );
-
-      // Deduplicate by type (DB has unique constraint on contract_id+type)
-      const seenTypes = new Set<string>();
+      const existingTypes = new Set(dates.map((date) => date.type));
       const inserts = suggestedDeadlines
-        .filter((suggestion) => {
-          if (existingTypes.has(suggestion.type) || seenTypes.has(suggestion.type)) return false;
-          seenTypes.add(suggestion.type);
-          return true;
-        })
+        .filter((suggestion) => !existingTypes.has(suggestion.type))
         .map((suggestion) => ({
           contract_id: contract.id,
           type: suggestion.type,
@@ -411,44 +464,31 @@ export default function ContractDetailPage() {
           note: suggestion.note,
         }));
 
-      console.log('[ContractDetail] applying suggested deadlines', {
-        workspace_id: currentWorkspaceId,
-        contract_id: contract.id,
-        suggested_deadlines: suggestedDeadlines,
-        inserts,
-      });
-
       if (inserts.length === 0) return 0;
 
       const { data: insertedRows, error: insertError } = await supabase
         .from('contract_dates')
         .upsert(inserts, { onConflict: 'contract_id,type', ignoreDuplicates: true })
-        .select('id, type, due_date, label');
+        .select('*');
 
-      console.log('[ContractDetail] suggested deadline insert result', {
-        workspace_id: currentWorkspaceId,
-        contract_id: contract.id,
-        inserted: insertedRows ?? [],
-      });
-
-      if (insertError) {
-        console.error('[ContractDetail] suggested deadline insert error', {
-          workspace_id: currentWorkspaceId,
-          contract_id: contract.id,
-          error: insertError,
-        });
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
       return insertedRows?.length ?? inserts.length;
     },
-    onSuccess: (insertedCount) => {
+    onSuccess: async (insertedCount) => {
       if (insertedCount === 0) {
         toast.success('Suggested deadlines are already added.');
       } else {
         toast.success(`${insertedCount} suggested deadline${insertedCount > 1 ? 's' : ''} added.`);
       }
-      queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id] });
+      try {
+        const nextDates = await readCurrentDeadlines();
+        queryClient.setQueryData(['contract-dates', contract?.id, currentWorkspaceId], nextDates);
+        queryClient.invalidateQueries({ queryKey: ['contract-dates', contract?.id, currentWorkspaceId] });
+        await syncExtractionReviewStatus(persistedContractValues, buildDeadlineByType(nextDates));
+      } catch {
+        toast.error('Deadlines applied, but review status could not be refreshed.');
+      }
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     },
     onError: (error: unknown) => {
@@ -516,16 +556,6 @@ export default function ContractDetailPage() {
     URL.revokeObjectURL(url);
   };
 
-  const currentDeadlineByType = useMemo(() => {
-    const next = { renewal: null, notice: null, payment: null } as Record<'renewal' | 'notice' | 'payment', string | null>;
-    for (const date of dates) {
-      if ((date.type === 'renewal' || date.type === 'notice' || date.type === 'payment') && !next[date.type]) {
-        next[date.type] = date.due_date;
-      }
-    }
-    return next;
-  }, [dates]);
-
   if (contractLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -576,21 +606,6 @@ export default function ContractDetailPage() {
       startDate: contract.start_date ?? '',
       endDate: contract.end_date ?? '',
     };
-
-  const isFieldMissingForValues = (
-    field: SupportedExtractionField,
-    values: ContractFormValues,
-    deadlines: Record<'renewal' | 'notice' | 'payment', string | null>,
-  ) => {
-    if (field === 'contract_title') return !values.title.trim();
-    if (field === 'counterparty') return !values.counterparty.trim();
-    if (field === 'start_date') return !values.startDate;
-    if (field === 'end_date') return !values.endDate;
-    if (field === 'renewal_date') return !deadlines.renewal;
-    if (field === 'notice_date') return !deadlines.notice;
-    if (field === 'payment_date') return !deadlines.payment;
-    return false;
-  };
 
   const isFieldMissingNow = (field: SupportedExtractionField) => {
     return isFieldMissingForValues(field, visibleFormValues, currentDeadlineByType);

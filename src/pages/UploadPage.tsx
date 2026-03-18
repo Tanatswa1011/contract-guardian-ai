@@ -13,9 +13,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { parseExtractionSuggestion, type SupportedExtractionField } from '@/lib/extraction';
 import { generateSuggestedDeadlines } from '@/lib/deadlineSuggestions';
+import { getErrorMessage } from '@/lib/supabaseError';
 import { toast } from 'sonner';
 
 type UploadState = 'idle' | 'selected' | 'uploading' | 'uploaded' | 'extracting' | 'preview' | 'saved' | 'failed';
+
+type ExtractionRunPreview = {
+  id: string;
+  status: string;
+  raw_json: Json;
+  missing_fields: string[];
+  needs_review: boolean;
+  error: string | null;
+};
 
 const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
   contract_title: 'Contract Title',
@@ -27,16 +37,25 @@ const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
   payment_date: 'Payment Date',
 };
 
-const SUGGESTION_DATE_TYPE_LABELS: Record<'end' | 'renewal' | 'notice', string> = {
-  end: 'End',
-  renewal: 'Renewal',
-  notice: 'Notice',
-};
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 function formatDateValue(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+}
+
+function validatePdfFile(file: File): string | null {
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (!isPdf) {
+    return 'Please upload a PDF contract.';
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return 'PDF must be 20MB or smaller.';
+  }
+
+  return null;
 }
 
 export default function UploadPage() {
@@ -46,6 +65,7 @@ export default function UploadPage() {
   const [counterparty, setCounterparty] = useState('');
   const [contractId, setContractId] = useState<string | null>(null);
   const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
+  const [latestExtractionRunId, setLatestExtractionRunId] = useState<string | null>(null);
   const [extractionError, setExtractionError] = useState<string | null>(null);
   const [extractionMissingFields, setExtractionMissingFields] = useState<SupportedExtractionField[]>([]);
   const [extractionNeedsReview, setExtractionNeedsReview] = useState(false);
@@ -55,7 +75,6 @@ export default function UploadPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentWorkspaceId } = useWorkspace();
-  const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Upload failed');
 
   const extractionSuggestion = useMemo(
     () => (extractionSuggestionRaw ? parseExtractionSuggestion(extractionSuggestionRaw) : null),
@@ -63,50 +82,20 @@ export default function UploadPage() {
   );
 
   const suggestedDeadlines = useMemo(() => {
-    if (!extractionSuggestion) return [] as Array<{
-      type: 'renewal' | 'notice' | 'custom';
-      due_date: string;
-      label: string;
-      note: string;
-      offset_value: number;
-      offset_unit: 'days';
-      date_type: 'end' | 'renewal' | 'notice';
-      source_date: string;
-    }>;
+    if (!extractionSuggestion) {
+      return [];
+    }
 
-    console.log('[UploadPage] extracted dates', {
-      contract_id: contractId,
+    return generateSuggestedDeadlines({
+      start_date: extractionSuggestion.start_date,
       end_date: extractionSuggestion.end_date,
-      renewal_date: extractionSuggestion.renewal_date,
       notice_date: extractionSuggestion.notice_date,
+      payment_date: extractionSuggestion.payment_date,
+      notice_period_days: extractionSuggestion.notice_period_days,
+      payment_terms_days: extractionSuggestion.payment_terms_days,
+      computed_deadlines: extractionSuggestion.computed_deadlines,
     });
-
-    const generated = generateSuggestedDeadlines({
-      end_date: extractionSuggestion.end_date,
-      renewal_date: extractionSuggestion.renewal_date,
-      notice_date: extractionSuggestion.notice_date,
-    });
-
-    console.log('[UploadPage] generated suggested deadlines', {
-      contract_id: contractId,
-      suggested: generated,
-    });
-
-    return generated.map((suggestion) => ({
-      type: suggestion.date_type === 'renewal'
-        ? 'renewal'
-        : suggestion.date_type === 'notice'
-          ? 'notice'
-          : 'custom',
-      due_date: suggestion.due_date,
-      label: `${SUGGESTION_DATE_TYPE_LABELS[suggestion.date_type]} reminder (${suggestion.offset_value} days before)`,
-      note: `Suggested from extracted ${suggestion.date_type} date (${suggestion.source_date}).`,
-      offset_value: suggestion.offset_value,
-      offset_unit: suggestion.offset_unit,
-      date_type: suggestion.date_type,
-      source_date: suggestion.source_date,
-    }));
-  }, [contractId, extractionSuggestion]);
+  }, [extractionSuggestion]);
 
   const resetUploadFlow = () => {
     setState('idle');
@@ -115,6 +104,7 @@ export default function UploadPage() {
     setCounterparty('');
     setContractId(null);
     setUploadedFilePath(null);
+    setLatestExtractionRunId(null);
     setExtractionError(null);
     setExtractionMissingFields([]);
     setExtractionNeedsReview(false);
@@ -123,54 +113,126 @@ export default function UploadPage() {
     setSavePending(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const f = e.dataTransfer.files[0];
-    if (f && f.type === 'application/pdf' && f.size <= 20 * 1024 * 1024) {
-      setFile(f);
-      setState('selected');
-      if (!title) setTitle(f.name.replace('.pdf', ''));
+  const selectFile = (nextFile: File | null) => {
+    if (!nextFile) {
+      return;
+    }
+
+    const validationError = validatePdfFile(nextFile);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    setFile(nextFile);
+    setContractId(null);
+    setUploadedFilePath(null);
+    setLatestExtractionRunId(null);
+    setExtractionError(null);
+    setExtractionMissingFields([]);
+    setExtractionNeedsReview(false);
+    setExtractionSuggestionRaw(null);
+    setSaveWithSuggestedDeadlines(true);
+    setSavePending(false);
+    setState('selected');
+    if (!title) {
+      setTitle(nextFile.name.replace(/\.pdf$/i, ''));
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) {
-      setFile(f);
-      setState('selected');
-      if (!title) setTitle(f.name.replace('.pdf', ''));
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    selectFile(event.dataTransfer.files[0] ?? null);
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    selectFile(event.target.files?.[0] ?? null);
+    event.target.value = '';
+  };
+
+  const cleanupFailedUpload = async (createdContractId: string | null, filePath: string | null) => {
+    const cleanups: Array<Promise<unknown>> = [];
+
+    if (filePath) {
+      cleanups.push(
+        supabase.storage
+          .from('contract-documents')
+          .remove([filePath]),
+      );
     }
+
+    if (createdContractId && currentWorkspaceId) {
+      cleanups.push(
+        supabase
+          .from('contract_files')
+          .delete()
+          .eq('contract_id', createdContractId),
+      );
+      cleanups.push(
+        supabase
+          .from('contracts')
+          .delete()
+          .eq('id', createdContractId)
+          .eq('workspace_id', currentWorkspaceId),
+      );
+    }
+
+    if (cleanups.length > 0) {
+      await Promise.allSettled(cleanups);
+    }
+  };
+
+  const readLatestExtractionRun = async (activeContractId: string): Promise<ExtractionRunPreview | null> => {
+    const { data, error } = await supabase
+      .from('extraction_runs')
+      .select('id, status, raw_json, missing_fields, needs_review, error')
+      .eq('contract_id', activeContractId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
   };
 
   const handleUpload = async () => {
-    if (!file || !user || !title || !currentWorkspaceId) return;
+    if (!file || !user || !title.trim() || !currentWorkspaceId) {
+      toast.error('Select a workspace and add a contract title before uploading.');
+      return;
+    }
+
     setState('uploading');
     setExtractionError(null);
 
+    let createdContractId: string | null = null;
+    let filePath: string | null = null;
+
     try {
-      // 1. Create contract record
       const { data: contract, error: contractError } = await supabase
         .from('contracts')
         .insert({
-          title,
-          counterparty: counterparty || null,
+          title: title.trim(),
+          counterparty: counterparty.trim() || null,
           user_id: user.id,
           workspace_id: currentWorkspaceId,
         })
-        .select()
+        .select('id')
         .single();
 
       if (contractError) throw contractError;
 
-      // 2. Upload file to storage
-      const filePath = `${user.id}/${contract.id}/${file.name}`;
+      createdContractId = contract.id;
+      filePath = `${user.id}/${contract.id}/${file.name}`;
+
       const { error: storageError } = await supabase.storage
         .from('contract-documents')
         .upload(filePath, file, { contentType: 'application/pdf' });
 
       if (storageError) throw storageError;
 
-      // 3. Create contract_files record
       const { error: fileError } = await supabase
         .from('contract_files')
         .insert({
@@ -187,16 +249,21 @@ export default function UploadPage() {
       setContractId(contract.id);
       setUploadedFilePath(filePath);
       setState('uploaded');
-      toast.success('Contract uploaded. Run extraction to preview fields.');
-    } catch (err: unknown) {
-      console.error('Upload error:', err);
+      toast.success('Contract uploaded. Run extraction to preview before saving.');
+    } catch (error: unknown) {
+      console.error('Upload error:', error);
+      await cleanupFailedUpload(createdContractId, filePath);
       setState('failed');
-      toast.error(getErrorMessage(err));
+      toast.error(getErrorMessage(error, 'Upload failed.'));
     }
   };
 
   const runExtraction = async () => {
-    if (!contractId || !uploadedFilePath) return;
+    if (!contractId || !uploadedFilePath) {
+      toast.error('Upload a contract before running extraction.');
+      return;
+    }
+
     setState('extracting');
     setExtractionError(null);
 
@@ -207,51 +274,69 @@ export default function UploadPage() {
           filePath: uploadedFilePath,
         },
       });
-      if (invokeError) throw invokeError;
 
-      const { data: latestRun, error: latestRunError } = await supabase
-        .from('extraction_runs')
-        .select('status, raw_json, missing_fields, needs_review, error')
-        .eq('contract_id', contractId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const responsePayload = data as {
+        ok?: boolean;
+        error?: string;
+        extraction?: Json;
+        extraction_run_id?: string;
+      } | null;
+      const latestRun = await readLatestExtractionRun(contractId);
 
-      if (latestRunError) throw latestRunError;
-      if (!latestRun) throw new Error('No extraction run was created.');
+      if (invokeError || responsePayload?.ok === false) {
+        const failedMessage = latestRun?.error
+          || responsePayload?.error
+          || getErrorMessage(invokeError, 'Extraction failed.');
+        setExtractionError(failedMessage);
+        if (latestRun?.id) {
+          setLatestExtractionRunId(latestRun.id);
+        }
+        setState('uploaded');
+        toast.error(failedMessage);
+        return;
+      }
+
+      if (!latestRun) {
+        throw new Error('No extraction run was created.');
+      }
 
       if (latestRun.status === 'failed') {
-        const failedMessage = latestRun.error || 'Extraction failed. You can continue manually.';
+        const failedMessage = latestRun.error || 'Extraction failed. Review details manually.';
+        setLatestExtractionRunId(latestRun.id);
         setExtractionError(failedMessage);
         setState('uploaded');
         toast.error(failedMessage);
         return;
       }
 
-      const fallbackRaw = (data as { extraction?: Json } | null)?.extraction ?? null;
-      const rawSuggestion = latestRun.raw_json ?? fallbackRaw;
+      const rawSuggestion = latestRun.raw_json ?? responsePayload?.extraction ?? null;
       const parsedSuggestion = parseExtractionSuggestion(rawSuggestion as Json);
       const normalizedMissingFields = (
         parsedSuggestion?.missing_fields
         ?? (Array.isArray(latestRun.missing_fields) ? latestRun.missing_fields : [])
       ).filter((field): field is SupportedExtractionField => typeof field === 'string' && field in EXTRACTION_FIELD_LABELS);
 
+      setLatestExtractionRunId(responsePayload?.extraction_run_id ?? latestRun.id);
       setExtractionSuggestionRaw((rawSuggestion ?? null) as Json | null);
       setExtractionMissingFields(normalizedMissingFields);
       setExtractionNeedsReview(Boolean(latestRun.needs_review || normalizedMissingFields.length > 0));
       setState('preview');
       toast.success('Extraction complete. Review the preview and save when ready.');
     } catch (error: unknown) {
-      const message = getErrorMessage(error);
       console.error('Extraction run failed:', error);
+      const message = getErrorMessage(error, 'Extraction failed.');
       setExtractionError(message);
       setState('uploaded');
-      toast.error(`${message}. You can continue manually.`);
+      toast.error(message);
     }
   };
 
   const saveContract = async () => {
-    if (!contractId || !currentWorkspaceId) return;
+    if (!contractId || !currentWorkspaceId) {
+      toast.error('Select a workspace before saving.');
+      return;
+    }
+
     setSavePending(true);
 
     try {
@@ -283,64 +368,71 @@ export default function UploadPage() {
         if (updateError) throw updateError;
       }
 
+      const { data: existingDates, error: existingDatesError } = await supabase
+        .from('contract_dates')
+        .select('type')
+        .eq('contract_id', contractId);
+
+      if (existingDatesError) throw existingDatesError;
+
+      const existingTypes = new Set((existingDates ?? []).map((date) => date.type));
+      const inserts = saveWithSuggestedDeadlines
+        ? suggestedDeadlines
+            .filter((deadline) => !existingTypes.has(deadline.type))
+            .map((deadline) => ({
+              contract_id: contractId,
+              type: deadline.type,
+              due_date: deadline.due_date,
+              label: deadline.label,
+              note: deadline.note,
+            }))
+        : [];
+
       let insertedDeadlines = 0;
-      if (saveWithSuggestedDeadlines && suggestedDeadlines.length > 0) {
-        const { data: existingDates, error: existingDatesError } = await supabase
+      const savedDeadlineTypes = new Set(existingTypes);
+      if (inserts.length > 0) {
+        const { data: insertedRows, error: insertError } = await supabase
           .from('contract_dates')
-          .select('type, due_date, label')
-          .eq('contract_id', contractId);
+          .upsert(inserts, { onConflict: 'contract_id,type', ignoreDuplicates: true })
+          .select('type');
 
-        if (existingDatesError) throw existingDatesError;
+        if (insertError) throw insertError;
 
-        const existingTypes = new Set(
-          (existingDates ?? []).map((date) => date.type),
-        );
+        insertedDeadlines = insertedRows?.length ?? inserts.length;
+        for (const row of insertedRows ?? []) {
+          savedDeadlineTypes.add(row.type);
+        }
+        for (const row of inserts) {
+          savedDeadlineTypes.add(row.type);
+        }
+      }
 
-        // Deduplicate by type (DB has unique constraint on contract_id+type)
-        const seenTypes = new Set<string>();
-        const inserts = suggestedDeadlines
-          .filter((deadline) => {
-            if (existingTypes.has(deadline.type) || seenTypes.has(deadline.type)) return false;
-            seenTypes.add(deadline.type);
-            return true;
-          })
-          .map((deadline) => ({
-            contract_id: contractId,
-            type: deadline.type,
-            due_date: deadline.due_date,
-            label: deadline.label,
-            note: deadline.note,
-          }));
-
-        console.log('[UploadPage] applying suggested deadlines', {
-          workspace_id: currentWorkspaceId,
-          contract_id: contractId,
-          suggested_deadlines: suggestedDeadlines,
-          inserts,
+      if (latestExtractionRunId) {
+        const finalTitle = (contractUpdate.title ?? title).trim();
+        const finalCounterparty = (contractUpdate.counterparty ?? counterparty).trim();
+        const finalStartDate = contractUpdate.start_date ?? extractionSuggestion?.start_date ?? null;
+        const finalEndDate = contractUpdate.end_date ?? extractionSuggestion?.end_date ?? null;
+        const unresolvedFields = extractionMissingFields.filter((field) => {
+          if (field === 'contract_title') return !finalTitle;
+          if (field === 'counterparty') return !finalCounterparty;
+          if (field === 'start_date') return !finalStartDate;
+          if (field === 'end_date') return !finalEndDate;
+          if (field === 'renewal_date') return !savedDeadlineTypes.has('renewal');
+          if (field === 'notice_date') return !savedDeadlineTypes.has('notice');
+          if (field === 'payment_date') return !savedDeadlineTypes.has('payment');
+          return false;
         });
 
-        if (inserts.length > 0) {
-          const { data: insertResult, error: insertError } = await supabase
-            .from('contract_dates')
-            .upsert(inserts, { onConflict: 'contract_id,type', ignoreDuplicates: true })
-            .select('id, type, due_date, label');
+        const { error: reviewStatusError } = await supabase
+          .from('extraction_runs')
+          .update({
+            missing_fields: unresolvedFields,
+            needs_review: unresolvedFields.length > 0,
+          })
+          .eq('id', latestExtractionRunId);
 
-          console.log('[UploadPage] suggested deadline insert result', {
-            workspace_id: currentWorkspaceId,
-            contract_id: contractId,
-            inserted: insertResult ?? [],
-          });
-
-          if (insertError) {
-            console.error('[UploadPage] suggested deadline insert error', {
-              workspace_id: currentWorkspaceId,
-              contract_id: contractId,
-              error: insertError,
-            });
-            throw insertError;
-          }
-
-          insertedDeadlines = insertResult?.length ?? inserts.length;
+        if (reviewStatusError) {
+          toast.error('Contract saved, but review status could not be refreshed.');
         }
       }
 
@@ -352,23 +444,23 @@ export default function UploadPage() {
       setState('saved');
     } catch (error: unknown) {
       console.error('Save contract from preview failed:', error);
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, 'Contract save failed.'));
     } finally {
       setSavePending(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Upload Contract</h1>
-        <p className="text-muted-foreground text-sm">Upload a PDF contract to start tracking deadlines.</p>
+        <p className="text-sm text-muted-foreground">Upload a PDF contract to start tracking deadlines.</p>
       </div>
 
       {state === 'idle' && (
         <Card
           className="cursor-pointer border-2 border-dashed transition-colors hover:border-foreground/40"
-          onDragOver={e => e.preventDefault()}
+          onDragOver={(event) => event.preventDefault()}
           onDrop={handleDrop}
         >
           <CardContent className="py-16 text-center">
@@ -377,7 +469,7 @@ export default function UploadPage() {
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border bg-muted">
                 <Upload className="h-5 w-5 text-muted-foreground" />
               </div>
-              <p className="font-medium mb-1">Drag & drop your PDF here</p>
+              <p className="mb-1 font-medium">Drag & drop your PDF here</p>
               <p className="text-sm text-muted-foreground">or click to browse • Max 20MB</p>
             </label>
           </CardContent>
@@ -386,29 +478,48 @@ export default function UploadPage() {
 
       {state === 'selected' && file && (
         <Card>
-          <CardContent className="py-6 space-y-4">
+          <CardContent className="space-y-4 py-6">
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center border bg-muted">
                 <FileText className="h-5 w-5 text-foreground" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{file.name}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{file.name}</p>
                 <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => { setFile(null); setState('idle'); setTitle(''); }}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setFile(null);
+                  setState('idle');
+                  setTitle('');
+                  setCounterparty('');
+                }}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
             <div className="space-y-2">
               <Label>Contract Title</Label>
-              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Office Lease Agreement" required />
+              <Input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="e.g., Office Lease Agreement"
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label>Counterparty (optional)</Label>
-              <Input value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
+              <Input
+                value={counterparty}
+                onChange={(event) => setCounterparty(event.target.value)}
+                placeholder="e.g., Acme Corp"
+              />
             </div>
-            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title || !currentWorkspaceId}>
-              <Upload className="h-4 w-4" /> Upload Contract
+            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title.trim() || !currentWorkspaceId}>
+              <Upload className="h-4 w-4" />
+              Upload Contract
             </Button>
             {!currentWorkspaceId ? (
               <p className="text-xs text-muted-foreground">
@@ -422,45 +533,42 @@ export default function UploadPage() {
       {state === 'uploading' && (
         <Card>
           <CardContent className="py-8 text-center">
-            <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
-            <p className="font-medium text-sm">Uploading contract...</p>
+            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-medium">Uploading contract...</p>
           </CardContent>
         </Card>
       )}
 
       {(state === 'uploaded' || state === 'extracting') && contractId && (
         <Card>
-          <CardContent className="py-6 space-y-4">
+          <CardContent className="space-y-4 py-6">
             <div className="text-center">
               {state === 'extracting' ? (
-                <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-3" />
+                <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-primary" />
               ) : (
                 <CheckCircle className="mx-auto mb-3 h-10 w-10 text-foreground" />
               )}
-              <h3 className="font-semibold text-lg mb-1">
+              <h3 className="mb-1 text-lg font-semibold">
                 {state === 'extracting' ? 'Running extraction...' : 'Contract uploaded'}
               </h3>
               <p className="text-sm text-muted-foreground">
                 {state === 'extracting'
-                  ? 'Extracting fields from your contract. This may take a moment.'
+                  ? 'Extracting fields from your contract. You can stay on this page while it runs.'
                   : 'Next: run extraction to preview fields before saving.'}
               </p>
             </div>
 
             {extractionError ? (
               <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">Extraction failed</p>
+                <p className="mb-1 font-medium text-foreground">Extraction failed</p>
                 <p>{extractionError}</p>
               </div>
             ) : null}
 
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="flex justify-center">
               <Button onClick={runExtraction} disabled={state === 'extracting' || !uploadedFilePath}>
                 {state === 'extracting' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Run Extraction
-              </Button>
-              <Button variant="outline" onClick={() => navigate(`/app/contracts/${contractId}`)}>
-                Review & Edit
               </Button>
             </div>
           </CardContent>
@@ -469,14 +577,15 @@ export default function UploadPage() {
 
       {state === 'preview' && contractId && (
         <Card>
-          <CardContent className="py-6 space-y-5">
+          <CardContent className="space-y-5 py-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="font-semibold text-lg">Extraction Preview</h3>
+                <h3 className="text-lg font-semibold">Extraction Preview</h3>
                 <p className="text-xs text-muted-foreground">Review extracted fields before saving.</p>
               </div>
               {extractionNeedsReview ? (
                 <Badge variant="outline" className="border-destructive/30 bg-destructive/5 text-foreground">
+                  <AlertTriangle className="mr-1 h-3 w-3" />
                   Needs Review
                 </Badge>
               ) : (
@@ -495,7 +604,7 @@ export default function UploadPage() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 text-sm">
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
               <div className="rounded-md border bg-muted/40 px-3 py-2">
                 <p className="text-xs text-muted-foreground">Start Date</p>
                 <p className="font-medium">{formatDateValue(extractionSuggestion?.start_date)}</p>
@@ -504,29 +613,22 @@ export default function UploadPage() {
                 <p className="text-xs text-muted-foreground">End Date</p>
                 <p className="font-medium">{formatDateValue(extractionSuggestion?.end_date)}</p>
               </div>
-              <div className="rounded-md border bg-muted/40 px-3 py-2">
-                <p className="text-xs text-muted-foreground">Renewal Date</p>
-                <p className="font-medium">{formatDateValue(extractionSuggestion?.renewal_date)}</p>
-              </div>
-              <div className="rounded-md border bg-muted/40 px-3 py-2">
-                <p className="text-xs text-muted-foreground">Notice Date</p>
-                <p className="font-medium">{formatDateValue(extractionSuggestion?.notice_date)}</p>
-              </div>
             </div>
 
             <div className="space-y-2">
               <p className="text-sm font-medium">Suggested Deadlines</p>
               {suggestedDeadlines.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No suggested deadlines generated from extracted dates.</p>
+                <p className="text-xs text-muted-foreground">No suggested deadlines are available yet.</p>
               ) : (
                 <div className="space-y-2">
                   {suggestedDeadlines.map((deadline) => (
                     <div
-                      key={`${deadline.date_type}-${deadline.offset_value}-${deadline.due_date}`}
+                      key={`${deadline.type}-${deadline.due_date}`}
                       className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
                     >
                       <p className="text-sm text-foreground">{deadline.label}</p>
                       <p>{formatDateValue(deadline.due_date)}</p>
+                      {deadline.note ? <p className="mt-1">{deadline.note}</p> : null}
                     </div>
                   ))}
                 </div>
@@ -563,8 +665,8 @@ export default function UploadPage() {
                 {savePending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Save Contract
               </Button>
-              <Button variant="outline" onClick={() => navigate(`/app/contracts/${contractId}`)}>
-                Review & Edit
+              <Button variant="outline" onClick={() => navigate(`/app/contracts/${contractId}`)} disabled={savePending}>
+                Review Details
               </Button>
             </div>
           </CardContent>
@@ -575,12 +677,12 @@ export default function UploadPage() {
         <Card>
           <CardContent className="py-8 text-center">
             <CheckCircle className="mx-auto mb-4 h-12 w-12 text-foreground" />
-            <h3 className="font-semibold text-lg mb-1">Contract Saved</h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            <h3 className="mb-1 text-lg font-semibold">Contract Saved</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
               Your extracted data was saved. You can review and edit later anytime.
             </p>
-            <div className="flex gap-3 justify-center">
-              <Button onClick={() => navigate(`/app/contracts/${contractId}`)}>Review & Edit</Button>
+            <div className="flex justify-center gap-3">
+              <Button onClick={() => navigate(`/app/contracts/${contractId}`)}>Review Details</Button>
               <Button variant="outline" onClick={resetUploadFlow}>Upload Another</Button>
             </div>
           </CardContent>
@@ -590,9 +692,9 @@ export default function UploadPage() {
       {state === 'failed' && (
         <Card>
           <CardContent className="py-8 text-center">
-            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h3 className="font-semibold text-lg mb-1">Upload Failed</h3>
-            <p className="text-sm text-muted-foreground mb-4">Something went wrong. Please try again.</p>
+            <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-destructive" />
+            <h3 className="mb-1 text-lg font-semibold">Upload Failed</h3>
+            <p className="mb-4 text-sm text-muted-foreground">Something went wrong. Please try again.</p>
             <Button onClick={() => setState(file ? 'selected' : 'idle')}>Try Again</Button>
           </CardContent>
         </Card>

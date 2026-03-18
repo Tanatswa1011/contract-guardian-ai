@@ -11,6 +11,24 @@ export const SUPPORTED_EXTRACTION_FIELDS = [
 ] as const;
 
 type SupportedExtractionField = (typeof SUPPORTED_EXTRACTION_FIELDS)[number];
+type SuggestedDeadlineType = "renewal" | "notice" | "payment";
+type SuggestedDeadlineSource =
+  | "end_date"
+  | "notice_date"
+  | "notice_period_days"
+  | "payment_date"
+  | "payment_terms_days";
+
+type ComputedDeadline = {
+  type: SuggestedDeadlineType;
+  due_date: string;
+  label: string;
+  note: string;
+  source: SuggestedDeadlineSource;
+  source_date: string;
+  offset_value: number | null;
+  offset_unit: "days" | null;
+};
 
 export type ContractExtractionResult = {
   contract_title: string | null;
@@ -20,6 +38,9 @@ export type ContractExtractionResult = {
   renewal_date: string | null;
   notice_date: string | null;
   payment_date: string | null;
+  notice_period_days: number | null;
+  payment_terms_days: number | null;
+  computed_deadlines: ComputedDeadline[];
   missing_fields: string[];
   needs_review: boolean;
   notes: string | null;
@@ -33,12 +54,16 @@ const OPENAI_PROMPT = `Extract only these fields from the contract text:
 - renewal_date
 - notice_date
 - payment_date
+- notice_period_days
+- payment_terms_days
 
 Rules:
 - Return only valid JSON that matches the requested schema.
 - If a field is uncertain, ambiguous, or not explicitly present, return null.
 - Never invent data.
 - For dates, return ISO format YYYY-MM-DD only when clearly supported by text; otherwise null.
+- For notice_period_days, return the number of days only when the contract explicitly states a notice period in days; otherwise null.
+- For payment_terms_days, return the number of days only when the contract explicitly states payment terms in days (for example, Net 30); otherwise null.
 - Include missing_fields for any null extraction among supported fields.
 - Set needs_review=true whenever any field is missing or uncertain.
 - Keep notes concise.`;
@@ -69,8 +94,122 @@ function normalizeNullableIsoDate(input: unknown): string | null {
   return isValidIsoDate(value) ? value : null;
 }
 
+function normalizeNullablePositiveInteger(input: unknown): number | null {
+  if (typeof input !== "number" || !Number.isInteger(input) || input <= 0) {
+    return null;
+  }
+
+  return input;
+}
+
+function subtractDays(isoDate: string, days: number): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(isoDate: string, days: number): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildComputedDeadlines(result: Omit<ContractExtractionResult, "computed_deadlines" | "missing_fields" | "needs_review">): ComputedDeadline[] {
+  const suggestions: ComputedDeadline[] = [];
+
+  if (result.end_date) {
+    suggestions.push({
+      type: "renewal",
+      due_date: subtractDays(result.end_date, 30),
+      label: "Renewal deadline",
+      note: `Suggested 30 days before the contract end date (${result.end_date}).`,
+      source: "end_date",
+      source_date: result.end_date,
+      offset_value: 30,
+      offset_unit: "days",
+    });
+  }
+
+  if (result.notice_date) {
+    suggestions.push({
+      type: "notice",
+      due_date: result.notice_date,
+      label: "Notice deadline",
+      note: `Suggested from the extracted notice date (${result.notice_date}).`,
+      source: "notice_date",
+      source_date: result.notice_date,
+      offset_value: null,
+      offset_unit: null,
+    });
+  } else if (result.end_date && result.notice_period_days) {
+    suggestions.push({
+      type: "notice",
+      due_date: subtractDays(result.end_date, result.notice_period_days),
+      label: "Notice deadline",
+      note: `Suggested from the detected ${result.notice_period_days}-day notice period before the contract end date.`,
+      source: "notice_period_days",
+      source_date: result.end_date,
+      offset_value: result.notice_period_days,
+      offset_unit: "days",
+    });
+  }
+
+  if (result.payment_date) {
+    suggestions.push({
+      type: "payment",
+      due_date: result.payment_date,
+      label: "Payment deadline",
+      note: `Suggested from the extracted payment date (${result.payment_date}).`,
+      source: "payment_date",
+      source_date: result.payment_date,
+      offset_value: null,
+      offset_unit: null,
+    });
+  } else if (result.start_date && result.payment_terms_days) {
+    suggestions.push({
+      type: "payment",
+      due_date: addDays(result.start_date, result.payment_terms_days),
+      label: "Payment deadline",
+      note: `Suggested from detected Net ${result.payment_terms_days} payment terms and the contract start date.`,
+      source: "payment_terms_days",
+      source_date: result.start_date,
+      offset_value: result.payment_terms_days,
+      offset_unit: "days",
+    });
+  }
+
+  const seen = new Set<string>();
+  const deduped = suggestions.filter((suggestion) => {
+    const key = `${suggestion.type}:${suggestion.due_date}`;
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+
+  deduped.sort((left, right) => left.due_date.localeCompare(right.due_date));
+  return deduped;
+}
+
 function buildMissingFields(result: ContractExtractionResult): string[] {
-  return SUPPORTED_EXTRACTION_FIELDS.filter((field) => !result[field]);
+  const computedDeadlineTypes = new Set(result.computed_deadlines.map((deadline) => deadline.type));
+  return SUPPORTED_EXTRACTION_FIELDS.filter((field) => {
+    if (field === "renewal_date" && computedDeadlineTypes.has("renewal")) {
+      return false;
+    }
+
+    if (field === "notice_date" && computedDeadlineTypes.has("notice")) {
+      return false;
+    }
+
+    if (field === "payment_date" && computedDeadlineTypes.has("payment")) {
+      return false;
+    }
+
+    return !result[field];
+  });
 }
 
 function extractJsonCandidate(rawContent: string): string {
@@ -142,7 +281,7 @@ function parseExtractionJson(content: string): ContractExtractionResult {
   }
 
   const source = parsed as Record<string, unknown>;
-  const normalized: ContractExtractionResult = {
+  const normalizedBase = {
     contract_title: normalizeNullableString(source.contract_title),
     counterparty: normalizeNullableString(source.counterparty),
     start_date: normalizeNullableIsoDate(source.start_date),
@@ -150,18 +289,30 @@ function parseExtractionJson(content: string): ContractExtractionResult {
     renewal_date: normalizeNullableIsoDate(source.renewal_date),
     notice_date: normalizeNullableIsoDate(source.notice_date),
     payment_date: normalizeNullableIsoDate(source.payment_date),
-    missing_fields: [],
-    needs_review: true,
+    notice_period_days: normalizeNullablePositiveInteger(source.notice_period_days),
+    payment_terms_days: normalizeNullablePositiveInteger(source.payment_terms_days),
     notes: normalizeNullableString(source.notes),
   };
+  const normalized: ContractExtractionResult = {
+    ...normalizedBase,
+    computed_deadlines: buildComputedDeadlines(normalizedBase),
+    missing_fields: [],
+    needs_review: true,
+  };
 
-  const declaredMissing = Array.isArray(source.missing_fields)
+  const computedDeadlineTypes = new Set(normalized.computed_deadlines.map((deadline) => deadline.type));
+  const declaredMissing = (Array.isArray(source.missing_fields)
     ? source.missing_fields.filter(
         (field): field is SupportedExtractionField =>
           typeof field === "string" &&
           SUPPORTED_EXTRACTION_FIELDS.includes(field as SupportedExtractionField),
       )
-    : [];
+    : []).filter((field) => {
+      if (field === "renewal_date") return !computedDeadlineTypes.has("renewal");
+      if (field === "notice_date") return !computedDeadlineTypes.has("notice");
+      if (field === "payment_date") return !computedDeadlineTypes.has("payment");
+      return true;
+    });
 
   const computedMissing = buildMissingFields(normalized);
   const missingFieldSet = new Set<SupportedExtractionField>([
@@ -228,6 +379,8 @@ export async function extractContractFieldsWithOpenAi({
               renewal_date: { type: ["string", "null"] },
               notice_date: { type: ["string", "null"] },
               payment_date: { type: ["string", "null"] },
+              notice_period_days: { type: ["integer", "null"] },
+              payment_terms_days: { type: ["integer", "null"] },
               missing_fields: {
                 type: "array",
                 items: {
@@ -246,6 +399,8 @@ export async function extractContractFieldsWithOpenAi({
               "renewal_date",
               "notice_date",
               "payment_date",
+              "notice_period_days",
+              "payment_terms_days",
               "missing_fields",
               "needs_review",
               "notes",
