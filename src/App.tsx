@@ -48,9 +48,6 @@ const App = () => (
                 </Route>
 
                 <Route element={<ProtectedRoute />}>
-                  <Route path="/create-workspace" element={<CreateWorkspacePage />} />
-
-                  <Route element={<RequireWorkspace />}>
                     <Route element={<AppLayout />}>
                       <Route path="/app" element={<DashboardPage />} />
                       <Route path="/app/upload" element={<UploadPage />} />
@@ -58,7 +55,6 @@ const App = () => (
                       <Route path="/app/settings" element={<SettingsPage />} />
                       <Route path="/app/billing" element={<BillingPage />} />
                     </Route>
-                  </Route>
                 </Route>
 
                 <Route path="*" element={<NotFound />} />
