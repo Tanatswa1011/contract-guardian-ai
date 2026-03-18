@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { StatusBadge } from '@/components/StatusBadge';
-import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2 } from 'lucide-react';
+import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -392,11 +392,12 @@ export default function DashboardPage() {
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Health</TableHead>
+                    <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map(contract => (
-                    <TableRow key={contract.id} className="cursor-pointer">
+                    <TableRow key={contract.id} className="cursor-pointer group">
                       <TableCell>
                         <Link to={`/app/contracts/${contract.id}`} className="font-medium transition-colors hover:text-foreground/70">
                           {contract.title}
@@ -411,6 +412,15 @@ export default function DashboardPage() {
                         <Badge variant={healthVariant(contract.health_status)} className="normal-case text-xs capitalize tracking-normal">
                           {healthLabel(contract.health_status)}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeleteId(contract.id); }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title="Delete contract"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </TableCell>
                     </TableRow>
                   ))}
