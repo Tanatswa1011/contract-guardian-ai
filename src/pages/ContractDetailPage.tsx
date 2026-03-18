@@ -36,7 +36,6 @@ const formatSuggestionValue = (value: string | null) => value ?? '—';
 const DEADLINE_TYPE_LABELS: Record<string, string> = {
   renewal: 'Renewal',
   notice: 'Notice',
-  payment: 'Payment',
   custom: 'Custom',
 };
 
