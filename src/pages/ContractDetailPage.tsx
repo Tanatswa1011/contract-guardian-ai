@@ -338,12 +338,12 @@ export default function ContractDetailPage() {
     mutationFn: async () => {
       if (!contract || !extractionSuggestion) throw new Error('No AI suggestions available.');
 
-      const existingPairs = new Set(
-        dates.map((date) => `${date.type}:${date.due_date}`),
+      const existingTypes = new Set(
+        dates.map((date) => date.type),
       );
 
       const inserts = suggestedDeadlines
-        .filter((suggestion) => !existingPairs.has(`${suggestion.type}:${suggestion.due_date}`))
+        .filter((suggestion) => !existingTypes.has(suggestion.type))
         .map((suggestion) => ({
           contract_id: contract.id,
           type: suggestion.type,
@@ -354,7 +354,10 @@ export default function ContractDetailPage() {
 
       if (inserts.length === 0) return 0;
 
-      const { error } = await supabase.from('contract_dates').insert(inserts);
+      const { error } = await supabase.from('contract_dates').upsert(inserts, {
+        onConflict: 'contract_id,type',
+        ignoreDuplicates: true,
+      });
       if (error) throw error;
       return inserts.length;
     },
