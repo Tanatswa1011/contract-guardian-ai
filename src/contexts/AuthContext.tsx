@@ -19,13 +19,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const acceptPendingInvites = async () => {
-    const { error } = await (supabase.rpc as any)('accept_my_pending_workspace_invites');
-    if (error) {
-      console.error('Failed to accept pending workspace invites:', error.message);
-    }
-  };
-
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,19 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Accept pending workspace invites on sign-in
-      if (event === 'SIGNED_IN' && session?.user) {
-        setTimeout(() => acceptPendingInvites(), 0);
-      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      if (session?.user) {
-        setTimeout(() => acceptPendingInvites(), 0);
-      }
     });
 
     return () => subscription.unsubscribe();
