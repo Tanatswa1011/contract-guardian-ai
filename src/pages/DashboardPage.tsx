@@ -364,16 +364,9 @@ export default function DashboardPage() {
                   {filtered.map(contract => (
                     <TableRow key={contract.id} className="cursor-pointer">
                       <TableCell>
-                        <div className="space-y-1">
-                          <Link to={`/app/contracts/${contract.id}`} className="font-medium transition-colors hover:text-foreground/70">
-                            {contract.title}
-                          </Link>
-                          {contractNeedsReview(contract) ? (
-                            <Badge variant="outline" className="w-fit border-destructive/30 bg-destructive/5 text-[10px] uppercase tracking-wide">
-                              Needs Review
-                            </Badge>
-                          ) : null}
-                        </div>
+                        <Link to={`/app/contracts/${contract.id}`} className="font-medium transition-colors hover:text-foreground/70">
+                          {contract.title}
+                        </Link>
                       </TableCell>
                       <TableCell className="text-sm">
                         {contract.next_deadline_date ? new Date(contract.next_deadline_date).toLocaleDateString() : '—'}
