@@ -169,7 +169,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       throw new Error('You must be signed in to create a workspace.');
     }
 
-    const { data, error } = await supabase.rpc('create_workspace_with_owner', {
+    const { data, error } = await (supabase.rpc as any)('create_workspace_with_owner', {
       p_name: trimmedName,
     });
 

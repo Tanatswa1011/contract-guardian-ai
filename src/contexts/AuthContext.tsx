@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const acceptPendingInvites = async () => {
-    const { error } = await supabase.rpc('accept_my_pending_workspace_invites');
+    const { error } = await (supabase.rpc as any)('accept_my_pending_workspace_invites');
     if (error) {
       console.error('Failed to accept pending workspace invites:', error.message);
     }
