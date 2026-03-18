@@ -286,9 +286,7 @@ export async function extractContractFieldsWithOpenAi({
               end_date: { type: ["string", "null"] },
               renewal_date: { type: ["string", "null"] },
               notice_date: { type: ["string", "null"] },
-              payment_date: { type: ["string", "null"] },
               notice_period_days: { type: ["integer", "null"] },
-              payment_terms_days: { type: ["integer", "null"] },
               missing_fields: {
                 type: "array",
                 items: {
