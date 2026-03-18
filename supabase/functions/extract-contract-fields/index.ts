@@ -172,6 +172,18 @@ Deno.serve(async (req) => {
       contractText,
     });
 
+    console.log("extract-contract-fields extracted dates", {
+      contract_id: contractId,
+      extraction_run_id: extractionRunId,
+      start_date: extraction.start_date,
+      end_date: extraction.end_date,
+      renewal_date: extraction.renewal_date,
+      notice_date: extraction.notice_date,
+      payment_date: extraction.payment_date,
+      missing_fields: extraction.missing_fields,
+      needs_review: extraction.needs_review,
+    });
+
     const { error: updateRunError } = await serviceClient
       .from("extraction_runs")
       .update({
@@ -184,62 +196,13 @@ Deno.serve(async (req) => {
       })
       .eq("id", extractionRunId);
 
-    if (updateRunError) throw updateRunError;
-
-    // Auto-apply extracted fields to the contract record
-    const contractUpdate: Record<string, unknown> = {};
-    if (extraction.contract_title) contractUpdate.title = extraction.contract_title;
-    if (extraction.counterparty) contractUpdate.counterparty = extraction.counterparty;
-    if (extraction.start_date) contractUpdate.start_date = extraction.start_date;
-    if (extraction.end_date) contractUpdate.end_date = extraction.end_date;
-
-    if (Object.keys(contractUpdate).length > 0) {
-      const { error: contractUpdateError } = await serviceClient
-        .from("contracts")
-        .update(contractUpdate)
-        .eq("id", contractId);
-      if (contractUpdateError) {
-        console.error("Failed to auto-apply extraction to contract", contractUpdateError);
-      }
-    }
-
-    // Auto-create contract_dates for deadline fields (renewal, notice, payment)
-    const deadlineInserts: Array<{
-      contract_id: string;
-      type: string;
-      due_date: string;
-      label: string;
-      note: string;
-    }> = [];
-    const deadlineFields = [
-      { field: "renewal_date", type: "renewal" },
-      { field: "notice_date", type: "notice" },
-      { field: "payment_date", type: "payment" },
-    ] as const;
-
-    for (const { field, type } of deadlineFields) {
-      const value = extraction[field];
-      if (value) {
-        deadlineInserts.push({
-          contract_id: contractId,
-          type,
-          due_date: value,
-          label: `AI extracted ${type} date`,
-          note: "Automatically extracted — please review.",
-        });
-      }
-    }
-
-    if (deadlineInserts.length > 0) {
-      const { error: deadlineError } = await serviceClient
-        .from("contract_dates")
-        .upsert(deadlineInserts, {
-          onConflict: "contract_id,type",
-          ignoreDuplicates: true,
-        });
-      if (deadlineError) {
-        console.error("Failed to auto-create contract_dates", deadlineError);
-      }
+    if (updateRunError) {
+      console.error("Failed to mark extraction as completed", {
+        contract_id: contractId,
+        extraction_run_id: extractionRunId,
+        error: updateRunError,
+      });
+      throw updateRunError;
     }
 
     return new Response(
@@ -247,6 +210,7 @@ Deno.serve(async (req) => {
         ok: true,
         extraction_run_id: extractionRunId,
         needs_review: extraction.needs_review,
+        extraction,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -261,7 +225,7 @@ Deno.serve(async (req) => {
     });
 
     if (extractionRunId) {
-      await serviceClient
+      const { error: failedStatusError } = await serviceClient
         .from("extraction_runs")
         .update({
           status: "failed",
@@ -274,6 +238,14 @@ Deno.serve(async (req) => {
           },
         })
         .eq("id", extractionRunId);
+
+      if (failedStatusError) {
+        console.error("Failed to mark extraction as failed", {
+          contract_id: contractIdForErrorLog,
+          extraction_run_id: extractionRunId,
+          error: failedStatusError,
+        });
+      }
     }
 
     return new Response(

@@ -73,10 +73,62 @@ function buildMissingFields(result: ContractExtractionResult): string[] {
   return SUPPORTED_EXTRACTION_FIELDS.filter((field) => !result[field]);
 }
 
+function extractJsonCandidate(rawContent: string): string {
+  const trimmed = rawContent.trim();
+  if (!trimmed) return trimmed;
+
+  const fencedMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fencedMatch?.[1]) {
+    return fencedMatch[1].trim();
+  }
+
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+
+  return trimmed;
+}
+
+function getOpenAiMessageContent(payload: unknown): string {
+  const message = (payload as Record<string, unknown> | null)?.choices &&
+    Array.isArray((payload as Record<string, unknown>).choices)
+    ? ((payload as Record<string, unknown>).choices as Array<Record<string, unknown>>)[0]?.message
+    : null;
+
+  if (!message || typeof message !== "object") {
+    throw new Error("OpenAI response did not include a message payload");
+  }
+
+  const content = (message as Record<string, unknown>).content;
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    const chunks = content
+      .map((item) => {
+        if (!item || typeof item !== "object") return "";
+        const part = item as Record<string, unknown>;
+        if (typeof part.text === "string") return part.text;
+        if (typeof part.content === "string") return part.content;
+        return "";
+      })
+      .filter((chunk) => chunk.length > 0);
+
+    if (chunks.length > 0) {
+      return chunks.join("\n");
+    }
+  }
+
+  throw new Error("OpenAI response did not include JSON content");
+}
+
 function parseExtractionJson(content: string): ContractExtractionResult {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(extractJsonCandidate(content));
   } catch (error) {
     throw new Error(
       `OpenAI returned non-JSON content: ${
@@ -220,11 +272,7 @@ export async function extractContractFieldsWithOpenAi({
   }
 
   const payload = await response.json();
-  const content = payload?.choices?.[0]?.message?.content;
-
-  if (typeof content !== "string") {
-    throw new Error("OpenAI response did not include JSON content");
-  }
+  const content = getOpenAiMessageContent(payload);
 
   return parseExtractionJson(content);
 }
