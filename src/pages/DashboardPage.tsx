@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { StatusBadge } from '@/components/StatusBadge';
-import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2 } from 'lucide-react';
+import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
