@@ -33,7 +33,9 @@ export default function WorkspaceSwitcher({ className, onSelect }: WorkspaceSwit
   }
 
   const handleWorkspaceChange = (workspaceId: string) => {
+    if (workspaceId === currentWorkspaceId) return;
     setCurrentWorkspaceId(workspaceId);
+    navigate('/app');
     onSelect?.();
   };
 

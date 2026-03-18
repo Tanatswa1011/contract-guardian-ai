@@ -201,6 +201,7 @@ export default function UploadPage() {
         },
       });
       if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
 
       const { data: latestRun, error: latestRunError } = await supabase
         .from('extraction_runs')
@@ -504,6 +505,10 @@ export default function UploadPage() {
               <div className="rounded-md border bg-muted/40 px-3 py-2">
                 <p className="text-xs text-muted-foreground">Notice Date</p>
                 <p className="font-medium">{formatDateValue(extractionSuggestion?.notice_date)}</p>
+              </div>
+              <div className="rounded-md border bg-muted/40 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Payment Date</p>
+                <p className="font-medium">{formatDateValue(extractionSuggestion?.payment_date)}</p>
               </div>
             </div>
 

@@ -356,17 +356,19 @@ export default function ContractDetailPage() {
       if (!contract) throw new Error('Missing contract id.');
       const latestFile = files[0];
       if (!latestFile) throw new Error('No uploaded contract file found.');
-      const { error } = await supabase.functions.invoke('extract-contract-fields', {
+      const { data, error } = await supabase.functions.invoke('extract-contract-fields', {
         body: {
           contractId: contract.id,
           filePath: latestFile.storage_path,
         },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       toast.success('AI extraction completed.');
       queryClient.invalidateQueries({ queryKey: ['extraction', contract?.id, currentWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['contract', contract?.id, currentWorkspaceId] });
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
@@ -1003,7 +1005,11 @@ export default function ContractDetailPage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Applying suggestions updates the editable form only. Your contract is updated only after Save Changes.
+              {!extractionSuggestion
+                ? 'Run extraction to generate AI suggestions.'
+                : suggestedDeadlines.length === 0
+                  ? 'No deadline suggestions available — extracted dates may be missing.'
+                  : 'Applying suggestions updates the editable form only. Your contract is updated only after Save Changes.'}
             </p>
           </div>
         </CardContent>
