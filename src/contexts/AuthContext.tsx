@@ -49,19 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Accept pending workspace invites on sign-in
-      if (event === 'SIGNED_IN' && session?.user) {
-        setTimeout(() => acceptPendingInvites(), 0);
-      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      if (session?.user) {
-        setTimeout(() => acceptPendingInvites(), 0);
-      }
     });
 
     return () => subscription.unsubscribe();
