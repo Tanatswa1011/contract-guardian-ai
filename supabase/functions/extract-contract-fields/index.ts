@@ -233,7 +233,10 @@ Deno.serve(async (req) => {
     if (deadlineInserts.length > 0) {
       const { error: deadlineError } = await serviceClient
         .from("contract_dates")
-        .insert(deadlineInserts);
+        .upsert(deadlineInserts, {
+          onConflict: "contract_id,type",
+          ignoreDuplicates: true,
+        });
       if (deadlineError) {
         console.error("Failed to auto-create contract_dates", deadlineError);
       }
