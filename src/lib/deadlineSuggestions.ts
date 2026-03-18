@@ -35,11 +35,6 @@ function subtractDays(isoDate: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-function addDays(isoDate: string, days: number): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
 
 function normalizePositiveInteger(value: number | null | undefined): number | null {
   if (!Number.isInteger(value) || !value || value < 0) return null;
