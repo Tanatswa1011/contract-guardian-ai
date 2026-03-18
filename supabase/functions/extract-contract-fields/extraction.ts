@@ -58,15 +58,18 @@ function isValidIsoDate(value: string): boolean {
 }
 
 function normalizeNullableString(input: unknown): string | null {
+  if (input == null) return null;
   if (typeof input !== "string") return null;
   const normalized = normalizeWhitespace(input);
   return normalized.length > 0 ? normalized : null;
 }
 
 function normalizeNullableIsoDate(input: unknown): string | null {
+  if (input == null) return null;
   const value = normalizeNullableString(input);
   if (!value) return null;
-  return isValidIsoDate(value) ? value : null;
+  if (!isValidIsoDate(value)) return null;
+  return value;
 }
 
 function buildMissingFields(result: ContractExtractionResult): string[] {
@@ -74,9 +77,14 @@ function buildMissingFields(result: ContractExtractionResult): string[] {
 }
 
 function parseExtractionJson(content: string): ContractExtractionResult {
+  const trimmed = content.trim();
+  if (!trimmed) {
+    throw new Error("OpenAI returned empty content");
+  }
+
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(trimmed);
   } catch (error) {
     throw new Error(
       `OpenAI returned non-JSON content: ${
@@ -226,5 +234,12 @@ export async function extractContractFieldsWithOpenAi({
     throw new Error("OpenAI response did not include JSON content");
   }
 
-  return parseExtractionJson(content);
+  // Strip markdown code blocks if present (e.g. ```json ... ```)
+  let jsonStr = content.trim();
+  const jsonMatch = jsonStr.match(/^```(?:json)?\s*([\s\S]*?)```$/);
+  if (jsonMatch) {
+    jsonStr = jsonMatch[1].trim();
+  }
+
+  return parseExtractionJson(jsonStr);
 }

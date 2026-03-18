@@ -261,7 +261,7 @@ Deno.serve(async (req) => {
     });
 
     if (extractionRunId) {
-      await serviceClient
+      const { error: updateErr } = await serviceClient
         .from("extraction_runs")
         .update({
           status: "failed",
@@ -274,6 +274,9 @@ Deno.serve(async (req) => {
           },
         })
         .eq("id", extractionRunId);
+      if (updateErr) {
+        console.error("Failed to update extraction_runs status to failed", updateErr);
+      }
     }
 
     return new Response(
