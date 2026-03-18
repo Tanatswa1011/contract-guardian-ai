@@ -40,9 +40,7 @@ const OPENAI_PROMPT = `Extract only these fields from the contract text:
 - end_date
 - renewal_date
 - notice_date
-- payment_date
 - notice_period_days
-- payment_terms_days
 
 Rules:
 - Return only valid JSON that matches the requested schema.
