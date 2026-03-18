@@ -84,16 +84,6 @@ export function generateSuggestedDeadlines(input: SuggestionInput): SuggestedDea
         : 'Computed from detected notice period.',
     });
   }
-  if (paymentDate) {
-    suggestions.push({
-      type: 'payment',
-      due_date: paymentDate,
-      label: 'Payment Deadline',
-      note: normalizedInput.payment_date
-        ? 'Derived from extracted payment date.'
-        : 'Computed from detected payment terms.',
-    });
-  }
 
   suggestions.sort((left, right) => left.due_date.localeCompare(right.due_date));
   return suggestions;

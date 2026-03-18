@@ -599,7 +599,6 @@ export default function ContractDetailPage() {
     if (field === 'end_date') currentValue = visibleFormValues.endDate || null;
     if (field === 'renewal_date') currentValue = currentDeadlineByType.renewal;
     if (field === 'notice_date') currentValue = currentDeadlineByType.notice;
-    if (field === 'payment_date') currentValue = currentDeadlineByType.payment;
 
     return {
       field,
