@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,9 +12,37 @@ export default function CreateWorkspacePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isOnboarding = searchParams.get('onboarding') === '1';
-  const { createWorkspace, hasWorkspace, isLoading } = useWorkspace();
+  const { createWorkspace, hasWorkspace, isLoading, refreshMemberships } = useWorkspace();
   const [workspaceName, setWorkspaceName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingWorkspace, setIsCheckingWorkspace] = useState(isOnboarding);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!isOnboarding) {
+      setIsCheckingWorkspace(false);
+      return () => {
+        isActive = false;
+      };
+    }
+
+    const checkWorkspaceMembership = async () => {
+      try {
+        await refreshMemberships();
+      } finally {
+        if (isActive) {
+          setIsCheckingWorkspace(false);
+        }
+      }
+    };
+
+    void checkWorkspaceMembership();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isOnboarding, refreshMemberships]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -32,7 +60,7 @@ export default function CreateWorkspacePage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isCheckingWorkspace) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
