@@ -24,7 +24,6 @@ const EXTRACTION_FIELD_LABELS: Record<SupportedExtractionField, string> = {
   end_date: 'End Date',
   renewal_date: 'Renewal Date',
   notice_date: 'Notice Date',
-  payment_date: 'Payment Date',
 };
 
 function formatDateValue(value: string | null | undefined): string {
