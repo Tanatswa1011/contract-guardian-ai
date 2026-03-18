@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Loader2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -10,39 +10,9 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export default function CreateWorkspacePage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const isOnboarding = searchParams.get('onboarding') === '1';
-  const { createWorkspace, hasWorkspace, isLoading, refreshMemberships } = useWorkspace();
+  const { createWorkspace, hasWorkspace, isLoading } = useWorkspace();
   const [workspaceName, setWorkspaceName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCheckingWorkspace, setIsCheckingWorkspace] = useState(isOnboarding);
-
-  useEffect(() => {
-    let isActive = true;
-
-    if (!isOnboarding) {
-      setIsCheckingWorkspace(false);
-      return () => {
-        isActive = false;
-      };
-    }
-
-    const checkWorkspaceMembership = async () => {
-      try {
-        await refreshMemberships();
-      } finally {
-        if (isActive) {
-          setIsCheckingWorkspace(false);
-        }
-      }
-    };
-
-    void checkWorkspaceMembership();
-
-    return () => {
-      isActive = false;
-    };
-  }, [isOnboarding, refreshMemberships]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -60,7 +30,7 @@ export default function CreateWorkspacePage() {
     }
   };
 
-  if (isLoading || isCheckingWorkspace) {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -68,7 +38,8 @@ export default function CreateWorkspacePage() {
     );
   }
 
-  if (isOnboarding && hasWorkspace) {
+  // If user already has a workspace, send them to the dashboard
+  if (hasWorkspace) {
     return <Navigate to="/app" replace />;
   }
 
@@ -82,9 +53,7 @@ export default function CreateWorkspacePage() {
           </div>
           <CardTitle className="text-2xl font-semibold">Create a workspace</CardTitle>
           <CardDescription>
-            {isOnboarding
-              ? 'Create your first workspace to start uploading and tracking contracts.'
-              : 'Start a new workspace without changing the rest of your setup.'}
+            Create your first workspace to start uploading and tracking contracts.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -106,14 +75,6 @@ export default function CreateWorkspacePage() {
               Create Workspace
             </Button>
           </form>
-
-          {!isOnboarding ? (
-            <div className="mt-6 text-center">
-              <Link to="/app">
-                <Button variant="ghost" size="sm">Back to app</Button>
-              </Link>
-            </div>
-          ) : null}
         </CardContent>
       </Card>
     </div>
