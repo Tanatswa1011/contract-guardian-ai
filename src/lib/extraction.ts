@@ -7,7 +7,6 @@ export const SUPPORTED_EXTRACTION_FIELDS = [
   'end_date',
   'renewal_date',
   'notice_date',
-  'payment_date',
 ] as const;
 
 export type SupportedExtractionField = (typeof SUPPORTED_EXTRACTION_FIELDS)[number];
