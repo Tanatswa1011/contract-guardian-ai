@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 const CURRENT_WORKSPACE_STORAGE_KEY = 'contractguardai.currentWorkspaceId';
+
+const getWorkspaceMembershipsQueryKey = (userId?: string) => ['workspace-memberships', userId] as const;
 
 type WorkspaceRecord = {
   id: string;
@@ -44,21 +46,22 @@ const readStoredWorkspaceId = () => {
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<string | null>(() => readStoredWorkspaceId());
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
 
   const {
     data: memberships = [],
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ['workspace-memberships', user?.id],
+    queryKey: getWorkspaceMembershipsQueryKey(user?.id),
     enabled: !!user,
     queryFn: async (): Promise<WorkspaceMembership[]> => {
       if (!user) {
         return [];
       }
 
-      // Accept any pending workspace invites before fetching memberships
       await (supabase.rpc as any)('accept_my_pending_workspace_invites').catch((err: unknown) => {
         console.error('Failed to accept pending workspace invites:', err);
       });
@@ -118,7 +121,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (isLoading) {
+    if (isLoading || isCreatingWorkspace) {
       return;
     }
 
@@ -144,7 +147,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, nextWorkspaceId);
     }
-  }, [currentWorkspaceId, isLoading, resolvedMemberships, user]);
+  }, [currentWorkspaceId, isCreatingWorkspace, isLoading, resolvedMemberships, user]);
 
   const setCurrentWorkspaceId = useCallback((workspaceId: string) => {
     if (!resolvedMemberships.some((membership) => membership.workspaceId === workspaceId)) {
@@ -158,8 +161,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [resolvedMemberships]);
 
   const refreshMemberships = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: getWorkspaceMembershipsQueryKey(user?.id) });
     await refetch();
-  }, [refetch]);
+  }, [queryClient, refetch, user?.id]);
 
   const createWorkspace = useCallback(async (name: string) => {
     const trimmedName = name.trim();
@@ -171,26 +175,55 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       throw new Error('You must be signed in to create a workspace.');
     }
 
-    const { data, error } = await (supabase.rpc as any)('create_workspace_with_owner', {
-      p_name: trimmedName,
-    });
+    setIsCreatingWorkspace(true);
 
-    if (error) {
-      throw error;
+    try {
+      const { data, error } = await (supabase.rpc as any)('create_workspace_with_owner', {
+        p_name: trimmedName,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (typeof data !== 'string' || !data) {
+        throw new Error('Workspace creation failed. Please try again.');
+      }
+
+      const now = new Date().toISOString();
+      const optimisticMembership: WorkspaceMembership = {
+        workspaceId: data,
+        role: 'owner',
+        createdAt: now,
+        workspace: {
+          id: data,
+          name: trimmedName,
+          created_at: now,
+          created_by: user.id,
+          updated_at: now,
+        },
+      };
+
+      queryClient.setQueryData<WorkspaceMembership[]>(
+        getWorkspaceMembershipsQueryKey(user.id),
+        (currentMemberships = []) => currentMemberships.some((membership) => membership.workspaceId === data)
+          ? currentMemberships
+          : [...currentMemberships, optimisticMembership],
+      );
+
+      setCurrentWorkspaceIdState(data);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, data);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: getWorkspaceMembershipsQueryKey(user.id) });
+      await refetch();
+
+      return data;
+    } finally {
+      setIsCreatingWorkspace(false);
     }
-
-    if (typeof data !== 'string' || !data) {
-      throw new Error('Workspace creation failed. Please try again.');
-    }
-
-    setCurrentWorkspaceIdState(data);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, data);
-    }
-    await refetch();
-
-    return data;
-  }, [refetch, user]);
+  }, [queryClient, refetch, user]);
 
   const currentMembership = useMemo(
     () => resolvedMemberships.find((membership) => membership.workspaceId === currentWorkspaceId) ?? null,
@@ -202,12 +235,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     currentWorkspaceId,
     currentWorkspace: currentMembership?.workspace ?? null,
     currentMembership,
-    isLoading: !!user && isLoading,
+    isLoading: !!user && (isLoading || isCreatingWorkspace),
     hasWorkspace: resolvedMemberships.length > 0,
     setCurrentWorkspaceId,
     refreshMemberships,
     createWorkspace,
-  }), [createWorkspace, currentMembership, currentWorkspaceId, isLoading, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
+  }), [createWorkspace, currentMembership, currentWorkspaceId, isCreatingWorkspace, isLoading, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
 
   return (
     <WorkspaceContext.Provider value={value}>

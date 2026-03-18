@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export default function CreateWorkspacePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isOnboarding = searchParams.get('onboarding') === '1';
   const { createWorkspace, hasWorkspace, isLoading } = useWorkspace();
   const [workspaceName, setWorkspaceName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,7 +40,7 @@ export default function CreateWorkspacePage() {
     );
   }
 
-  if (hasWorkspace) {
+  if (isOnboarding && hasWorkspace) {
     return <Navigate to="/app" replace />;
   }
 
@@ -52,7 +54,9 @@ export default function CreateWorkspacePage() {
           </div>
           <CardTitle className="text-2xl font-semibold">Create a workspace</CardTitle>
           <CardDescription>
-            Create your first workspace to start uploading and tracking contracts.
+            {isOnboarding
+              ? 'Create your first workspace to start uploading and tracking contracts.'
+              : 'Start a new workspace without changing the rest of your setup.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -75,11 +79,13 @@ export default function CreateWorkspacePage() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <Link to="/app">
-              <Button variant="ghost" size="sm">Back to app</Button>
-            </Link>
-          </div>
+          {!isOnboarding ? (
+            <div className="mt-6 text-center">
+              <Link to="/app">
+                <Button variant="ghost" size="sm">Back to app</Button>
+              </Link>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>
