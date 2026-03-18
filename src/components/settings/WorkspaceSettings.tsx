@@ -15,12 +15,27 @@ import { useNavigate } from 'react-router-dom';
 
 export default function WorkspaceSettings() {
   const { user } = useAuth();
-  const { currentMembership, currentWorkspace, refreshMemberships } = useWorkspace();
+  const { currentMembership, currentWorkspace, refreshMemberships, createWorkspace } = useWorkspace();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [inviteEmail, setInviteEmail] = useState('');
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
   const [showDeleteWorkspace, setShowDeleteWorkspace] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  const handleCreateWorkspace = async () => {
+    try {
+      setIsCreatingWorkspace(true);
+      await createWorkspace(newWorkspaceName);
+      toast.success('Workspace created! Switched to new workspace.');
+      setNewWorkspaceName('');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create workspace.');
+    } finally {
+      setIsCreatingWorkspace(false);
+    }
+  };
 
   const { data: members = [], isLoading: membersLoading } = useQuery({
     queryKey: ['workspace-members', currentWorkspace?.id],
