@@ -70,8 +70,11 @@ const getDaysUntilDate = (value: string) => {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { currentWorkspaceId } = useWorkspace();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
