@@ -172,6 +172,20 @@ Deno.serve(async (req) => {
       contractText,
     });
 
+    console.log("Extraction completed", {
+      contract_id: contractId,
+      extraction_run_id: extractionRunId,
+      extracted_dates: {
+        start_date: extraction.start_date,
+        end_date: extraction.end_date,
+        renewal_date: extraction.renewal_date,
+        notice_date: extraction.notice_date,
+        payment_date: extraction.payment_date,
+      },
+      missing_fields: extraction.missing_fields,
+      needs_review: extraction.needs_review,
+    });
+
     const { error: updateRunError } = await serviceClient
       .from("extraction_runs")
       .update({
@@ -184,7 +198,10 @@ Deno.serve(async (req) => {
       })
       .eq("id", extractionRunId);
 
-    if (updateRunError) throw updateRunError;
+    if (updateRunError) {
+      console.error("Failed to update extraction_run to completed", updateRunError);
+      throw updateRunError;
+    }
 
     // Auto-apply extracted fields to the contract record
     const contractUpdate: Record<string, unknown> = {};
@@ -203,8 +220,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Auto-create contract_dates for deadline fields (renewal, notice, payment)
-    const deadlineInserts: Array<{
+    // Auto-create contract_dates for raw extracted date fields (renewal, notice, payment)
+    const rawDateInserts: Array<{
       contract_id: string;
       type: string;
       due_date: string;
@@ -220,7 +237,7 @@ Deno.serve(async (req) => {
     for (const { field, type } of deadlineFields) {
       const value = extraction[field];
       if (value) {
-        deadlineInserts.push({
+        rawDateInserts.push({
           contract_id: contractId,
           type,
           due_date: value,
@@ -230,15 +247,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (deadlineInserts.length > 0) {
-      const { error: deadlineError } = await serviceClient
+    if (rawDateInserts.length > 0) {
+      console.log("Auto-creating contract_dates from extraction:", rawDateInserts);
+      const { data: deadlineData, error: deadlineError } = await serviceClient
         .from("contract_dates")
-        .upsert(deadlineInserts, {
+        .upsert(rawDateInserts, {
           onConflict: "contract_id,type",
           ignoreDuplicates: true,
-        });
+        })
+        .select("id, type, due_date");
       if (deadlineError) {
         console.error("Failed to auto-create contract_dates", deadlineError);
+      } else {
+        console.log("Auto-created contract_dates:", deadlineData);
       }
     }
 

@@ -73,11 +73,21 @@ function buildMissingFields(result: ContractExtractionResult): string[] {
   return SUPPORTED_EXTRACTION_FIELDS.filter((field) => !result[field]);
 }
 
+function stripMarkdownCodeFence(raw: string): string {
+  const trimmed = raw.trim();
+  const fencePattern = /^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/;
+  const match = fencePattern.exec(trimmed);
+  return match ? match[1].trim() : trimmed;
+}
+
 function parseExtractionJson(content: string): ContractExtractionResult {
+  const cleanContent = stripMarkdownCodeFence(content);
+
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(cleanContent);
   } catch (error) {
+    console.error("OpenAI JSON parse failed. Raw content:", content.slice(0, 500));
     throw new Error(
       `OpenAI returned non-JSON content: ${
         error instanceof Error ? error.message : "invalid response"
@@ -102,6 +112,15 @@ function parseExtractionJson(content: string): ContractExtractionResult {
     needs_review: true,
     notes: normalizeNullableString(source.notes),
   };
+
+  console.log("Normalized extraction result:", {
+    contract_title: normalized.contract_title,
+    start_date: normalized.start_date,
+    end_date: normalized.end_date,
+    renewal_date: normalized.renewal_date,
+    notice_date: normalized.notice_date,
+    payment_date: normalized.payment_date,
+  });
 
   const declaredMissing = Array.isArray(source.missing_fields)
     ? source.missing_fields.filter(
