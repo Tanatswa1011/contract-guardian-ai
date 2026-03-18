@@ -200,11 +200,7 @@ export default function DashboardPage() {
   const matchesFilter = (contract: (typeof allContracts)[number], filter: DashboardFilter) => {
     switch (filter) {
       case 'needs_review':
-        return Boolean(
-          contract.needs_review
-          || contract.health_status === 'needs_review'
-          || (contract.missing_fields && contract.missing_fields.length > 0),
-        );
+        return contract.health_status === 'needs_review';
       case 'expiring_soon':
         return Boolean(contract.expiring_within_30_days || contract.health_status === 'expiring_soon');
       case 'active':
@@ -216,8 +212,6 @@ export default function DashboardPage() {
         return true;
     }
   };
-
-  const contractNeedsReview = (contract: (typeof allContracts)[number]) => matchesFilter(contract, 'needs_review');
 
   const filterCounts = {
     all: allContracts.length,
