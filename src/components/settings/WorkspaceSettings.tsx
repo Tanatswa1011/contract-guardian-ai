@@ -3,19 +3,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, UserPlus, Crown, User } from 'lucide-react';
+import { Loader2, UserPlus, Crown, User, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function WorkspaceSettings() {
   const { user } = useAuth();
-  const { currentMembership, currentWorkspace } = useWorkspace();
+  const { currentMembership, currentWorkspace, refreshMemberships } = useWorkspace();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [inviteEmail, setInviteEmail] = useState('');
+  const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
+  const [showDeleteWorkspace, setShowDeleteWorkspace] = useState(false);
 
   const { data: members = [], isLoading: membersLoading } = useQuery({
     queryKey: ['workspace-members', currentWorkspace?.id],
@@ -26,7 +31,6 @@ export default function WorkspaceSettings() {
         .eq('workspace_id', currentWorkspace!.id);
       if (error) throw error;
 
-      // Fetch profiles for display names
       const userIds = data.map(m => m.user_id);
       const { data: profiles } = await supabase
         .from('profiles')
@@ -76,7 +80,6 @@ export default function WorkspaceSettings() {
         throw error;
       }
 
-      // Send invitation email via edge function (fire-and-forget, don't block on failure)
       supabase.functions.invoke('send-workspace-invite', {
         body: {
           email: trimmedEmail,
@@ -93,6 +96,49 @@ export default function WorkspaceSettings() {
     onError: (err: Error) => toast.error(err.message || 'Failed to send invitation'),
   });
 
+  const removeMember = useMutation({
+    mutationFn: async (memberId: string) => {
+      const { error } = await supabase
+        .from('workspace_members')
+        .delete()
+        .eq('id', memberId)
+        .eq('workspace_id', currentWorkspace!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Member removed');
+      setRemoveMemberId(null);
+      queryClient.invalidateQueries({ queryKey: ['workspace-members', currentWorkspace?.id] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to remove member');
+      setRemoveMemberId(null);
+    },
+  });
+
+  const deleteWorkspace = useMutation({
+    mutationFn: async () => {
+      if (!currentWorkspace?.id) throw new Error('No workspace selected.');
+      const { error } = await supabase
+        .from('workspaces')
+        .delete()
+        .eq('id', currentWorkspace.id);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      toast.success('Workspace deleted');
+      setShowDeleteWorkspace(false);
+      await refreshMemberships();
+      navigate('/app', { replace: true });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to delete workspace');
+      setShowDeleteWorkspace(false);
+    },
+  });
+
+  const memberToRemove = removeMemberId ? members.find(m => m.id === removeMemberId) : null;
+
   if (!currentWorkspace || !currentMembership || membersLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -105,6 +151,52 @@ export default function WorkspaceSettings() {
 
   return (
     <div className="space-y-6">
+      {/* Remove member confirmation */}
+      <AlertDialog open={!!removeMemberId} onOpenChange={(open) => { if (!open) setRemoveMemberId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {memberToRemove
+                ? `Remove ${memberToRemove.display_name} (${memberToRemove.email}) from this workspace? They will lose access to all workspace data.`
+                : 'Remove this member from the workspace?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeMember.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => removeMemberId && removeMember.mutate(removeMemberId)}
+              disabled={removeMember.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {removeMember.isPending ? 'Removing…' : 'Remove'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete workspace confirmation */}
+      <AlertDialog open={showDeleteWorkspace} onOpenChange={setShowDeleteWorkspace}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete workspace?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the workspace "{currentWorkspace.name}" and all its contracts, deadlines, files, and member associations. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteWorkspace.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteWorkspace.mutate()}
+              disabled={deleteWorkspace.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteWorkspace.isPending ? 'Deleting…' : 'Delete Workspace'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Workspace</CardTitle>
@@ -150,9 +242,20 @@ export default function WorkspaceSettings() {
                     )}
                   </div>
                 </div>
-                <Badge variant="outline" className="normal-case text-xs tracking-normal capitalize">
-                  {member.role}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="normal-case text-xs tracking-normal capitalize">
+                    {member.role}
+                  </Badge>
+                  {isOwner && member.user_id !== user?.id && member.role !== 'owner' && (
+                    <button
+                      onClick={() => setRemoveMemberId(member.id)}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Remove member"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
 
@@ -199,6 +302,24 @@ export default function WorkspaceSettings() {
                 Invite
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isOwner && (
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle className="text-base text-destructive">Danger Zone</CardTitle>
+            <CardDescription>Permanently delete this workspace and all its data.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteWorkspace(true)}
+            >
+              Delete Workspace
+            </Button>
           </CardContent>
         </Card>
       )}
