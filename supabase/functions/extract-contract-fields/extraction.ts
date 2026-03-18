@@ -19,17 +19,13 @@ export type ContractExtractionResult = {
   end_date: string | null;
   renewal_date: string | null;
   notice_date: string | null;
-  payment_date: string | null;
   notice_period_days: number | null;
-  payment_terms_days: number | null;
   computed_deadlines: {
     renewal_date: string | null;
     notice_date: string | null;
-    payment_date: string | null;
     sources: {
       renewal_date: "extracted" | "computed" | null;
       notice_date: "extracted" | "computed" | null;
-      payment_date: "extracted" | "computed" | null;
     };
   } | null;
   missing_fields: string[];
