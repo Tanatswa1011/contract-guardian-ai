@@ -292,19 +292,25 @@ export default function UploadPage() {
 
         if (existingDatesError) throw existingDatesError;
 
-        const existingKeys = new Set(
-          (existingDates ?? []).map((date) => `${date.type}|${date.due_date}|${date.label ?? ''}`),
+        const existingTypes = new Set(
+          (existingDates ?? []).map((date) => date.type),
         );
 
+        // Deduplicate by type (DB has unique constraint on contract_id+type)
+        const seenTypes = new Set<string>();
         const inserts = suggestedDeadlines
+          .filter((deadline) => {
+            if (existingTypes.has(deadline.type) || seenTypes.has(deadline.type)) return false;
+            seenTypes.add(deadline.type);
+            return true;
+          })
           .map((deadline) => ({
             contract_id: contractId,
             type: deadline.type,
             due_date: deadline.due_date,
             label: deadline.label,
             note: deadline.note,
-          }))
-          .filter((deadline) => !existingKeys.has(`${deadline.type}|${deadline.due_date}|${deadline.label ?? ''}`));
+          }));
 
         console.log('[UploadPage] applying suggested deadlines', {
           workspace_id: currentWorkspaceId,
@@ -316,7 +322,7 @@ export default function UploadPage() {
         if (inserts.length > 0) {
           const { data: insertResult, error: insertError } = await supabase
             .from('contract_dates')
-            .insert(inserts)
+            .upsert(inserts, { onConflict: 'contract_id,type', ignoreDuplicates: true })
             .select('id, type, due_date, label');
 
           console.log('[UploadPage] suggested deadline insert result', {
