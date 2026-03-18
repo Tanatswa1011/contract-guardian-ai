@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Loader2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,10 @@ export default function CreateWorkspacePage() {
     );
   }
 
+  if (hasWorkspace) {
+    return <Navigate to="/app" replace />;
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <Card className="w-full max-w-md">
@@ -48,9 +52,7 @@ export default function CreateWorkspacePage() {
           </div>
           <CardTitle className="text-2xl font-semibold">Create a workspace</CardTitle>
           <CardDescription>
-            {hasWorkspace
-              ? 'Start a new workspace without changing the rest of your setup.'
-              : 'Create your first workspace to start uploading and tracking contracts.'}
+            Create your first workspace to start uploading and tracking contracts.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -73,13 +75,11 @@ export default function CreateWorkspacePage() {
             </Button>
           </form>
 
-          {hasWorkspace ? (
-            <div className="mt-6 text-center">
-              <Link to="/app">
-                <Button variant="ghost" size="sm">Back to app</Button>
-              </Link>
-            </div>
-          ) : null}
+          <div className="mt-6 text-center">
+            <Link to="/app">
+              <Button variant="ghost" size="sm">Back to app</Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
