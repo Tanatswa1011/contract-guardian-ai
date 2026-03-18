@@ -28,9 +28,12 @@ export default function WorkspaceSwitcher({ className, onSelect }: WorkspaceSwit
     setCurrentWorkspaceId,
   } = useWorkspace();
 
-  if (!currentWorkspace || memberships.length === 0) {
+  if (memberships.length === 0) {
     return null;
   }
+
+  const activeWorkspace = currentWorkspace ?? memberships[0].workspace;
+  const activeWorkspaceId = currentWorkspaceId ?? activeWorkspace.id;
 
   const handleWorkspaceChange = (workspaceId: string) => {
     setCurrentWorkspaceId(workspaceId);
@@ -57,7 +60,7 @@ export default function WorkspaceSwitcher({ className, onSelect }: WorkspaceSwit
               Workspace
             </p>
             <p className="truncate text-sm font-medium text-foreground">
-              {currentWorkspace.name}
+              {activeWorkspace.name}
             </p>
           </div>
           <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -65,7 +68,7 @@ export default function WorkspaceSwitcher({ className, onSelect }: WorkspaceSwit
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
         <DropdownMenuLabel>Switch workspace</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={currentWorkspaceId ?? undefined} onValueChange={handleWorkspaceChange}>
+        <DropdownMenuRadioGroup value={activeWorkspaceId} onValueChange={handleWorkspaceChange}>
           {memberships.map((membership) => (
             <DropdownMenuRadioItem
               key={membership.workspaceId}

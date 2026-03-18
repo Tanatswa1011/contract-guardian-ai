@@ -20,8 +20,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const acceptPendingInvites = async () => {
-    // Pending invite acceptance is currently handled elsewhere.
-    // Keep auth flow resilient until the RPC is added back to the database/types.
+    const { error } = await supabase.rpc('accept_my_pending_workspace_invites');
+    if (error) {
+      console.error('Failed to accept pending workspace invites:', error.message);
+    }
   };
 
   const navigate = useNavigate();
@@ -64,6 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) {
+        setTimeout(() => acceptPendingInvites(), 0);
+      }
     });
 
     return () => subscription.unsubscribe();

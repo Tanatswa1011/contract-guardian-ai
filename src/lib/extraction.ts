@@ -20,6 +20,13 @@ export type ExtractionSuggestion = {
   renewal_date: string | null;
   notice_date: string | null;
   payment_date: string | null;
+  notice_period_days: number | null;
+  payment_terms_days: number | null;
+  computed_deadlines: {
+    renewal_date: string | null;
+    notice_date: string | null;
+    payment_date: string | null;
+  } | null;
   missing_fields: SupportedExtractionField[];
   needs_review: boolean;
   notes: string | null;
@@ -67,6 +74,29 @@ function normalizeIsoDate(input: unknown): string | null {
   return isIsoDate(value) ? value : null;
 }
 
+function normalizeNullablePositiveInteger(input: unknown): number | null {
+  if (typeof input !== 'number' || !Number.isInteger(input)) {
+    return null;
+  }
+  if (input <= 0) {
+    return null;
+  }
+  return input;
+}
+
+function parseComputedDeadlines(input: unknown): ExtractionSuggestion['computed_deadlines'] {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return null;
+  }
+
+  const source = input as Record<string, unknown>;
+  return {
+    renewal_date: normalizeIsoDate(source.renewal_date),
+    notice_date: normalizeIsoDate(source.notice_date),
+    payment_date: normalizeIsoDate(source.payment_date),
+  };
+}
+
 function toSupportedField(value: unknown): SupportedExtractionField | null {
   if (typeof value !== 'string') return null;
   return SUPPORTED_EXTRACTION_FIELDS.includes(value as SupportedExtractionField)
@@ -79,14 +109,18 @@ export function parseExtractionSuggestion(rawJson: Json): ExtractionSuggestion |
   if (!source) {
     return null;
   }
+  const computedDeadlines = parseComputedDeadlines(source.computed_deadlines);
   const suggestion: ExtractionSuggestion = {
     contract_title: normalizeString(source.contract_title),
     counterparty: normalizeString(source.counterparty),
     start_date: normalizeIsoDate(source.start_date),
     end_date: normalizeIsoDate(source.end_date),
-    renewal_date: normalizeIsoDate(source.renewal_date),
-    notice_date: normalizeIsoDate(source.notice_date),
-    payment_date: normalizeIsoDate(source.payment_date),
+    renewal_date: normalizeIsoDate(source.renewal_date) ?? computedDeadlines?.renewal_date ?? null,
+    notice_date: normalizeIsoDate(source.notice_date) ?? computedDeadlines?.notice_date ?? null,
+    payment_date: normalizeIsoDate(source.payment_date) ?? computedDeadlines?.payment_date ?? null,
+    notice_period_days: normalizeNullablePositiveInteger(source.notice_period_days),
+    payment_terms_days: normalizeNullablePositiveInteger(source.payment_terms_days),
+    computed_deadlines: computedDeadlines,
     missing_fields: [],
     needs_review: true,
     notes: normalizeString(source.notes),

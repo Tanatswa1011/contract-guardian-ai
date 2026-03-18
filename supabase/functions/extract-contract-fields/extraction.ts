@@ -20,6 +20,18 @@ export type ContractExtractionResult = {
   renewal_date: string | null;
   notice_date: string | null;
   payment_date: string | null;
+  notice_period_days: number | null;
+  payment_terms_days: number | null;
+  computed_deadlines: {
+    renewal_date: string | null;
+    notice_date: string | null;
+    payment_date: string | null;
+    sources: {
+      renewal_date: "extracted" | "computed" | null;
+      notice_date: "extracted" | "computed" | null;
+      payment_date: "extracted" | "computed" | null;
+    };
+  } | null;
   missing_fields: string[];
   needs_review: boolean;
   notes: string | null;
@@ -33,12 +45,15 @@ const OPENAI_PROMPT = `Extract only these fields from the contract text:
 - renewal_date
 - notice_date
 - payment_date
+- notice_period_days
+- payment_terms_days
 
 Rules:
 - Return only valid JSON that matches the requested schema.
 - If a field is uncertain, ambiguous, or not explicitly present, return null.
 - Never invent data.
 - For dates, return ISO format YYYY-MM-DD only when clearly supported by text; otherwise null.
+- For *_days fields, return an integer day count only when clearly supported (e.g. "30 days notice", "net 45").
 - Include missing_fields for any null extraction among supported fields.
 - Set needs_review=true whenever any field is missing or uncertain.
 - Keep notes concise.`;
@@ -67,6 +82,61 @@ function normalizeNullableIsoDate(input: unknown): string | null {
   const value = normalizeNullableString(input);
   if (!value) return null;
   return isValidIsoDate(value) ? value : null;
+}
+
+function normalizeNullablePositiveInteger(input: unknown): number | null {
+  if (typeof input !== "number" || !Number.isInteger(input)) {
+    return null;
+  }
+  if (input <= 0) {
+    return null;
+  }
+  return input;
+}
+
+function subtractDays(isoDate: string, days: number): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(isoDate: string, days: number): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function computeDerivedDeadlines(
+  extraction: ContractExtractionResult,
+): ContractExtractionResult {
+  const renewalDate = extraction.renewal_date ??
+    (extraction.end_date ? subtractDays(extraction.end_date, 30) : null);
+  const noticeAnchorDate = renewalDate ?? extraction.end_date;
+  const noticeDate = extraction.notice_date ??
+    (extraction.notice_period_days && noticeAnchorDate
+      ? subtractDays(noticeAnchorDate, extraction.notice_period_days)
+      : null);
+  const paymentDate = extraction.payment_date ??
+    (extraction.payment_terms_days && extraction.start_date
+      ? addDays(extraction.start_date, extraction.payment_terms_days)
+      : null);
+
+  return {
+    ...extraction,
+    renewal_date: renewalDate,
+    notice_date: noticeDate,
+    payment_date: paymentDate,
+    computed_deadlines: {
+      renewal_date: renewalDate,
+      notice_date: noticeDate,
+      payment_date: paymentDate,
+      sources: {
+        renewal_date: extraction.renewal_date ? "extracted" : renewalDate ? "computed" : null,
+        notice_date: extraction.notice_date ? "extracted" : noticeDate ? "computed" : null,
+        payment_date: extraction.payment_date ? "extracted" : paymentDate ? "computed" : null,
+      },
+    },
+  };
 }
 
 function buildMissingFields(result: ContractExtractionResult): string[] {
@@ -142,7 +212,7 @@ function parseExtractionJson(content: string): ContractExtractionResult {
   }
 
   const source = parsed as Record<string, unknown>;
-  const normalized: ContractExtractionResult = {
+  const normalizedBase: ContractExtractionResult = {
     contract_title: normalizeNullableString(source.contract_title),
     counterparty: normalizeNullableString(source.counterparty),
     start_date: normalizeNullableIsoDate(source.start_date),
@@ -150,10 +220,14 @@ function parseExtractionJson(content: string): ContractExtractionResult {
     renewal_date: normalizeNullableIsoDate(source.renewal_date),
     notice_date: normalizeNullableIsoDate(source.notice_date),
     payment_date: normalizeNullableIsoDate(source.payment_date),
+    notice_period_days: normalizeNullablePositiveInteger(source.notice_period_days),
+    payment_terms_days: normalizeNullablePositiveInteger(source.payment_terms_days),
+    computed_deadlines: null,
     missing_fields: [],
     needs_review: true,
     notes: normalizeNullableString(source.notes),
   };
+  const normalized = computeDerivedDeadlines(normalizedBase);
 
   const declaredMissing = Array.isArray(source.missing_fields)
     ? source.missing_fields.filter(
@@ -165,7 +239,7 @@ function parseExtractionJson(content: string): ContractExtractionResult {
 
   const computedMissing = buildMissingFields(normalized);
   const missingFieldSet = new Set<SupportedExtractionField>([
-    ...declaredMissing,
+    ...declaredMissing.filter((field) => !normalized[field]),
     ...(computedMissing as SupportedExtractionField[]),
   ]);
   normalized.missing_fields = Array.from(missingFieldSet);
@@ -228,6 +302,8 @@ export async function extractContractFieldsWithOpenAi({
               renewal_date: { type: ["string", "null"] },
               notice_date: { type: ["string", "null"] },
               payment_date: { type: ["string", "null"] },
+              notice_period_days: { type: ["integer", "null"] },
+              payment_terms_days: { type: ["integer", "null"] },
               missing_fields: {
                 type: "array",
                 items: {
@@ -246,6 +322,8 @@ export async function extractContractFieldsWithOpenAi({
               "renewal_date",
               "notice_date",
               "payment_date",
+              "notice_period_days",
+              "payment_terms_days",
               "missing_fields",
               "needs_review",
               "notes",
