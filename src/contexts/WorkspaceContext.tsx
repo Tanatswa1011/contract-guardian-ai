@@ -118,12 +118,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    if (authLoading) {
+      setIsHydrated(false);
+      return;
+    }
+
     if (!user) {
       setCurrentWorkspaceIdState(null);
+      setIsHydrated(true);
       return;
     }
 
     if (isLoading || isCreatingWorkspace) {
+      setIsHydrated(false);
       return;
     }
 
@@ -132,6 +139,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(CURRENT_WORKSPACE_STORAGE_KEY);
       }
+      setIsHydrated(true);
       return;
     }
 
@@ -149,6 +157,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, nextWorkspaceId);
     }
+
+    setIsHydrated(true);
   }, [currentWorkspaceId, isCreatingWorkspace, isLoading, resolvedMemberships, user]);
 
   const setCurrentWorkspaceId = useCallback((workspaceId: string) => {
