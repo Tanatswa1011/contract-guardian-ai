@@ -19,6 +19,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { signOut } = useAuth();
+  const { isLoading: workspaceLoading } = useWorkspace();
 
   const handleSignOut = async () => {
     await signOut();
