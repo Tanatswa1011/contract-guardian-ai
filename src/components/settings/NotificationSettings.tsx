@@ -1,11 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { MessageSquare, Loader2 } from 'lucide-react';
+import { MessageSquare, Loader2, Play } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useState } from 'react';
 
 const DEFAULT_RULES = [
   { offset_value: 30, offset_unit: 'day', label: '30 days before deadline' },
@@ -118,6 +120,43 @@ export default function NotificationSettings() {
           </CardHeader>
         </Card>
       ))}
+
+      <ReminderTestCard />
     </div>
+  );
+}
+
+function ReminderTestCard() {
+  const [loading, setLoading] = useState(false);
+
+  const handleTest = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-contract-reminders');
+      if (error) throw error;
+      const { sent = 0, skipped = 0, total = 0, errors: errCount = 0 } = data || {};
+      toast.success(`Reminders: ${sent} sent, ${skipped} skipped, ${errCount} errors (${total} total)`);
+    } catch (e: unknown) {
+      toast.error(`Reminder test failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="border-dashed border-yellow-500/50">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Manual Reminder Test</CardTitle>
+            <CardDescription>Trigger send-contract-reminders now (temporary)</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleTest} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+            Run Reminder Test
+          </Button>
+        </div>
+      </CardHeader>
+    </Card>
   );
 }
