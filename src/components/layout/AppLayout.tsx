@@ -1,9 +1,10 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Shield, LayoutDashboard, Upload, Settings, CreditCard, LogOut, Menu, X } from 'lucide-react';
+import { Shield, LayoutDashboard, Upload, Settings, CreditCard, LogOut, Menu, X, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 
 const navItems = [
@@ -18,6 +19,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { signOut } = useAuth();
+  const { isLoading: workspaceLoading } = useWorkspace();
 
   const handleSignOut = async () => {
     await signOut();
@@ -101,7 +103,13 @@ export default function AppLayout() {
       {/* Main content */}
       <main className="flex-1 lg:ml-64 mt-14 lg:mt-0">
         <div className="mx-auto max-w-7xl p-4 md:p-8">
-          <Outlet />
+          {workspaceLoading ? (
+            <div className="flex items-center justify-center py-32">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </div>
       </main>
     </div>

@@ -45,7 +45,7 @@ const readStoredWorkspaceId = () => {
 };
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<string | null>(() => readStoredWorkspaceId());
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
@@ -235,12 +235,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     currentWorkspaceId,
     currentWorkspace: currentMembership?.workspace ?? null,
     currentMembership,
-    isLoading: !!user && (isLoading || isCreatingWorkspace),
+    isLoading: authLoading || (!!user && (isLoading || isCreatingWorkspace)),
     hasWorkspace: resolvedMemberships.length > 0,
     setCurrentWorkspaceId,
     refreshMemberships,
     createWorkspace,
-  }), [createWorkspace, currentMembership, currentWorkspaceId, isCreatingWorkspace, isLoading, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
+  }), [authLoading, createWorkspace, currentMembership, currentWorkspaceId, isCreatingWorkspace, isLoading, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
 
   return (
     <WorkspaceContext.Provider value={value}>
