@@ -28,6 +28,7 @@ interface WorkspaceContextType {
   currentWorkspace: WorkspaceRecord | null;
   currentMembership: WorkspaceMembership | null;
   isLoading: boolean;
+  isHydrated: boolean;
   hasWorkspace: boolean;
   setCurrentWorkspaceId: (workspaceId: string) => void;
   refreshMemberships: () => Promise<void>;

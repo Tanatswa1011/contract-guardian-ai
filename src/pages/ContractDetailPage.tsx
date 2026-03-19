@@ -77,7 +77,7 @@ export default function ContractDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { currentWorkspaceId } = useWorkspace();
+  const { currentWorkspaceId, isHydrated } = useWorkspace();
 
   const { data: contract, isLoading: contractLoading } = useQuery({
     queryKey: ['contract', id, user?.id, currentWorkspaceId],

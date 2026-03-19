@@ -47,7 +47,7 @@ export default function UploadPage() {
   const [savePending, setSavePending] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentWorkspaceId } = useWorkspace();
+  const { currentWorkspaceId, isHydrated } = useWorkspace();
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Upload failed');
 
   const extractionSuggestion = useMemo(

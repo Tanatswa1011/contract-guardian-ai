@@ -69,7 +69,7 @@ const getDaysUntilDate = (value: string) => {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { currentWorkspaceId } = useWorkspace();
+  const { currentWorkspaceId, isHydrated } = useWorkspace();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all');
