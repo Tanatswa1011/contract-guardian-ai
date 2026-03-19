@@ -154,7 +154,7 @@ export default function WorkspaceSettings() {
 
   const memberToRemove = removeMemberId ? members.find(m => m.id === removeMemberId) : null;
 
-  if (workspaceLoading || membersLoading) {
+  if (workspaceLoading || !isHydrated || membersLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

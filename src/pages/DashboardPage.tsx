@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
-    enabled: !!user && !!currentWorkspaceId,
+    enabled: !!user && isHydrated && !!currentWorkspaceId,
     queryFn: async () => {
 
       const { data: contractRows, error: contractError } = await supabase
