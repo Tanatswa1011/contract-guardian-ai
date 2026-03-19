@@ -14,7 +14,7 @@ export default function RequireWorkspace() {
   }
 
   if (!hasWorkspace) {
-    console.log('[RequireWorkspace] redirecting to create-workspace because memberships resolved empty');
+    console.log('[RequireWorkspace] redirect decision: memberships resolved empty, redirecting to create-workspace');
     return <Navigate to="/create-workspace" replace />;
   }
 

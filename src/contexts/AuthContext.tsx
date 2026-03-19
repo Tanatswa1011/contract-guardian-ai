@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasReceivedInitialAuth = useRef(false);
 
   const navigate = useNavigate();
 
@@ -38,7 +39,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
+    // CRITICAL: Use onAuthStateChange as the single source of truth for initial session.
+    // getSession() can race and return null before the client has restored from storage.
+    // We must NOT set loading=false until we've received INITIAL_SESSION (or first event).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!hasReceivedInitialAuth.current) {
+        hasReceivedInitialAuth.current = true;
+        console.log('[AuthDebug] initial auth state received', { event, hasSession: !!session, userId: session?.user?.id ?? null });
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -48,16 +56,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         navigate('/reset-password', { replace: true });
         return;
       }
-
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Fallback: if onAuthStateChange doesn't fire within a timeout (e.g. no session),
+    // ensure we don't hang forever. getSession() can resolve before onAuthStateChange.
+    const fallbackTimer = setTimeout(() => {
+      if (!hasReceivedInitialAuth.current) {
+        hasReceivedInitialAuth.current = true;
+        console.log('[AuthDebug] fallback: no auth event received, using getSession');
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+        });
+      }
+    }, 100);
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(fallbackTimer);
+    };
   }, [navigate]);
 
   const signUp = async (email: string, password: string, displayName: string, workspaceName?: string) => {
