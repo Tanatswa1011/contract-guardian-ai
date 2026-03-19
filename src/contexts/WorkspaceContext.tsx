@@ -23,6 +23,8 @@ export type WorkspaceMembership = {
   workspace: WorkspaceRecord;
 };
 
+const EMPTY_MEMBERSHIPS: WorkspaceMembership[] = [];
+
 interface WorkspaceContextType {
   memberships: WorkspaceMembership[];
   currentWorkspaceId: string | null;
@@ -106,7 +108,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       logWorkspace('memberships query start', { userId: user.id });
 
-      await (supabase.rpc as any)('accept_my_pending_workspace_invites').catch((err: unknown) => {
+      await supabase.rpc('accept_my_pending_workspace_invites').catch((err: unknown) => {
         console.error(`${WORKSPACE_DEBUG_PREFIX} failed to accept pending workspace invites`, err);
       });
 
@@ -178,7 +180,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const memberships = membershipsQuery.data ?? [];
+  const memberships = membershipsQuery.data ?? EMPTY_MEMBERSHIPS;
   const membershipsReady = !user || membershipsQuery.isSuccess;
   const membershipsPending = !!user && !membershipsQuery.isSuccess && !membershipsQuery.isError;
 
@@ -360,7 +362,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      const { data, error } = await (supabase.rpc as any)('create_workspace_with_owner', {
+      const { data, error } = await supabase.rpc('create_workspace_with_owner', {
         p_name: trimmedName,
       });
 
