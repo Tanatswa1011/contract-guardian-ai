@@ -75,12 +75,27 @@ const clearStoredWorkspaceId = () => {
   window.localStorage.removeItem(CURRENT_WORKSPACE_STORAGE_KEY);
 };
 
+const resolveWorkspaceId = (
+  memberships: WorkspaceMembership[],
+  preferredWorkspaceId: string | null,
+) => {
+  if (!memberships.length) {
+    return null;
+  }
+
+  const validWorkspaceIds = new Set(memberships.map((membership) => membership.workspaceId));
+  if (preferredWorkspaceId && validWorkspaceIds.has(preferredWorkspaceId)) {
+    return preferredWorkspaceId;
+  }
+
+  return memberships[0].workspaceId;
+};
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
-  const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<string | null>(() => readStoredWorkspaceId());
+  const [storedWorkspaceId, setStoredWorkspaceId] = useState<string | null>(() => readStoredWorkspaceId());
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
 
   const membershipsQuery = useQuery({
     queryKey: getWorkspaceMembershipsQueryKey(user?.id),
@@ -94,9 +109,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       console.log(`${WORKSPACE_DEBUG_PREFIX} memberships query start`, { userId: user.id });
 
-      await supabase.rpc('accept_my_pending_workspace_invites').catch((err: unknown) => {
-        console.error(`${WORKSPACE_DEBUG_PREFIX} failed to accept pending workspace invites`, err);
-      });
+      const { error: acceptInvitesError } = await supabase.rpc('accept_my_pending_workspace_invites');
+      if (acceptInvitesError) {
+        console.error(`${WORKSPACE_DEBUG_PREFIX} failed to accept pending workspace invites`, acceptInvitesError);
+      }
 
       const { data: membershipRows, error: membershipError } = await supabase
         .from('workspace_members')
@@ -166,145 +182,115 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const resolvedMemberships = useMemo(
+  const memberships = useMemo(
     () => (user ? (membershipsQuery.data ?? []) : []),
     [membershipsQuery.data, user],
   );
 
-  const hasWorkspace = resolvedMemberships.length > 0;
-  const membershipsReady = !user || membershipsQuery.isSuccess;
+  const membershipsLoaded = !user || membershipsQuery.isSuccess;
+  const hasWorkspace = memberships.length > 0;
+  const currentWorkspaceId = useMemo(
+    () => (user && membershipsLoaded ? resolveWorkspaceId(memberships, storedWorkspaceId) : null),
+    [memberships, membershipsLoaded, storedWorkspaceId, user],
+  );
+
+  const currentMembership = useMemo(
+    () => memberships.find((membership) => membership.workspaceId === currentWorkspaceId) ?? null,
+    [currentWorkspaceId, memberships],
+  );
+
   const isResolved = !authLoading
-    && membershipsReady
     && !isCreatingWorkspace
+    && membershipsLoaded
     && (!hasWorkspace || !!currentWorkspaceId);
+
+  const isLoading = authLoading
+    || (!!user && (!membershipsLoaded || isCreatingWorkspace || (hasWorkspace && !currentWorkspaceId)));
 
   useEffect(() => {
     console.log(`${WORKSPACE_DEBUG_PREFIX} auth/loading state`, {
       authLoading,
-      membershipsReady,
+      userId: user?.id ?? null,
+      membershipsLoaded,
       membershipsQueryState: {
         isLoading: membershipsQuery.isLoading,
         isFetching: membershipsQuery.isFetching,
         isSuccess: membershipsQuery.isSuccess,
         isError: membershipsQuery.isError,
       },
-      userId: user?.id ?? null,
+      storedWorkspaceId,
       currentWorkspaceId,
+      isResolved,
     });
   }, [
     authLoading,
     currentWorkspaceId,
+    isResolved,
+    membershipsLoaded,
     membershipsQuery.isError,
     membershipsQuery.isFetching,
     membershipsQuery.isLoading,
     membershipsQuery.isSuccess,
-    membershipsReady,
+    storedWorkspaceId,
     user?.id,
   ]);
 
   useEffect(() => {
     if (authLoading) {
-      console.log(`${WORKSPACE_DEBUG_PREFIX} waiting for auth before restoring workspace`);
-      setIsHydrated(false);
+      console.log(`${WORKSPACE_DEBUG_PREFIX} waiting for auth before resolving workspace`);
       return;
     }
 
     if (!user) {
-      console.log(`${WORKSPACE_DEBUG_PREFIX} no authenticated user, clearing workspace state`);
-      if (currentWorkspaceId !== null) {
-        console.log(`${WORKSPACE_DEBUG_PREFIX} clearing currentWorkspaceId because user is signed out`, {
-          previousWorkspaceId: currentWorkspaceId,
-        });
+      console.log(`${WORKSPACE_DEBUG_PREFIX} no authenticated user, clearing workspace selection`);
+      if (storedWorkspaceId !== null) {
+        setStoredWorkspaceId(null);
+        clearStoredWorkspaceId();
       }
-      setCurrentWorkspaceIdState(null);
-      clearStoredWorkspaceId();
-      setIsHydrated(true);
       return;
     }
 
-    if (isCreatingWorkspace) {
-      console.log(`${WORKSPACE_DEBUG_PREFIX} waiting for createWorkspace flow to complete`, {
+    if (!membershipsLoaded) {
+      console.log(`${WORKSPACE_DEBUG_PREFIX} waiting for memberships before resolving workspace`, {
         userId: user.id,
+        storedWorkspaceId,
       });
-      setIsHydrated(false);
       return;
     }
 
-    if (!membershipsQuery.isSuccess) {
-      if (membershipsQuery.isError) {
-        console.error(`${WORKSPACE_DEBUG_PREFIX} waiting because memberships query failed`, membershipsQuery.error);
-      } else {
-        console.log(`${WORKSPACE_DEBUG_PREFIX} waiting for memberships query to resolve`, {
-          userId: user.id,
-          isLoading: membershipsQuery.isLoading,
-          isFetching: membershipsQuery.isFetching,
-        });
+    if (!hasWorkspace) {
+      console.log(`${WORKSPACE_DEBUG_PREFIX} memberships resolved empty; keeping user on create-workspace flow`, {
+        userId: user.id,
+        storedWorkspaceId,
+      });
+      if (storedWorkspaceId !== null) {
+        setStoredWorkspaceId(null);
+        clearStoredWorkspaceId();
       }
-      setIsHydrated(false);
       return;
     }
 
-    const storedWorkspaceId = readStoredWorkspaceId();
-    console.log(`${WORKSPACE_DEBUG_PREFIX} workspace selection inputs`, {
+    console.log(`${WORKSPACE_DEBUG_PREFIX} workspace resolution result`, {
       userId: user.id,
+      membershipWorkspaceIds: memberships.map((membership) => membership.workspaceId),
       storedWorkspaceId,
-      currentWorkspaceId,
-      membershipCount: resolvedMemberships.length,
-      membershipWorkspaceIds: resolvedMemberships.map((membership) => membership.workspaceId),
+      resolvedWorkspaceId: currentWorkspaceId,
     });
 
-    if (resolvedMemberships.length === 0) {
-      console.log(`${WORKSPACE_DEBUG_PREFIX} memberships resolved empty; marking no-workspace state`, {
-        userId: user.id,
-      });
-      setCurrentWorkspaceIdState(null);
-      clearStoredWorkspaceId();
-      setIsHydrated(true);
+    if (!currentWorkspaceId) {
       return;
     }
 
-    const validWorkspaceIds = new Set(resolvedMemberships.map((membership) => membership.workspaceId));
-    const nextWorkspaceId =
-      (storedWorkspaceId && validWorkspaceIds.has(storedWorkspaceId) && storedWorkspaceId)
-      || resolvedMemberships[0].workspaceId;
-
-    console.log(`${WORKSPACE_DEBUG_PREFIX} resolved currentWorkspaceId candidate`, {
-      userId: user.id,
-      storedWorkspaceId,
-      currentWorkspaceId,
-      nextWorkspaceId,
-      validWorkspaceIds: Array.from(validWorkspaceIds),
-    });
-
-    if (nextWorkspaceId !== currentWorkspaceId) {
-      console.log(`${WORKSPACE_DEBUG_PREFIX} updating currentWorkspaceId state`, {
-        previous: currentWorkspaceId,
-        next: nextWorkspaceId,
+    if (storedWorkspaceId !== currentWorkspaceId) {
+      console.log(`${WORKSPACE_DEBUG_PREFIX} syncing workspace selection`, {
+        previousStoredWorkspaceId: storedWorkspaceId,
+        nextWorkspaceId: currentWorkspaceId,
       });
-      setCurrentWorkspaceIdState(nextWorkspaceId);
-      setIsHydrated(false);
-      writeStoredWorkspaceId(nextWorkspaceId);
-      return;
+      setStoredWorkspaceId(currentWorkspaceId);
     }
 
-    writeStoredWorkspaceId(nextWorkspaceId);
-    console.log(`${WORKSPACE_DEBUG_PREFIX} active workspace fully restored`, {
-      userId: user.id,
-      currentWorkspaceId: nextWorkspaceId,
-    });
-    setIsHydrated(true);
-  }, [
-    authLoading,
-    currentWorkspaceId,
-    isCreatingWorkspace,
-    membershipsQuery.error,
-    membershipsQuery.isError,
-    membershipsQuery.isFetching,
-    membershipsQuery.isLoading,
-    membershipsQuery.isSuccess,
-    resolvedMemberships,
-    user,
-  ]);
+    writeStoredWorkspaceId(currentWorkspaceId);
+  }, [authLoading, currentWorkspaceId, hasWorkspace, memberships, membershipsLoaded, storedWorkspaceId, user]);
 
   useEffect(() => {
     if (!user || !membershipsQuery.isError) {
@@ -322,10 +308,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [membershipsQuery, membershipsQuery.error, membershipsQuery.isError, membershipsQuery.refetch, user]);
 
   const setCurrentWorkspaceId = useCallback((workspaceId: string) => {
-    if (!resolvedMemberships.some((membership) => membership.workspaceId === workspaceId)) {
+    if (!memberships.some((membership) => membership.workspaceId === workspaceId)) {
       console.warn(`${WORKSPACE_DEBUG_PREFIX} ignored invalid workspace switch attempt`, {
         requestedWorkspaceId: workspaceId,
-        validWorkspaceIds: resolvedMemberships.map((membership) => membership.workspaceId),
+        validWorkspaceIds: memberships.map((membership) => membership.workspaceId),
       });
       return;
     }
@@ -334,9 +320,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       previous: currentWorkspaceId,
       next: workspaceId,
     });
-    setCurrentWorkspaceIdState(workspaceId);
+    setStoredWorkspaceId(workspaceId);
     writeStoredWorkspaceId(workspaceId);
-  }, [currentWorkspaceId, resolvedMemberships]);
+  }, [currentWorkspaceId, memberships]);
 
   const refreshMemberships = useCallback(async () => {
     console.log(`${WORKSPACE_DEBUG_PREFIX} refreshing memberships`, { userId: user?.id ?? null });
@@ -431,7 +417,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           : [...currentMemberships, verifiedMembership],
       );
 
-      setCurrentWorkspaceIdState(data);
+      setStoredWorkspaceId(data);
       writeStoredWorkspaceId(data);
 
       await queryClient.invalidateQueries({ queryKey: getWorkspaceMembershipsQueryKey(user.id) });
@@ -446,24 +432,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [membershipsQuery, queryClient, user]);
 
-  const currentMembership = useMemo(
-    () => resolvedMemberships.find((membership) => membership.workspaceId === currentWorkspaceId) ?? null,
-    [currentWorkspaceId, resolvedMemberships],
-  );
-
   const value = useMemo<WorkspaceContextType>(() => ({
-    memberships: resolvedMemberships,
+    memberships,
     currentWorkspaceId,
     currentWorkspace: currentMembership?.workspace ?? null,
     currentMembership,
-    isLoading: authLoading || (!!user && (!membershipsReady || isCreatingWorkspace || (hasWorkspace && !currentWorkspaceId))),
-    isHydrated,
+    isLoading,
+    isHydrated: isResolved,
     isResolved,
     hasWorkspace,
     setCurrentWorkspaceId,
     refreshMemberships,
     createWorkspace,
-  }), [authLoading, createWorkspace, currentMembership, currentWorkspaceId, hasWorkspace, isCreatingWorkspace, isHydrated, isResolved, membershipsReady, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
+  }), [createWorkspace, currentMembership, currentWorkspaceId, hasWorkspace, isLoading, isResolved, memberships, refreshMemberships, setCurrentWorkspaceId]);
 
   return (
     <WorkspaceContext.Provider value={value}>
