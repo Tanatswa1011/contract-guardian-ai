@@ -45,7 +45,7 @@ const readStoredWorkspaceId = () => {
 };
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<string | null>(() => readStoredWorkspaceId());
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
