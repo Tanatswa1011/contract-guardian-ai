@@ -154,7 +154,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!contract?.id,
+    enabled: isHydrated && !!contract?.id,
   });
 
   const [formValues, setFormValues] = useState<ContractFormValues>(EMPTY_FORM_VALUES);
