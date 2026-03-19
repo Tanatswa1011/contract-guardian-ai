@@ -159,7 +159,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     setIsHydrated(true);
-  }, [currentWorkspaceId, isCreatingWorkspace, isLoading, resolvedMemberships, user]);
+  }, [authLoading, currentWorkspaceId, isCreatingWorkspace, isLoading, resolvedMemberships, user]);
 
   const setCurrentWorkspaceId = useCallback((workspaceId: string) => {
     if (!resolvedMemberships.some((membership) => membership.workspaceId === workspaceId)) {
