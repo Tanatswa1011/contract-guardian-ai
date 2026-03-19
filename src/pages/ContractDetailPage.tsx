@@ -78,6 +78,17 @@ export default function ContractDetailPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { currentWorkspaceId, isResolved } = useWorkspace();
+  const contractQueryEnabled = !!id && !!user && isResolved && !!currentWorkspaceId;
+
+  useEffect(() => {
+    console.log('[WorkspaceDebug] ContractDetailPage gate', {
+      contractId: id ?? null,
+      userId: user?.id ?? null,
+      isResolved,
+      currentWorkspaceId,
+      contractQueryEnabled,
+    });
+  }, [contractQueryEnabled, currentWorkspaceId, id, isResolved, user?.id]);
 
   const { data: contract, isLoading: contractLoading } = useQuery({
     queryKey: ['contract', id, user?.id, currentWorkspaceId],
@@ -95,7 +106,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!user && isResolved && !!currentWorkspaceId,
+    enabled: contractQueryEnabled,
   });
 
   const { data: dates = [], isLoading: datesLoading } = useQuery({

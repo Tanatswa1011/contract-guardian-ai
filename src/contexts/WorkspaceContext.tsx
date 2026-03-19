@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 const CURRENT_WORKSPACE_STORAGE_KEY = 'contractguardai.currentWorkspaceId';
+const WORKSPACE_DEBUG_PREFIX = '[WorkspaceDebug]';
 
 const getWorkspaceMembershipsQueryKey = (userId?: string) => ['workspace-memberships', userId] as const;
 
@@ -43,7 +44,12 @@ const readStoredWorkspaceId = () => {
     return null;
   }
 
-  return window.localStorage.getItem(CURRENT_WORKSPACE_STORAGE_KEY);
+  const workspaceId = window.localStorage.getItem(CURRENT_WORKSPACE_STORAGE_KEY);
+  console.log(`${WORKSPACE_DEBUG_PREFIX} localStorage read`, {
+    key: CURRENT_WORKSPACE_STORAGE_KEY,
+    workspaceId,
+  });
+  return workspaceId;
 };
 
 const writeStoredWorkspaceId = (workspaceId: string) => {
@@ -51,6 +57,10 @@ const writeStoredWorkspaceId = (workspaceId: string) => {
     return;
   }
 
+  console.log(`${WORKSPACE_DEBUG_PREFIX} localStorage write`, {
+    key: CURRENT_WORKSPACE_STORAGE_KEY,
+    workspaceId,
+  });
   window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, workspaceId);
 };
 
@@ -59,6 +69,9 @@ const clearStoredWorkspaceId = () => {
     return;
   }
 
+  console.log(`${WORKSPACE_DEBUG_PREFIX} localStorage remove`, {
+    key: CURRENT_WORKSPACE_STORAGE_KEY,
+  });
   window.localStorage.removeItem(CURRENT_WORKSPACE_STORAGE_KEY);
 };
 
@@ -69,23 +82,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  const {
-    data: memberships = [],
-    isLoading,
-    refetch,
-  } = useQuery({
+  const membershipsQuery = useQuery({
     queryKey: getWorkspaceMembershipsQueryKey(user?.id),
-    enabled: !!user,
+    enabled: !authLoading && !!user,
+    retry: 2,
     queryFn: async (): Promise<WorkspaceMembership[]> => {
       if (!user) {
-        console.log('[WorkspaceContext] memberships query skipped: no authenticated user');
+        console.log(`${WORKSPACE_DEBUG_PREFIX} memberships query skipped: no authenticated user`);
         return [];
       }
 
-      console.log('[WorkspaceContext] memberships query start', { userId: user.id });
+      console.log(`${WORKSPACE_DEBUG_PREFIX} memberships query start`, { userId: user.id });
 
-      await (supabase.rpc as any)('accept_my_pending_workspace_invites').catch((err: unknown) => {
-        console.error('[WorkspaceContext] failed to accept pending workspace invites', err);
+      await supabase.rpc('accept_my_pending_workspace_invites').catch((err: unknown) => {
+        console.error(`${WORKSPACE_DEBUG_PREFIX} failed to accept pending workspace invites`, err);
       });
 
       const { data: membershipRows, error: membershipError } = await supabase
@@ -95,18 +105,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         .order('created_at', { ascending: true });
 
       if (membershipError) {
-        console.error('[WorkspaceContext] memberships query failed', membershipError);
+        console.error(`${WORKSPACE_DEBUG_PREFIX} workspace_members query failed`, membershipError);
         throw membershipError;
       }
 
-      console.log('[WorkspaceContext] membership rows loaded', {
+      console.log(`${WORKSPACE_DEBUG_PREFIX} raw workspace_members query result`, {
         userId: user.id,
         count: membershipRows?.length ?? 0,
-        memberships: membershipRows,
+        rows: membershipRows ?? [],
       });
 
       if (!membershipRows?.length) {
-        console.log('[WorkspaceContext] no memberships found for user', { userId: user.id });
+        console.log(`${WORKSPACE_DEBUG_PREFIX} no memberships found for user`, { userId: user.id });
         return [];
       }
 
@@ -117,14 +127,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         .in('id', workspaceIds);
 
       if (workspaceError) {
-        console.error('[WorkspaceContext] workspaces query failed', workspaceError);
+        console.error(`${WORKSPACE_DEBUG_PREFIX} workspaces query failed`, workspaceError);
         throw workspaceError;
       }
 
-      console.log('[WorkspaceContext] workspace rows loaded', {
+      console.log(`${WORKSPACE_DEBUG_PREFIX} raw workspaces query result`, {
         userId: user.id,
         count: workspaceRows?.length ?? 0,
-        workspaces: workspaceRows,
+        rows: workspaceRows ?? [],
       });
 
       const workspacesById = new Map(
@@ -134,7 +144,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const nextMemberships = membershipRows.flatMap((membership) => {
         const workspace = workspacesById.get(membership.workspace_id);
         if (!workspace) {
-          console.warn('[WorkspaceContext] membership without matching workspace row', membership);
+          console.warn(`${WORKSPACE_DEBUG_PREFIX} membership without matching workspace row`, membership);
           return [];
         }
 
@@ -146,7 +156,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }];
       });
 
-      console.log('[WorkspaceContext] resolved memberships', {
+      console.log(`${WORKSPACE_DEBUG_PREFIX} resolved memberships`, {
         userId: user.id,
         count: nextMemberships.length,
         memberships: nextMemberships,
@@ -157,56 +167,96 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   });
 
   const resolvedMemberships = useMemo(
-    () => (user ? memberships : []),
-    [memberships, user],
+    () => (user ? (membershipsQuery.data ?? []) : []),
+    [membershipsQuery.data, user],
   );
 
   const hasWorkspace = resolvedMemberships.length > 0;
-  const isResolved = !authLoading && !isLoading && !isCreatingWorkspace && (!hasWorkspace || !!currentWorkspaceId);
+  const membershipsReady = !user || membershipsQuery.isSuccess;
+  const isResolved = !authLoading
+    && membershipsReady
+    && !isCreatingWorkspace
+    && (!hasWorkspace || !!currentWorkspaceId);
 
   useEffect(() => {
-    console.log('[WorkspaceContext] auth state', {
+    console.log(`${WORKSPACE_DEBUG_PREFIX} auth/loading state`, {
       authLoading,
+      membershipsReady,
+      membershipsQueryState: {
+        isLoading: membershipsQuery.isLoading,
+        isFetching: membershipsQuery.isFetching,
+        isSuccess: membershipsQuery.isSuccess,
+        isError: membershipsQuery.isError,
+      },
       userId: user?.id ?? null,
       currentWorkspaceId,
     });
-  }, [authLoading, currentWorkspaceId, user?.id]);
+  }, [
+    authLoading,
+    currentWorkspaceId,
+    membershipsQuery.isError,
+    membershipsQuery.isFetching,
+    membershipsQuery.isLoading,
+    membershipsQuery.isSuccess,
+    membershipsReady,
+    user?.id,
+  ]);
 
   useEffect(() => {
     if (authLoading) {
-      console.log('[WorkspaceContext] waiting for auth before restoring workspace');
+      console.log(`${WORKSPACE_DEBUG_PREFIX} waiting for auth before restoring workspace`);
       setIsHydrated(false);
       return;
     }
 
     if (!user) {
-      console.log('[WorkspaceContext] no authenticated user, clearing active workspace state');
+      console.log(`${WORKSPACE_DEBUG_PREFIX} no authenticated user, clearing workspace state`);
+      if (currentWorkspaceId !== null) {
+        console.log(`${WORKSPACE_DEBUG_PREFIX} clearing currentWorkspaceId because user is signed out`, {
+          previousWorkspaceId: currentWorkspaceId,
+        });
+      }
       setCurrentWorkspaceIdState(null);
       clearStoredWorkspaceId();
       setIsHydrated(true);
       return;
     }
 
-    if (isLoading || isCreatingWorkspace) {
-      console.log('[WorkspaceContext] waiting for workspace memberships to resolve', {
+    if (isCreatingWorkspace) {
+      console.log(`${WORKSPACE_DEBUG_PREFIX} waiting for createWorkspace flow to complete`, {
         userId: user.id,
-        isLoading,
-        isCreatingWorkspace,
       });
       setIsHydrated(false);
       return;
     }
 
+    if (!membershipsQuery.isSuccess) {
+      if (membershipsQuery.isError) {
+        console.error(`${WORKSPACE_DEBUG_PREFIX} waiting because memberships query failed`, membershipsQuery.error);
+      } else {
+        console.log(`${WORKSPACE_DEBUG_PREFIX} waiting for memberships query to resolve`, {
+          userId: user.id,
+          isLoading: membershipsQuery.isLoading,
+          isFetching: membershipsQuery.isFetching,
+        });
+      }
+      setIsHydrated(false);
+      return;
+    }
+
     const storedWorkspaceId = readStoredWorkspaceId();
-    console.log('[WorkspaceContext] stored workspace id read from localStorage', {
+    console.log(`${WORKSPACE_DEBUG_PREFIX} workspace selection inputs`, {
       userId: user.id,
       storedWorkspaceId,
       currentWorkspaceId,
       membershipCount: resolvedMemberships.length,
+      membershipWorkspaceIds: resolvedMemberships.map((membership) => membership.workspaceId),
     });
 
     if (resolvedMemberships.length === 0) {
-      console.log('[WorkspaceContext] redirect decision: no memberships after full resolution');
+      console.log(`${WORKSPACE_DEBUG_PREFIX} memberships resolved empty; marking no-workspace state`, {
+        userId: user.id,
+      });
       setCurrentWorkspaceIdState(null);
       clearStoredWorkspaceId();
       setIsHydrated(true);
@@ -215,11 +265,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     const validWorkspaceIds = new Set(resolvedMemberships.map((membership) => membership.workspaceId));
     const nextWorkspaceId =
-      (currentWorkspaceId && validWorkspaceIds.has(currentWorkspaceId) && currentWorkspaceId)
-      || (storedWorkspaceId && validWorkspaceIds.has(storedWorkspaceId) && storedWorkspaceId)
+      (storedWorkspaceId && validWorkspaceIds.has(storedWorkspaceId) && storedWorkspaceId)
       || resolvedMemberships[0].workspaceId;
 
-    console.log('[WorkspaceContext] resolved active workspace candidate', {
+    console.log(`${WORKSPACE_DEBUG_PREFIX} resolved currentWorkspaceId candidate`, {
       userId: user.id,
       storedWorkspaceId,
       currentWorkspaceId,
@@ -228,7 +277,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     });
 
     if (nextWorkspaceId !== currentWorkspaceId) {
-      console.log('[WorkspaceContext] updating currentWorkspaceId state', {
+      console.log(`${WORKSPACE_DEBUG_PREFIX} updating currentWorkspaceId state`, {
         previous: currentWorkspaceId,
         next: nextWorkspaceId,
       });
@@ -239,29 +288,49 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     writeStoredWorkspaceId(nextWorkspaceId);
-    console.log('[WorkspaceContext] active workspace fully restored', {
+    console.log(`${WORKSPACE_DEBUG_PREFIX} active workspace fully restored`, {
       userId: user.id,
       currentWorkspaceId: nextWorkspaceId,
     });
     setIsHydrated(true);
-  }, [authLoading, currentWorkspaceId, isCreatingWorkspace, isLoading, resolvedMemberships, user]);
+  }, [
+    authLoading,
+    currentWorkspaceId,
+    isCreatingWorkspace,
+    membershipsQuery.error,
+    membershipsQuery.isError,
+    membershipsQuery.isFetching,
+    membershipsQuery.isLoading,
+    membershipsQuery.isSuccess,
+    resolvedMemberships,
+    user,
+  ]);
 
   useEffect(() => {
-    if (!authLoading && !isLoading && !isCreatingWorkspace && (!hasWorkspace || !!currentWorkspaceId)) {
-      setIsHydrated(true);
+    if (!user || !membershipsQuery.isError) {
+      return;
     }
-  }, [authLoading, currentWorkspaceId, hasWorkspace, isCreatingWorkspace, isLoading]);
+
+    console.error(`${WORKSPACE_DEBUG_PREFIX} memberships query error, scheduling retry`, membershipsQuery.error);
+    const retryTimer = window.setTimeout(() => {
+      void membershipsQuery.refetch();
+    }, 1500);
+
+    return () => {
+      window.clearTimeout(retryTimer);
+    };
+  }, [membershipsQuery, membershipsQuery.error, membershipsQuery.isError, membershipsQuery.refetch, user]);
 
   const setCurrentWorkspaceId = useCallback((workspaceId: string) => {
     if (!resolvedMemberships.some((membership) => membership.workspaceId === workspaceId)) {
-      console.warn('[WorkspaceContext] ignored invalid workspace switch attempt', {
+      console.warn(`${WORKSPACE_DEBUG_PREFIX} ignored invalid workspace switch attempt`, {
         requestedWorkspaceId: workspaceId,
         validWorkspaceIds: resolvedMemberships.map((membership) => membership.workspaceId),
       });
       return;
     }
 
-    console.log('[WorkspaceContext] switching workspace', {
+    console.log(`${WORKSPACE_DEBUG_PREFIX} switching workspace`, {
       previous: currentWorkspaceId,
       next: workspaceId,
     });
@@ -270,10 +339,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [currentWorkspaceId, resolvedMemberships]);
 
   const refreshMemberships = useCallback(async () => {
-    console.log('[WorkspaceContext] refreshing memberships', { userId: user?.id ?? null });
+    console.log(`${WORKSPACE_DEBUG_PREFIX} refreshing memberships`, { userId: user?.id ?? null });
     await queryClient.invalidateQueries({ queryKey: getWorkspaceMembershipsQueryKey(user?.id) });
-    await refetch();
-  }, [queryClient, refetch, user?.id]);
+    await membershipsQuery.refetch();
+  }, [membershipsQuery, queryClient, user?.id]);
 
   const createWorkspace = useCallback(async (name: string) => {
     const trimmedName = name.trim();
@@ -286,18 +355,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     setIsCreatingWorkspace(true);
-    console.log('[WorkspaceContext] creating workspace', {
+    console.log(`${WORKSPACE_DEBUG_PREFIX} creating workspace`, {
       userId: user.id,
       workspaceName: trimmedName,
     });
 
     try {
-      const { data, error } = await (supabase.rpc as any)('create_workspace_with_owner', {
+      const { data, error } = await supabase.rpc('create_workspace_with_owner', {
         p_name: trimmedName,
       });
 
       if (error) {
-        console.error('[WorkspaceContext] create workspace RPC failed', error);
+        console.error(`${WORKSPACE_DEBUG_PREFIX} create workspace RPC failed`, error);
         throw error;
       }
 
@@ -305,43 +374,77 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         throw new Error('Workspace creation failed. Please try again.');
       }
 
-      const now = new Date().toISOString();
-      const optimisticMembership: WorkspaceMembership = {
-        workspaceId: data,
-        role: 'owner',
-        createdAt: now,
-        workspace: {
-          id: data,
-          name: trimmedName,
-          created_at: now,
-          created_by: user.id,
-          updated_at: now,
-        },
-      };
-
-      console.log('[WorkspaceContext] create workspace RPC succeeded', {
+      console.log(`${WORKSPACE_DEBUG_PREFIX} create workspace RPC succeeded`, {
         userId: user.id,
         workspaceId: data,
       });
+
+      const [
+        { data: workspaceRow, error: workspaceVerifyError },
+        { data: ownerMembershipRow, error: membershipVerifyError },
+      ] = await Promise.all([
+        supabase
+          .from('workspaces')
+          .select('id, name, created_at, created_by, updated_at')
+          .eq('id', data)
+          .maybeSingle(),
+        supabase
+          .from('workspace_members')
+          .select('workspace_id, user_id, role, created_at')
+          .eq('workspace_id', data)
+          .eq('user_id', user.id)
+          .eq('role', 'owner')
+          .maybeSingle(),
+      ]);
+
+      console.log(`${WORKSPACE_DEBUG_PREFIX} workspace creation persistence check`, {
+        workspaceId: data,
+        workspaceRow,
+        ownerMembershipRow,
+      });
+
+      if (workspaceVerifyError) {
+        console.error(`${WORKSPACE_DEBUG_PREFIX} workspace persistence verification failed`, workspaceVerifyError);
+        throw workspaceVerifyError;
+      }
+
+      if (membershipVerifyError) {
+        console.error(`${WORKSPACE_DEBUG_PREFIX} workspace member persistence verification failed`, membershipVerifyError);
+        throw membershipVerifyError;
+      }
+
+      if (!workspaceRow || !ownerMembershipRow) {
+        throw new Error('Workspace creation did not persist required workspace/member rows.');
+      }
+
+      const verifiedMembership: WorkspaceMembership = {
+        workspaceId: ownerMembershipRow.workspace_id,
+        role: ownerMembershipRow.role,
+        createdAt: ownerMembershipRow.created_at,
+        workspace: workspaceRow,
+      };
 
       queryClient.setQueryData<WorkspaceMembership[]>(
         getWorkspaceMembershipsQueryKey(user.id),
         (currentMemberships = []) => currentMemberships.some((membership) => membership.workspaceId === data)
           ? currentMemberships
-          : [...currentMemberships, optimisticMembership],
+          : [...currentMemberships, verifiedMembership],
       );
 
       setCurrentWorkspaceIdState(data);
       writeStoredWorkspaceId(data);
 
       await queryClient.invalidateQueries({ queryKey: getWorkspaceMembershipsQueryKey(user.id) });
-      await refetch();
+      await membershipsQuery.refetch();
 
       return data;
+    } catch (createError) {
+      console.error(`${WORKSPACE_DEBUG_PREFIX} createWorkspace failed`, createError);
+      throw createError;
     } finally {
       setIsCreatingWorkspace(false);
     }
-  }, [queryClient, refetch, user]);
+  }, [membershipsQuery, queryClient, user]);
 
   const currentMembership = useMemo(
     () => resolvedMemberships.find((membership) => membership.workspaceId === currentWorkspaceId) ?? null,
@@ -353,14 +456,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     currentWorkspaceId,
     currentWorkspace: currentMembership?.workspace ?? null,
     currentMembership,
-    isLoading: authLoading || (!!user && (isLoading || isCreatingWorkspace || (hasWorkspace && !currentWorkspaceId))),
+    isLoading: authLoading || (!!user && (!membershipsReady || isCreatingWorkspace || (hasWorkspace && !currentWorkspaceId))),
     isHydrated,
     isResolved,
     hasWorkspace,
     setCurrentWorkspaceId,
     refreshMemberships,
     createWorkspace,
-  }), [authLoading, createWorkspace, currentMembership, currentWorkspaceId, hasWorkspace, isCreatingWorkspace, isHydrated, isLoading, isResolved, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
+  }), [authLoading, createWorkspace, currentMembership, currentWorkspaceId, hasWorkspace, isCreatingWorkspace, isHydrated, isResolved, membershipsReady, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
 
   return (
     <WorkspaceContext.Provider value={value}>

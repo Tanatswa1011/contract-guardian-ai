@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Shield, LayoutDashboard, Upload, Settings, CreditCard, LogOut, Menu, X, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -19,7 +19,15 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { signOut } = useAuth();
-  const { isResolved: isWorkspaceResolved } = useWorkspace();
+  const { currentWorkspaceId, isResolved: isWorkspaceResolved } = useWorkspace();
+
+  useEffect(() => {
+    console.log('[WorkspaceDebug] AppLayout workspace gate', {
+      pathname: location.pathname,
+      isWorkspaceResolved,
+      currentWorkspaceId,
+    });
+  }, [currentWorkspaceId, isWorkspaceResolved, location.pathname]);
 
   const handleSignOut = async () => {
     await signOut();

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,17 @@ export default function UploadPage() {
   const { user } = useAuth();
   const { currentWorkspaceId, isResolved } = useWorkspace();
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Upload failed');
+  const workspaceReadyForUpload = !!user && isResolved && !!currentWorkspaceId;
+
+  useEffect(() => {
+    console.log('[WorkspaceDebug] UploadPage gate', {
+      userId: user?.id ?? null,
+      isResolved,
+      currentWorkspaceId,
+      workspaceReadyForUpload,
+      uploadState: state,
+    });
+  }, [currentWorkspaceId, isResolved, state, user?.id, workspaceReadyForUpload]);
 
   const extractionSuggestion = useMemo(
     () => (extractionSuggestionRaw ? parseExtractionSuggestion(extractionSuggestionRaw) : null),

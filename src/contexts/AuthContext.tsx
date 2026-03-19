@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialSessionResolvedRef = useRef(false);
 
   const navigate = useNavigate();
 
@@ -39,9 +40,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[AuthDebug] onAuthStateChange', {
+        event,
+        hasSession: !!session,
+        userId: session?.user?.id ?? null,
+        initialSessionResolved: initialSessionResolvedRef.current,
+      });
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
+      if (initialSessionResolvedRef.current) {
+        setLoading(false);
+      }
 
       // Redirect to /reset-password when a password recovery link is used
       if (event === 'PASSWORD_RECOVERY') {
@@ -51,14 +60,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('[AuthDebug] getSession failed', error);
+      }
+
+      console.log('[AuthDebug] getSession resolved', {
+        hasSession: !!session,
+        userId: session?.user?.id ?? null,
+      });
       setSession(session);
       setUser(session?.user ?? null);
+      initialSessionResolvedRef.current = true;
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    console.log('[AuthDebug] auth loading state', {
+      loading,
+      hasSession: !!session,
+      userId: user?.id ?? null,
+    });
+  }, [loading, session, user?.id]);
 
   const signUp = async (email: string, password: string, displayName: string, workspaceName?: string) => {
     const { error } = await supabase.auth.signUp({
