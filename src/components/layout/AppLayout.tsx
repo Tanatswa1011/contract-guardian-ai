@@ -103,7 +103,13 @@ export default function AppLayout() {
       {/* Main content */}
       <main className="flex-1 lg:ml-64 mt-14 lg:mt-0">
         <div className="mx-auto max-w-7xl p-4 md:p-8">
-          <Outlet />
+          {workspaceLoading ? (
+            <div className="flex items-center justify-center py-32">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </div>
       </main>
     </div>

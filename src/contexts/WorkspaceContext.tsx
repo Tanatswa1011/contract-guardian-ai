@@ -240,7 +240,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setCurrentWorkspaceId,
     refreshMemberships,
     createWorkspace,
-  }), [createWorkspace, currentMembership, currentWorkspaceId, isCreatingWorkspace, isLoading, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
+  }), [authLoading, createWorkspace, currentMembership, currentWorkspaceId, isCreatingWorkspace, isLoading, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
 
   return (
     <WorkspaceContext.Provider value={value}>

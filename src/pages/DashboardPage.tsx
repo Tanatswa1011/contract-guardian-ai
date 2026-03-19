@@ -78,8 +78,8 @@ export default function DashboardPage() {
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
+    enabled: !!user && !!currentWorkspaceId,
     queryFn: async () => {
-      if (!user || !currentWorkspaceId) return [];
 
       const { data: contractRows, error: contractError } = await supabase
         .from('contracts')
