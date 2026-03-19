@@ -140,7 +140,7 @@ export default function ContractDetailPage() {
       return data;
     },
     refetchInterval: (query) => query.state.data?.status === 'processing' ? 3000 : false,
-    enabled: !!contract?.id,
+    enabled: isHydrated && !!contract?.id,
   });
 
   const { data: notifications = [], isLoading: notificationsLoading } = useQuery({
