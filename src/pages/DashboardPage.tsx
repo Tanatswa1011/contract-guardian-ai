@@ -69,7 +69,7 @@ const getDaysUntilDate = (value: string) => {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { currentWorkspaceId } = useWorkspace();
+  const { currentWorkspaceId, isHydrated } = useWorkspace();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all');
@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
-    enabled: !!user && !!currentWorkspaceId,
+    enabled: !!user && isHydrated && !!currentWorkspaceId,
     queryFn: async () => {
 
       const { data: contractRows, error: contractError } = await supabase

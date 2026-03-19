@@ -47,7 +47,7 @@ export default function UploadPage() {
   const [savePending, setSavePending] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentWorkspaceId } = useWorkspace();
+  const { currentWorkspaceId, isHydrated } = useWorkspace();
   const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Upload failed');
 
   const extractionSuggestion = useMemo(
@@ -326,6 +326,14 @@ export default function UploadPage() {
     }
   };
 
+  if (!isHydrated) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -375,10 +383,10 @@ export default function UploadPage() {
               <Label>Counterparty (optional)</Label>
               <Input value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
             </div>
-            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title || !currentWorkspaceId}>
+            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title || !isHydrated || !currentWorkspaceId}>
               <Upload className="h-4 w-4" /> Upload Contract
             </Button>
-            {!currentWorkspaceId ? (
+            {isHydrated && !currentWorkspaceId ? (
               <p className="text-xs text-muted-foreground">
                 Select a workspace before uploading a contract.
               </p>

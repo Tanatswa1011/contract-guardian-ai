@@ -28,6 +28,7 @@ interface WorkspaceContextType {
   currentWorkspace: WorkspaceRecord | null;
   currentMembership: WorkspaceMembership | null;
   isLoading: boolean;
+  isHydrated: boolean;
   hasWorkspace: boolean;
   setCurrentWorkspaceId: (workspaceId: string) => void;
   refreshMemberships: () => Promise<void>;
@@ -49,6 +50,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<string | null>(() => readStoredWorkspaceId());
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const {
     data: memberships = [],
@@ -116,12 +118,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    if (authLoading) {
+      setIsHydrated(false);
+      return;
+    }
+
     if (!user) {
       setCurrentWorkspaceIdState(null);
+      setIsHydrated(true);
       return;
     }
 
     if (isLoading || isCreatingWorkspace) {
+      setIsHydrated(false);
       return;
     }
 
@@ -130,6 +139,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(CURRENT_WORKSPACE_STORAGE_KEY);
       }
+      setIsHydrated(true);
       return;
     }
 
@@ -147,7 +157,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(CURRENT_WORKSPACE_STORAGE_KEY, nextWorkspaceId);
     }
-  }, [currentWorkspaceId, isCreatingWorkspace, isLoading, resolvedMemberships, user]);
+
+    setIsHydrated(true);
+  }, [authLoading, currentWorkspaceId, isCreatingWorkspace, isLoading, resolvedMemberships, user]);
 
   const setCurrentWorkspaceId = useCallback((workspaceId: string) => {
     if (!resolvedMemberships.some((membership) => membership.workspaceId === workspaceId)) {
@@ -236,11 +248,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     currentWorkspace: currentMembership?.workspace ?? null,
     currentMembership,
     isLoading: authLoading || (!!user && (isLoading || isCreatingWorkspace)),
+    isHydrated,
     hasWorkspace: resolvedMemberships.length > 0,
     setCurrentWorkspaceId,
     refreshMemberships,
     createWorkspace,
-  }), [authLoading, createWorkspace, currentMembership, currentWorkspaceId, isCreatingWorkspace, isLoading, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
+  }), [authLoading, createWorkspace, currentMembership, currentWorkspaceId, isCreatingWorkspace, isHydrated, isLoading, refreshMemberships, resolvedMemberships, setCurrentWorkspaceId, user]);
 
   return (
     <WorkspaceContext.Provider value={value}>

@@ -77,7 +77,7 @@ export default function ContractDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { currentWorkspaceId } = useWorkspace();
+  const { currentWorkspaceId, isHydrated } = useWorkspace();
 
   const { data: contract, isLoading: contractLoading } = useQuery({
     queryKey: ['contract', id, user?.id, currentWorkspaceId],
@@ -95,7 +95,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!user && !!currentWorkspaceId,
+    enabled: !!id && !!user && isHydrated && !!currentWorkspaceId,
   });
 
   const { data: dates = [], isLoading: datesLoading } = useQuery({
@@ -140,7 +140,7 @@ export default function ContractDetailPage() {
       return data;
     },
     refetchInterval: (query) => query.state.data?.status === 'processing' ? 3000 : false,
-    enabled: !!contract?.id,
+    enabled: isHydrated && !!contract?.id,
   });
 
   const { data: notifications = [], isLoading: notificationsLoading } = useQuery({
@@ -154,7 +154,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!contract?.id,
+    enabled: isHydrated && !!contract?.id,
   });
 
   const [formValues, setFormValues] = useState<ContractFormValues>(EMPTY_FORM_VALUES);
@@ -508,7 +508,7 @@ export default function ContractDetailPage() {
     return next;
   }, [dates]);
 
-  if (contractLoading) {
+  if (!isHydrated || contractLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
