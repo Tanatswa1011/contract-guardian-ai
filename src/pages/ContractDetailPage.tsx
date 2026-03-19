@@ -77,7 +77,7 @@ export default function ContractDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { currentWorkspaceId, isHydrated } = useWorkspace();
+  const { currentWorkspaceId, isResolved } = useWorkspace();
 
   const { data: contract, isLoading: contractLoading } = useQuery({
     queryKey: ['contract', id, user?.id, currentWorkspaceId],
@@ -95,7 +95,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!user && isHydrated && !!currentWorkspaceId,
+    enabled: !!id && !!user && isResolved && !!currentWorkspaceId,
   });
 
   const { data: dates = [], isLoading: datesLoading } = useQuery({
@@ -109,7 +109,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!contract?.id,
+    enabled: isResolved && !!contract?.id && !!currentWorkspaceId,
   });
 
   const { data: files = [], isLoading: filesLoading } = useQuery({
@@ -123,7 +123,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!contract?.id,
+    enabled: isResolved && !!contract?.id && !!currentWorkspaceId,
   });
 
   const { data: extraction, isLoading: extractionLoading } = useQuery({
@@ -140,7 +140,7 @@ export default function ContractDetailPage() {
       return data;
     },
     refetchInterval: (query) => query.state.data?.status === 'processing' ? 3000 : false,
-    enabled: isHydrated && !!contract?.id,
+    enabled: isResolved && !!contract?.id && !!currentWorkspaceId,
   });
 
   const { data: notifications = [], isLoading: notificationsLoading } = useQuery({
@@ -154,7 +154,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
-    enabled: isHydrated && !!contract?.id,
+    enabled: isResolved && !!contract?.id && !!currentWorkspaceId,
   });
 
   const [formValues, setFormValues] = useState<ContractFormValues>(EMPTY_FORM_VALUES);

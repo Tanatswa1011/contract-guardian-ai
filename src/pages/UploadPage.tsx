@@ -383,10 +383,10 @@ export default function UploadPage() {
               <Label>Counterparty (optional)</Label>
               <Input value={counterparty} onChange={e => setCounterparty(e.target.value)} placeholder="e.g., Acme Corp" />
             </div>
-            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title || !isHydrated || !currentWorkspaceId}>
+            <Button onClick={handleUpload} className="w-full gap-2" disabled={!title || !isResolved || !currentWorkspaceId}>
               <Upload className="h-4 w-4" /> Upload Contract
             </Button>
-            {isHydrated && !currentWorkspaceId ? (
+            {isResolved && !currentWorkspaceId ? (
               <p className="text-xs text-muted-foreground">
                 Select a workspace before uploading a contract.
               </p>

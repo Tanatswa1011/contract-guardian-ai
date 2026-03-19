@@ -19,7 +19,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { signOut } = useAuth();
-  const { isHydrated: isWorkspaceHydrated } = useWorkspace();
+  const { isResolved: isWorkspaceResolved } = useWorkspace();
 
   const handleSignOut = async () => {
     await signOut();
@@ -92,7 +92,7 @@ export default function AppLayout() {
                 {item.label}
               </Link>
             ))}
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground mt-2" onClick={handleSignOut}>
+            <Button variant="ghost" size="sm" className="mt-2 w-full justify-start gap-2 text-muted-foreground" onClick={handleSignOut}>
               <LogOut className="h-4 w-4" />
               Sign Out
             </Button>
@@ -101,9 +101,9 @@ export default function AppLayout() {
       </div>
 
       {/* Main content */}
-      <main className="flex-1 lg:ml-64 mt-14 lg:mt-0">
+      <main className="mt-14 flex-1 lg:ml-64 lg:mt-0">
         <div className="mx-auto max-w-7xl p-4 md:p-8">
-          {!isWorkspaceHydrated ? (
+          {!isWorkspaceResolved ? (
             <div className="flex items-center justify-center py-32">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

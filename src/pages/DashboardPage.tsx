@@ -69,7 +69,7 @@ const getDaysUntilDate = (value: string) => {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { currentWorkspaceId, isHydrated } = useWorkspace();
+  const { currentWorkspaceId, isResolved } = useWorkspace();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all');
@@ -78,9 +78,8 @@ export default function DashboardPage() {
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
-    enabled: !!user && isHydrated && !!currentWorkspaceId,
+    enabled: !!user && isResolved && !!currentWorkspaceId,
     queryFn: async () => {
-
       const { data: contractRows, error: contractError } = await supabase
         .from('contracts')
         .select('id, title, counterparty, created_at, updated_at, start_date, end_date, status, user_id, workspace_id')
@@ -177,7 +176,7 @@ export default function DashboardPage() {
     },
   });
 
-  if (isLoading) {
+  if (!isResolved || isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
