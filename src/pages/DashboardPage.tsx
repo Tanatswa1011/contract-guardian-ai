@@ -175,7 +175,6 @@ export default function DashboardPage() {
         };
       });
     },
-    enabled: !!user && !!currentWorkspaceId,
   });
 
   if (isLoading) {
