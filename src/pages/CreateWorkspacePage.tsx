@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Loader2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export default function CreateWorkspacePage() {
   const navigate = useNavigate();
-  const { createWorkspace, hasWorkspace, isLoading } = useWorkspace();
+  const { createWorkspace, hasWorkspace, isResolved, memberships, currentWorkspaceId } = useWorkspace();
   const [workspaceName, setWorkspaceName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -21,6 +21,7 @@ export default function CreateWorkspacePage() {
       setIsSubmitting(true);
       await createWorkspace(workspaceName);
       toast.success('Workspace created successfully.');
+      console.log('[WorkspaceDebug] CreateWorkspacePage redirecting to /app after workspace creation');
       navigate('/app', { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to create workspace.';
@@ -30,7 +31,11 @@ export default function CreateWorkspacePage() {
     }
   };
 
-  if (isLoading) {
+  if (!isResolved) {
+    console.log('[WorkspaceDebug] CreateWorkspacePage waiting for workspace resolution', {
+      membershipCount: memberships.length,
+      currentWorkspaceId,
+    });
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -38,8 +43,11 @@ export default function CreateWorkspacePage() {
     );
   }
 
-  // If user already has a workspace, send them to the dashboard
   if (hasWorkspace) {
+    console.log('[WorkspaceDebug] CreateWorkspacePage redirecting to /app because workspace already exists', {
+      membershipCount: memberships.length,
+      currentWorkspaceId,
+    });
     return <Navigate to="/app" replace />;
   }
 
