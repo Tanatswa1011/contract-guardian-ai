@@ -95,7 +95,7 @@ export default function ContractDetailPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!user && !!currentWorkspaceId,
+    enabled: !!id && !!user && isHydrated && !!currentWorkspaceId,
   });
 
   const { data: dates = [], isLoading: datesLoading } = useQuery({
