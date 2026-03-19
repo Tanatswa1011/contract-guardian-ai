@@ -9,7 +9,7 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import PublicLayout from "@/components/layout/PublicLayout";
 import AppLayout from "@/components/layout/AppLayout";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
-// RequireWorkspace removed — workspace is created at signup
+import RequireWorkspace from "@/components/layout/RequireWorkspace";
 import LandingPage from "@/pages/LandingPage";
 import PricingPage from "@/pages/PricingPage";
 import LoginPage from "@/pages/LoginPage";
@@ -17,7 +17,7 @@ import SignupPage from "@/pages/SignupPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
-// CreateWorkspacePage removed from onboarding — workspace created at signup
+import CreateWorkspacePage from "@/pages/CreateWorkspacePage";
 import DashboardPage from "@/pages/DashboardPage";
 import UploadPage from "@/pages/UploadPage";
 import ContractDetailPage from "@/pages/ContractDetailPage";
@@ -48,6 +48,9 @@ const App = () => (
                 </Route>
 
                 <Route element={<ProtectedRoute />}>
+                  <Route path="/create-workspace" element={<CreateWorkspacePage />} />
+
+                  <Route element={<RequireWorkspace />}>
                     <Route element={<AppLayout />}>
                       <Route path="/app" element={<DashboardPage />} />
                       <Route path="/app/upload" element={<UploadPage />} />
@@ -55,6 +58,7 @@ const App = () => (
                       <Route path="/app/settings" element={<SettingsPage />} />
                       <Route path="/app/billing" element={<BillingPage />} />
                     </Route>
+                  </Route>
                 </Route>
 
                 <Route path="*" element={<NotFound />} />

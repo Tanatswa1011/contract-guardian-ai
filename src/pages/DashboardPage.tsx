@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { StatusBadge } from '@/components/StatusBadge';
 import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -75,10 +75,20 @@ export default function DashboardPage() {
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const dashboardQueryEnabled = !!user && isResolved && !!currentWorkspaceId;
+
+  useEffect(() => {
+    console.log('[WorkspaceDebug] DashboardPage query gate', {
+      userId: user?.id ?? null,
+      isResolved,
+      currentWorkspaceId,
+      enabled: dashboardQueryEnabled,
+    });
+  }, [currentWorkspaceId, dashboardQueryEnabled, isResolved, user?.id]);
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
-    enabled: !!user && isResolved && !!currentWorkspaceId,
+    enabled: dashboardQueryEnabled,
     queryFn: async () => {
       const { data: contractRows, error: contractError } = await supabase
         .from('contracts')

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -10,9 +10,19 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export default function CreateWorkspacePage() {
   const navigate = useNavigate();
-  const { createWorkspace, hasWorkspace, isLoading } = useWorkspace();
+  const { createWorkspace, hasWorkspace, isLoading, isResolved, currentWorkspaceId, memberships } = useWorkspace();
   const [workspaceName, setWorkspaceName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    console.log('[WorkspaceDebug] CreateWorkspacePage state', {
+      isLoading,
+      isResolved,
+      hasWorkspace,
+      currentWorkspaceId,
+      membershipCount: memberships.length,
+    });
+  }, [currentWorkspaceId, hasWorkspace, isLoading, isResolved, memberships.length]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -30,17 +40,12 @@ export default function CreateWorkspacePage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !isResolved) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  // If user already has a workspace, send them to the dashboard
-  if (hasWorkspace) {
-    return <Navigate to="/app" replace />;
   }
 
   return (
@@ -53,7 +58,9 @@ export default function CreateWorkspacePage() {
           </div>
           <CardTitle className="text-2xl font-semibold">Create a workspace</CardTitle>
           <CardDescription>
-            Create your first workspace to start uploading and tracking contracts.
+            {hasWorkspace
+              ? 'Start a new workspace without changing your existing one.'
+              : 'Create your first workspace to start uploading and tracking contracts.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -75,6 +82,13 @@ export default function CreateWorkspacePage() {
               Create Workspace
             </Button>
           </form>
+          {hasWorkspace ? (
+            <div className="mt-6 text-center">
+              <Link to="/app">
+                <Button variant="ghost" size="sm">Back to app</Button>
+              </Link>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>
