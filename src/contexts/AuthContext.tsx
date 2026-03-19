@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
         if (error) {
-          console.error('Code exchange failed:', error.message);
+          console.error('[AuthDebug] Code exchange failed:', error.message);
         }
         // Clean the URL
         const url = new URL(window.location.href);
@@ -39,6 +39,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[AuthDebug] onAuthStateChange', {
+        event,
+        userId: session?.user?.id ?? null,
+        hasAccessToken: !!session?.access_token,
+        expiresAt: session?.expires_at ?? null,
+      });
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -52,6 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('[AuthDebug] getSession resolved', {
+        userId: session?.user?.id ?? null,
+        hasAccessToken: !!session?.access_token,
+        expiresAt: session?.expires_at ?? null,
+      });
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);

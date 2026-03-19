@@ -10,9 +10,11 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export default function CreateWorkspacePage() {
   const navigate = useNavigate();
-  const { createWorkspace, hasWorkspace, isLoading } = useWorkspace();
+  const { createWorkspace, hasWorkspace, isLoading, isResolved } = useWorkspace();
   const [workspaceName, setWorkspaceName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  console.log('[CreateWorkspacePage] render', { hasWorkspace, isLoading, isResolved });
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -30,7 +32,7 @@ export default function CreateWorkspacePage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !isResolved) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -40,6 +42,7 @@ export default function CreateWorkspacePage() {
 
   // If user already has a workspace, send them to the dashboard
   if (hasWorkspace) {
+    console.log('[CreateWorkspacePage] user already has workspace, redirecting to /app');
     return <Navigate to="/app" replace />;
   }
 
