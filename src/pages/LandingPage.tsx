@@ -58,46 +58,17 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Credibility */}
-      <section className="pb-16 pt-0 md:pb-24">
-        <div className="container max-w-3xl mx-auto text-center">
-          <h2 className="text-lg font-medium text-foreground mb-2">Built for real contract workflows</h2>
+      {/* Product Preview */}
+      <section className="pb-20 pt-0 md:pb-28">
+        <div className="container max-w-5xl mx-auto text-center">
+          <h2 className="text-lg font-medium text-foreground mb-2">Portfolio view for every renewal, risk, and notice</h2>
           <p className="text-sm text-muted-foreground mb-8">Track deadlines, risks, and renewals in one place</p>
-          <div className="mx-auto max-w-2xl rounded-xl border bg-muted/50 p-3 shadow-sm">
-            <div className="rounded-lg border bg-card p-4 md:p-6 space-y-3">
-              <div className="flex items-center gap-3 text-left">
-                <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                  <Shield className="h-4 w-4 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">SaaS Vendor Agreement — Acme Corp</p>
-                  <p className="text-xs text-muted-foreground">Renewal in 14 days · Notice period ends in 7 days</p>
-                </div>
-                <span className="ml-auto shrink-0 rounded-full bg-destructive/10 text-destructive text-xs font-medium px-2.5 py-0.5">Action needed</span>
-              </div>
-              <div className="h-px bg-border" />
-              <div className="flex items-center gap-3 text-left">
-                <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                  <CheckCircle className="h-4 w-4 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">Office Lease — 123 Main St</p>
-                  <p className="text-xs text-muted-foreground">Next payment Apr 1 · All deadlines tracked</p>
-                </div>
-                <span className="ml-auto shrink-0 rounded-full bg-green-500/10 text-green-600 text-xs font-medium px-2.5 py-0.5">Healthy</span>
-              </div>
-              <div className="h-px bg-border" />
-              <div className="flex items-center gap-3 text-left">
-                <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                  <Bell className="h-4 w-4 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">Cloud Infrastructure SOW — DataHost</p>
-                  <p className="text-xs text-muted-foreground">Reminder set · 30 days before renewal</p>
-                </div>
-                <span className="ml-auto shrink-0 rounded-full bg-muted text-muted-foreground text-xs font-medium px-2.5 py-0.5">Monitored</span>
-              </div>
-            </div>
+          <div className="mx-auto rounded-xl border bg-muted/30 p-2 shadow-lg">
+            <img
+              src={dashboardPreview}
+              alt="ContractGuardAI dashboard showing contract tracking with deadlines, status badges, and renewal dates"
+              className="w-full rounded-lg"
+            />
           </div>
         </div>
       </section>
