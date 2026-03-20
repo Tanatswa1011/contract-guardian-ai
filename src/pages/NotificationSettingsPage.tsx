@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Mail, MessageSquare, Loader2, Play, Hash, Send } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Mail, MessageSquare, Loader2, Play, Hash, Send, HelpCircle, ExternalLink, ChevronDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -475,6 +476,38 @@ function SlackSettingsCard({ profile }: { profile: any }) {
             Send Test
           </Button>
         </div>
+
+        <Collapsible>
+          <CollapsibleTrigger asChild>
+            <button className="group flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <HelpCircle className="h-3.5 w-3.5" />
+              <span>How to set up Slack</span>
+              <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="mt-3 rounded-md border bg-muted/40 p-4 space-y-1">
+              <p className="text-xs text-muted-foreground mb-3">Need help finding your webhook URL? Follow these steps.</p>
+              <ol className="list-decimal list-inside space-y-2 text-sm text-foreground/90">
+                <li>
+                  Go to{' '}
+                  <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground inline-flex items-center gap-0.5">
+                    api.slack.com/apps <ExternalLink className="h-3 w-3 inline" />
+                  </a>
+                </li>
+                <li>Click <strong>Create New App</strong> → choose <strong>From scratch</strong></li>
+                <li>Name it something like <code className="text-xs bg-muted px-1 py-0.5 rounded">ContractGuardAI</code></li>
+                <li>Select the Slack workspace where you want reminders sent</li>
+                <li>Open <strong>Incoming Webhooks</strong> in the sidebar and switch it <strong>On</strong></li>
+                <li>Click <strong>Add New Webhook to Workspace</strong></li>
+                <li>Choose a channel (e.g. <code className="text-xs bg-muted px-1 py-0.5 rounded">#contracts</code>)</li>
+                <li>Copy the generated webhook URL</li>
+                <li>Paste it into the <strong>Slack Webhook URL</strong> field above</li>
+                <li>Click <strong>Send Test</strong> to confirm it works</li>
+              </ol>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
     </Card>
   );
