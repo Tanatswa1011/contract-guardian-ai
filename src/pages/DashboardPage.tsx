@@ -80,14 +80,6 @@ export default function DashboardPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const dashboardQueryEnabled = !!user && isResolved && !!currentWorkspaceId;
 
-  useEffect(() => {
-    console.log('[WorkspaceDebug] DashboardPage gate', {
-      userId: user?.id ?? null,
-      isResolved,
-      currentWorkspaceId,
-      queryEnabled: dashboardQueryEnabled,
-    });
-  }, [currentWorkspaceId, dashboardQueryEnabled, isResolved, user?.id]);
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],
