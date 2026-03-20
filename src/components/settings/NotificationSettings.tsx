@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, Loader2, Play } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { MessageSquare, Loader2, Play, Hash, Send } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -236,7 +237,9 @@ export default function NotificationSettings() {
         </CardContent>
       </Card>
 
-      {['Slack', 'Telegram', 'WhatsApp'].map(channel => (
+      <SlackSettingsCard />
+
+      {['Telegram', 'WhatsApp'].map(channel => (
         <Card key={channel} className="bg-muted/30">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -257,6 +260,169 @@ export default function NotificationSettings() {
 
       <ReminderTestCard />
     </div>
+  );
+}
+
+function SlackSettingsCard() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [urlError, setUrlError] = useState('');
+  const [testLoading, setTestLoading] = useState(false);
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('slack_webhook_url, slack_enabled')
+        .eq('user_id', user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  useEffect(() => {
+    if (profile?.slack_webhook_url) {
+      setWebhookUrl(profile.slack_webhook_url);
+    }
+  }, [profile]);
+
+  const isValidWebhookUrl = (url: string) => {
+    try {
+      new URL(url);
+      return url.startsWith('https://hooks.slack.com/');
+    } catch {
+      return false;
+    }
+  };
+
+  const saveWebhook = useMutation({
+    mutationFn: async () => {
+      const trimmed = webhookUrl.trim();
+      if (!trimmed) {
+        throw new Error('Please enter a Slack webhook URL');
+      }
+      if (!isValidWebhookUrl(trimmed)) {
+        throw new Error('Please enter a valid Slack webhook URL');
+      }
+      const { error } = await supabase
+        .from('profiles')
+        .update({ slack_webhook_url: trimmed })
+        .eq('user_id', user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setUrlError('');
+      toast.success('Slack webhook URL saved');
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+    onError: (e) => {
+      setUrlError(e.message);
+    },
+  });
+
+  const toggleSlack = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      if (enabled && !profile?.slack_webhook_url && !isValidWebhookUrl(webhookUrl.trim())) {
+        throw new Error('Save a valid webhook URL first');
+      }
+      const { error } = await supabase
+        .from('profiles')
+        .update({ slack_enabled: enabled })
+        .eq('user_id', user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      toast.success('Slack notifications updated');
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleTest = async () => {
+    const url = webhookUrl.trim() || profile?.slack_webhook_url;
+    if (!url || !isValidWebhookUrl(url)) {
+      toast.error('Save a valid webhook URL first');
+      return;
+    }
+    setTestLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-slack-test', {
+        body: { webhook_url: url },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success('Test message sent to Slack!');
+      } else {
+        toast.error(data?.error || 'Failed to send test message');
+      }
+    } catch (e: unknown) {
+      toast.error(`Slack test failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center border bg-muted">
+              <Hash className="h-5 w-5 text-foreground" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Slack Notifications</CardTitle>
+              <CardDescription>Receive contract reminders in Slack via webhook</CardDescription>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="normal-case text-xs tracking-normal">Pro</Badge>
+            <Switch
+              checked={profile?.slack_enabled ?? false}
+              onCheckedChange={checked => toggleSlack.mutate(checked)}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label>Slack Webhook URL</Label>
+          <Input
+            value={webhookUrl}
+            onChange={e => {
+              setWebhookUrl(e.target.value);
+              setUrlError('');
+            }}
+            placeholder="https://hooks.slack.com/services/..."
+          />
+          {urlError && <p className="text-xs text-destructive">{urlError}</p>}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => saveWebhook.mutate()}
+            disabled={saveWebhook.isPending || webhookUrl.trim() === (profile?.slack_webhook_url ?? '')}
+          >
+            {saveWebhook.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Save Webhook
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTest}
+            disabled={testLoading}
+          >
+            {testLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+            Send Test
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

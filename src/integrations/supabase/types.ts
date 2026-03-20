@@ -504,6 +504,8 @@ export type Database = {
           created_at: string
           display_name: string | null
           notification_email: string | null
+          slack_enabled: boolean
+          slack_webhook_url: string | null
           timezone: string
           updated_at: string
           user_id: string
@@ -512,6 +514,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           notification_email?: string | null
+          slack_enabled?: boolean
+          slack_webhook_url?: string | null
           timezone?: string
           updated_at?: string
           user_id: string
@@ -520,6 +524,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           notification_email?: string | null
+          slack_enabled?: boolean
+          slack_webhook_url?: string | null
           timezone?: string
           updated_at?: string
           user_id?: string
