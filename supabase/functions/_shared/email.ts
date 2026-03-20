@@ -222,14 +222,17 @@ export async function sendGeneralNotificationEmail(params: {
   actionLink?: string;
   actionText?: string;
 }): Promise<EmailResult> {
+  const subject = escapeHtml(params.subject);
+  const message = escapeHtml(params.message);
+
   let ctaHtml = "";
   if (params.actionLink) {
     ctaHtml = ctaButton(params.actionLink, params.actionText || "View Details");
   }
 
   const html = layout(`
-    <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">${params.subject}</h2>
-    <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6">${params.message}</p>
+    <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">${subject}</h2>
+    <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6">${message}</p>
     ${ctaHtml}
   `);
 
