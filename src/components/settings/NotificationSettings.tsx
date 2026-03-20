@@ -2,12 +2,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { MessageSquare, Loader2, Play } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const DEFAULT_RULES = [
   { offset_value: 30, offset_unit: 'day', label: '30 days before deadline' },
@@ -19,6 +20,8 @@ const DEFAULT_RULES = [
 export default function NotificationSettings() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [customDays, setCustomDays] = useState('');
+  const [customError, setCustomError] = useState('');
 
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ['reminder-rules'],
@@ -27,16 +30,24 @@ export default function NotificationSettings() {
         .from('reminder_rules')
         .select('*')
         .eq('user_id', user!.id)
-        .eq('scope', 'user');
+        .in('scope', ['user', 'user_custom']);
       if (error) throw error;
       return data;
     },
     enabled: !!user,
   });
 
+  const customRule = rules.find(r => r.scope === 'user_custom');
+
+  useEffect(() => {
+    if (customRule) {
+      setCustomDays(String(customRule.offset_value));
+    }
+  }, [customRule]);
+
   const toggleRule = useMutation({
     mutationFn: async ({ offsetValue, offsetUnit, enabled }: { offsetValue: number; offsetUnit: string; enabled: boolean }) => {
-      const existing = rules.find(r => r.offset_value === offsetValue && r.offset_unit === offsetUnit);
+      const existing = rules.find(r => r.scope === 'user' && r.offset_value === offsetValue && r.offset_unit === offsetUnit);
       if (existing) {
         const { error } = await supabase
           .from('reminder_rules')
@@ -65,8 +76,85 @@ export default function NotificationSettings() {
     onError: () => toast.error('Failed to update rule'),
   });
 
+  const toggleCustom = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      if (customRule) {
+        const { error } = await supabase
+          .from('reminder_rules')
+          .update({ enabled })
+          .eq('id', customRule.id);
+        if (error) throw error;
+      } else {
+        const days = parseInt(customDays, 10);
+        if (isNaN(days) || days < 0) return;
+        const { error } = await supabase
+          .from('reminder_rules')
+          .insert({
+            user_id: user!.id,
+            scope: 'user_custom',
+            date_type: 'all',
+            offset_value: days,
+            offset_unit: 'day',
+            channel: 'email',
+            enabled,
+          });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reminder-rules'] });
+      toast.success('Custom reminder updated');
+    },
+    onError: () => toast.error('Failed to update custom reminder'),
+  });
+
+  const saveCustomDays = useMutation({
+    mutationFn: async (days: number) => {
+      if (customRule) {
+        const { error } = await supabase
+          .from('reminder_rules')
+          .update({ offset_value: days })
+          .eq('id', customRule.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('reminder_rules')
+          .insert({
+            user_id: user!.id,
+            scope: 'user_custom',
+            date_type: 'all',
+            offset_value: days,
+            offset_unit: 'day',
+            channel: 'email',
+            enabled: true,
+          });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reminder-rules'] });
+      toast.success('Custom reminder saved');
+    },
+    onError: () => toast.error('Failed to save custom reminder'),
+  });
+
+  const validateAndSaveCustom = () => {
+    const trimmed = customDays.trim();
+    if (trimmed === '') {
+      setCustomError('Enter a number of days');
+      return;
+    }
+    const num = Number(trimmed);
+    if (!Number.isInteger(num) || num < 0) {
+      setCustomError('Enter a whole number ≥ 0');
+      return;
+    }
+    setCustomError('');
+    saveCustomDays.mutate(num);
+  };
+
   const isRuleEnabled = (offsetValue: number, offsetUnit: string) => {
-    const rule = rules.find(r => r.offset_value === offsetValue && r.offset_unit === offsetUnit);
+    const rule = rules.find(r => r.scope === 'user' && r.offset_value === offsetValue && r.offset_unit === offsetUnit);
     return rule ? rule.enabled : false;
   };
 
@@ -98,6 +186,52 @@ export default function NotificationSettings() {
                 />
               </div>
             ))}
+
+            <div className="border-t pt-4 mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Custom reminder</p>
+                  <p className="text-xs text-muted-foreground">Choose your own number of days before the deadline.</p>
+                </div>
+                <Switch
+                  checked={customRule?.enabled ?? false}
+                  onCheckedChange={checked => toggleCustom.mutate(checked)}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Enter days"
+                  value={customDays}
+                  onChange={e => {
+                    setCustomDays(e.target.value);
+                    setCustomError('');
+                  }}
+                  className="w-28"
+                />
+                <span className="text-sm text-muted-foreground">days before deadline</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={validateAndSaveCustom}
+                  disabled={saveCustomDays.isPending || customDays === String(customRule?.offset_value ?? '')}
+                >
+                  {saveCustomDays.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                  Save
+                </Button>
+              </div>
+
+              {customError && <p className="text-xs text-destructive">{customError}</p>}
+
+              {customRule?.enabled && customRule.offset_value != null && (
+                <p className="text-xs text-muted-foreground italic">
+                  Custom reminder will be sent {customRule.offset_value} day{customRule.offset_value !== 1 ? 's' : ''} before deadline
+                </p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
