@@ -388,6 +388,7 @@ function SlackSettingsCard() {
             <Switch
               checked={profile?.slack_enabled ?? false}
               onCheckedChange={checked => toggleSlack.mutate(checked)}
+              disabled={!planAllowsSlack}
             />
           </div>
         </div>
