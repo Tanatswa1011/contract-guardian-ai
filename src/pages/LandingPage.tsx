@@ -20,6 +20,7 @@ const features = [
   { title: 'Email Alerts', desc: 'Customizable reminder schedules so you never miss a critical deadline.' },
   { title: 'Contract Health', desc: 'At-a-glance health badges show which contracts need your attention now.' },
   { title: 'Secure Storage', desc: 'All contracts stored securely with encryption at rest and in transit.' },
+  { title: 'GDPR Compliant', desc: 'Your data stays yours. Built with privacy by design and full GDPR compliance.' },
 ];
 
 
