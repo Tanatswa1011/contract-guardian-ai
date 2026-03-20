@@ -8,6 +8,7 @@ import { Shield, Loader2, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Separator } from '@/components/ui/separator';
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
