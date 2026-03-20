@@ -7,6 +7,7 @@ import { Shield, Loader2, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { validatePassword, PASSWORD_HINT } from '@/lib/passwordValidation';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
