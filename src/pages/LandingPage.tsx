@@ -112,10 +112,10 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="border-y bg-muted py-20">
+      <section id="pricing" className="border-y bg-muted py-24">
         <div className="container max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">Pricing</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Simple plans for growing teams.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-center mb-3">Pricing</h2>
+          <p className="text-center text-muted-foreground/80 mb-14 max-w-lg mx-auto">Simple plans for growing teams.</p>
           <PricingCards
             onWaitlistClick={() => setWaitlistOpen(true)}
             onEnterpriseClick={() => setEnterpriseOpen(true)}
