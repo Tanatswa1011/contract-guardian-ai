@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight, Star } from 'lucide-react';
+import PricingCards from '@/components/PricingCards';
+import WaitlistModal from '@/components/WaitlistModal';
+import EnterpriseInquiryModal from '@/components/EnterpriseInquiryModal';
 
 const steps = [
   { icon: Upload, title: 'Upload Your Contract', desc: 'Drag and drop any PDF contract. We support agreements, leases, and SOWs.' },
@@ -25,6 +29,9 @@ const testimonials = [
 ];
 
 export default function LandingPage() {
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
+  const [enterpriseOpen, setEnterpriseOpen] = useState(false);
+
   return (
     <div>
       {/* Hero */}
@@ -98,8 +105,20 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing */}
+      <section id="pricing" className="border-y bg-muted py-20">
+        <div className="container max-w-5xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-4">Pricing</h2>
+          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Simple plans for growing teams.</p>
+          <PricingCards
+            onWaitlistClick={() => setWaitlistOpen(true)}
+            onEnterpriseClick={() => setEnterpriseOpen(true)}
+          />
+        </div>
+      </section>
+
       {/* Testimonials */}
-      <section className="border-y bg-muted py-20">
+      <section className="py-20">
         <div className="container">
           <h2 className="text-3xl font-bold text-center mb-12">Loved by Teams Everywhere</h2>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -124,7 +143,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20">
+      <section className="border-t bg-muted py-20">
         <div className="container text-center max-w-2xl mx-auto">
           <h2 className="text-3xl font-bold mb-4">Ready to Protect Your Contracts?</h2>
           <p className="text-muted-foreground mb-8">Join hundreds of businesses that trust ContractGuardAI to track their critical deadlines.</p>
@@ -135,6 +154,9 @@ export default function LandingPage() {
           </Link>
         </div>
       </section>
+
+      <WaitlistModal open={waitlistOpen} onOpenChange={setWaitlistOpen} source="landing_page" />
+      <EnterpriseInquiryModal open={enterpriseOpen} onOpenChange={setEnterpriseOpen} source="landing_page" />
     </div>
   );
 }
