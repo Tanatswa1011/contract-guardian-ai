@@ -522,33 +522,47 @@ function SlackSettingsCard({ profile }: { profile: any }) {
 
 function ReminderTestButton() {
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   const handleTest = async () => {
+    if (!user?.email) {
+      toast.error('No email address found on your account.');
+      return;
+    }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-contract-reminders');
+      const { data, error } = await supabase.functions.invoke('send-notification-email', {
+        body: {
+          type: 'general',
+          to: user.email,
+          subject: '✅ ContractGuard — Test Email',
+          message: 'This is a test email to confirm that your notification delivery is working correctly. If you received this, your email notifications are set up and ready to go!',
+        },
+      });
       if (error) throw error;
-      const { sent = 0, skipped = 0, total = 0, errors: errCount = 0 } = data || {};
-      toast.success(`Reminders processed: ${sent} sent, ${skipped} skipped, ${errCount} errors (${total} total)`);
+      if (data?.success) {
+        toast.success('Test email sent! Check your inbox.');
+      } else {
+        toast.error(data?.error || 'Failed to send test email.');
+      }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      toast.error(`Reminder test failed: ${msg}`);
+      toast.error(`Test failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Card className="border-dashed border-yellow-500/50">
+    <Card className="border-dashed border-border">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base">Manual Reminder Test</CardTitle>
-            <CardDescription>Trigger send-contract-reminders now (temporary)</CardDescription>
+            <CardTitle className="text-base">Send Test Email</CardTitle>
+            <CardDescription>Send a test notification to {user?.email || 'your email'}</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={handleTest} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-            Run Reminder Test
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+            Send Test
           </Button>
         </div>
       </CardHeader>
