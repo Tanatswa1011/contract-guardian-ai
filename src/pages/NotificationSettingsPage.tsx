@@ -226,6 +226,11 @@ export default function NotificationSettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {limits.maxNotificationEmails !== Infinity && (
+            <p className="text-xs text-muted-foreground">
+              {notificationEmailCount} of {limits.maxNotificationEmails} notification recipient{limits.maxNotificationEmails !== 1 ? 's' : ''} used
+            </p>
+          )}
           <div className="space-y-2">
             <Label>Notification Email</Label>
             <Input
