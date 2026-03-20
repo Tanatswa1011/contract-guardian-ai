@@ -112,30 +112,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-20">
-        <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-12">Loved by Teams Everywhere</h2>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {testimonials.map((t, i) => (
-              <Card key={i}>
-                <CardContent className="pt-6 pb-5 px-6">
-                  <div className="flex gap-0.5 mb-3">
-                    {Array.from({ length: t.stars }).map((_, j) => (
-                      <Star key={j} className="h-4 w-4 fill-muted text-muted-foreground" />
-                    ))}
-                  </div>
-                  <p className="text-sm mb-4 text-foreground">"{t.text}"</p>
-                  <div>
-                    <p className="text-sm font-semibold">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{t.role}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* CTA */}
       <section className="border-t bg-muted py-20">
