@@ -23,8 +23,8 @@ export default function BillingPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Billing</h1>
-        <p className="text-muted-foreground text-sm">Manage your subscription and view invoices.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
+        <p className="text-muted-foreground text-sm mt-1">Manage your subscription and usage.</p>
       </div>
 
       {/* Current Plan */}
