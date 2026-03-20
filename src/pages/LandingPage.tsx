@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight } from 'lucide-react';
 import PricingCards from '@/components/PricingCards';
-import PricingCards from '@/components/PricingCards';
 import WaitlistModal from '@/components/WaitlistModal';
 import EnterpriseInquiryModal from '@/components/EnterpriseInquiryModal';
 
