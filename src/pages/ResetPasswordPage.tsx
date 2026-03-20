@@ -7,6 +7,7 @@ import { Shield, Loader2, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { validatePassword, PASSWORD_HINT } from '@/lib/passwordValidation';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -31,8 +32,9 @@ export default function ResetPasswordPage() {
       toast.error('Passwords do not match.');
       return;
     }
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters.');
+    const pwError = validatePassword(password);
+    if (pwError) {
+      toast.error(pwError);
       return;
     }
     setLoading(true);
@@ -82,8 +84,8 @@ export default function ResetPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="new-password">New Password</Label>
-              <PasswordInput id="new-password" placeholder="At least 6 characters" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} autoComplete="new-password" />
-              <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
+              <PasswordInput id="new-password" placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} autoComplete="new-password" />
+              <p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm-password">Confirm Password</Label>

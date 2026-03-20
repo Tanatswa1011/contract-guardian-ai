@@ -8,6 +8,7 @@ import { Shield, Loader2, CheckCircle, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { validatePassword, PASSWORD_HINT } from '@/lib/passwordValidation';
 
 export default function SignupPage() {
   const [searchParams] = useSearchParams();
@@ -24,8 +25,9 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters.');
+    const pwError = validatePassword(password);
+    if (pwError) {
+      toast.error(pwError);
       return;
     }
     setLoading(true);
@@ -90,8 +92,8 @@ export default function SignupPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <PasswordInput id="password" placeholder="At least 6 characters" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} autoComplete="new-password" />
-              <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
+              <PasswordInput id="password" placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} autoComplete="new-password" />
+              <p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
             </div>
             {!inviteEmail && (
               <div className="space-y-2">
