@@ -18,7 +18,7 @@ export default function WaitlistModal({ open, onOpenChange, source = 'pricing_pa
   const [email, setEmail] = useState(user?.email ?? '');
   const [workspaceName, setWorkspaceName] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [result, setResult] = useState<'new' | 'existing' | null>(null);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,32 +27,37 @@ export default function WaitlistModal({ open, onOpenChange, source = 'pricing_pa
     setSubmitting(true);
     setError('');
 
-    const { error: insertError } = await supabase
-      .from('pro_waitlist' as any)
-      .insert({
-        email: email.trim().toLowerCase(),
-        workspace_name: workspaceName.trim() || null,
-        source,
-      } as any);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('join-pro-waitlist', {
+        body: {
+          email: email.trim().toLowerCase(),
+          workspace_name: workspaceName.trim() || null,
+          source,
+        },
+      });
 
-    setSubmitting(false);
-
-    if (insertError) {
-      if (insertError.code === '23505') {
-        setSuccess(true);
+      if (fnError) {
+        setError('Something went wrong. Please try again.');
+        setSubmitting(false);
         return;
       }
+
+      if (data?.already_exists) {
+        setResult('existing');
+      } else {
+        setResult('new');
+      }
+    } catch {
       setError('Something went wrong. Please try again.');
-      return;
     }
 
-    setSuccess(true);
+    setSubmitting(false);
   };
 
   const handleClose = (val: boolean) => {
     if (!val) {
       setTimeout(() => {
-        setSuccess(false);
+        setResult(null);
         setError('');
       }, 300);
     }
@@ -62,13 +67,17 @@ export default function WaitlistModal({ open, onOpenChange, source = 'pricing_pa
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
-        {success ? (
+        {result ? (
           <div className="flex flex-col items-center gap-4 py-6 text-center">
             <CheckCircle2 className="h-12 w-12 text-foreground" />
             <DialogHeader className="items-center">
-              <DialogTitle className="text-xl">You're on the list 🎉</DialogTitle>
+              <DialogTitle className="text-xl">
+                {result === 'new' ? "You're on the list 🎉" : "You're already on the waitlist"}
+              </DialogTitle>
               <DialogDescription className="text-sm">
-                We'll notify you when Pro launches with your 50% discount.
+                {result === 'new'
+                  ? "Check your email — we've sent you a confirmation with your 50% discount details."
+                  : "We already have your email. We'll notify you when Pro launches with your 50% discount."}
               </DialogDescription>
             </DialogHeader>
             <Button variant="outline" onClick={() => handleClose(false)} className="mt-2">
