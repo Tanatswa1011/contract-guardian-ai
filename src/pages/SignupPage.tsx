@@ -141,7 +141,7 @@ export default function SignupPage() {
                 <Input id="workspace" placeholder="e.g., Acme Legal" value={workspaceName} onChange={e => setWorkspaceName(e.target.value)} disabled={loading} />
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || googleLoading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Create Account
             </Button>
