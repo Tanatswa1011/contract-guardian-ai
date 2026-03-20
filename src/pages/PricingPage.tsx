@@ -69,6 +69,7 @@ const plans = [
 
 export default function PricingPage() {
   const [waitlistOpen, setWaitlistOpen] = useState(false);
+  const [enterpriseOpen, setEnterpriseOpen] = useState(false);
 
   return (
     <div className="py-20">
