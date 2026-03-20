@@ -115,6 +115,28 @@ export default function LandingPage() {
       </section>
 
 
+      {/* FAQ */}
+      <section id="faq" className="py-20">
+        <div className="container max-w-3xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-4">Frequently Asked Questions</h2>
+          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Everything you need to know before getting started.</p>
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((faq, i) => (
+              <AccordionItem key={i} value={`faq-${i}`}>
+                <AccordionTrigger className="text-left">{faq.q}</AccordionTrigger>
+                <AccordionContent>{faq.a}</AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+          <p className="text-center text-sm text-muted-foreground mt-10">
+            Still have questions?{' '}
+            <a href="mailto:support@contractguard.cloud" className="underline underline-offset-4 hover:text-foreground transition-colors">
+              Contact support
+            </a>
+          </p>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="border-t bg-muted py-20">
         <div className="container text-center max-w-2xl mx-auto">
