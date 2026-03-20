@@ -103,7 +103,6 @@ export default function WorkspaceSettings() {
         body: {
           email: trimmedEmail,
           workspace_id: currentWorkspace.id,
-          app_url: window.location.origin,
         },
       }).catch((err) => console.error('Invite email failed:', err));
     },
