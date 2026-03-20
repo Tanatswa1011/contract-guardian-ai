@@ -223,6 +223,39 @@ export type Database = {
           },
         ]
       }
+      enterprise_inquiries: {
+        Row: {
+          company_name: string
+          created_at: string
+          email: string
+          id: string
+          message: string | null
+          name: string
+          source: string
+          team_size: string | null
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          email: string
+          id?: string
+          message?: string | null
+          name: string
+          source?: string
+          team_size?: string | null
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string | null
+          name?: string
+          source?: string
+          team_size?: string | null
+        }
+        Relationships: []
+      }
       extraction_runs: {
         Row: {
           contract_id: string

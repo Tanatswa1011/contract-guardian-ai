@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Check, Sparkles, Building2 } from 'lucide-react';
 import WaitlistModal from '@/components/WaitlistModal';
+import EnterpriseInquiryModal from '@/components/EnterpriseInquiryModal';
 
 const plans = [
   {
@@ -68,6 +69,7 @@ const plans = [
 
 export default function PricingPage() {
   const [waitlistOpen, setWaitlistOpen] = useState(false);
+  const [enterpriseOpen, setEnterpriseOpen] = useState(false);
 
   return (
     <div className="py-20">
@@ -136,12 +138,10 @@ export default function PricingPage() {
                     {plan.cta}
                   </Button>
                 ) : (
-                  <a href="mailto:hello@contractguardai.com">
-                    <Button className="w-full gap-2" variant="outline">
+                  <Button className="w-full gap-2" variant="outline" onClick={() => setEnterpriseOpen(true)}>
                       <Building2 className="h-4 w-4" />
                       {plan.cta}
                     </Button>
-                  </a>
                 )}
               </CardContent>
             </Card>
@@ -152,6 +152,12 @@ export default function PricingPage() {
       <WaitlistModal
         open={waitlistOpen}
         onOpenChange={setWaitlistOpen}
+        source="pricing_page"
+      />
+
+      <EnterpriseInquiryModal
+        open={enterpriseOpen}
+        onOpenChange={setEnterpriseOpen}
         source="pricing_page"
       />
     </div>
