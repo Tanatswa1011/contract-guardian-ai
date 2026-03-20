@@ -418,7 +418,7 @@ function SlackSettingsCard() {
           />
           {urlError && <p className="text-xs text-destructive">{urlError}</p>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${!planAllowsSlack ? 'opacity-50 pointer-events-none' : ''}`}>
           <Button
             variant="outline"
             size="sm"
