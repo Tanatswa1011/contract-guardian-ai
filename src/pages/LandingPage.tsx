@@ -34,7 +34,7 @@ export default function LandingPage() {
         <div className="container text-center max-w-4xl mx-auto">
           <div className="mb-6 inline-flex items-center gap-2 border bg-muted px-4 py-1.5 text-sm font-medium text-foreground">
             <Shield className="h-4 w-4" />
-            Trusted by 500+ businesses
+            AI-powered contract management
           </div>
           <h1 className="mb-6 text-4xl font-semibold tracking-tight md:text-5xl">
             Stop Losing Money on Missed Contract Deadlines
@@ -45,7 +45,7 @@ export default function LandingPage() {
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <Link to="/signup">
               <Button size="lg" className="text-base px-8 gap-2">
-                Start Free Trial <ArrowRight className="h-4 w-4" />
+                Start Free <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <a href="#how-it-works">
@@ -117,10 +117,10 @@ export default function LandingPage() {
       <section className="border-t bg-muted py-20">
         <div className="container text-center max-w-2xl mx-auto">
           <h2 className="text-3xl font-bold mb-4">Ready to Protect Your Contracts?</h2>
-          <p className="text-muted-foreground mb-8">Join hundreds of businesses that trust ContractGuardAI to track their critical deadlines.</p>
+          <p className="text-muted-foreground mb-8">Start tracking your contracts and never miss a deadline again.</p>
           <Link to="/signup">
             <Button size="lg" className="text-base px-8 gap-2">
-              Start Free Trial <ArrowRight className="h-4 w-4" />
+              Start Free <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
         </div>

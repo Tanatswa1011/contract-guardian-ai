@@ -32,39 +32,8 @@ export default function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
-      <footer className="border-t bg-muted/50 py-10">
-        <div className="container grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
-          <div>
-            <div className="flex items-center gap-2 font-semibold mb-3">
-              <Shield className="h-4 w-4 text-foreground" />
-              ContractGuardAI
-            </div>
-            <p className="text-muted-foreground text-xs leading-relaxed">Stop losing money on missed contract deadlines.</p>
-          </div>
-          <div>
-            <h4 className="font-medium mb-3 text-xs uppercase tracking-wider text-muted-foreground">Product</h4>
-            <div className="space-y-2 text-sm">
-              <Link to="/pricing" className="block text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
-              <p className="text-muted-foreground">Features</p>
-              <p className="text-muted-foreground">Security</p>
-            </div>
-          </div>
-          <div>
-            <h4 className="font-medium mb-3 text-xs uppercase tracking-wider text-muted-foreground">Company</h4>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>About</p>
-              <p>Blog</p>
-            </div>
-          </div>
-          <div>
-            <h4 className="font-medium mb-3 text-xs uppercase tracking-wider text-muted-foreground">Legal</h4>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>Privacy</p>
-              <p>Terms</p>
-            </div>
-          </div>
-        </div>
-        <div className="container mt-8 pt-6 border-t text-center text-xs text-muted-foreground">
+      <footer className="border-t py-6">
+        <div className="container text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} ContractGuardAI. All rights reserved.
         </div>
       </footer>
