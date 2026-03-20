@@ -69,10 +69,10 @@ export default function LandingPage() {
 
 
       {/* How it works */}
-      <section id="how-it-works" className="border-y bg-muted py-20">
+      <section id="how-it-works" className="border-y bg-muted py-24">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-4">How It Works</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Three simple steps to never miss a contract deadline again.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-center mb-3">How It Works</h2>
+          <p className="text-center text-muted-foreground/80 mb-14 max-w-lg mx-auto">Three simple steps to never miss a contract deadline again.</p>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {steps.map((step, i) => (
               <Card key={i} className="text-center">
@@ -80,9 +80,9 @@ export default function LandingPage() {
                   <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center border bg-muted">
                     <step.icon className="h-6 w-6 text-foreground" />
                   </div>
-                  <div className="mb-2 text-xs font-semibold text-muted-foreground">STEP {i + 1}</div>
-                  <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground">{step.desc}</p>
+                  <div className="mb-2 text-xs font-semibold text-muted-foreground/60 tracking-widest">STEP {i + 1}</div>
+                  <h3 className="text-lg font-semibold mb-3">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground/80 leading-relaxed">{step.desc}</p>
                 </CardContent>
               </Card>
             ))}
