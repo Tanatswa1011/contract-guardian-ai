@@ -71,6 +71,15 @@ export default function BillingPage() {
               <Progress value={usagePercent} className="h-1.5" />
             </div>
           )}
+          {limits.maxMembers !== Infinity && (
+            <div className={`space-y-1.5 ${limits.maxContracts === Infinity ? 'pt-2 border-t' : 'pt-1'}`}>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Team members</span>
+                <span className="tabular-nums">{totalMemberSlots} / {limits.maxMembers}</span>
+              </div>
+              <Progress value={memberPercent} className="h-1.5" />
+            </div>
+          )}
         </CardContent>
       </Card>
 
