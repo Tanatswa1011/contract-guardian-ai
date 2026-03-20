@@ -16,7 +16,7 @@ const steps = [
 const features = [
   { title: 'Deadline Tracking', desc: 'Track renewal, notice, and payment deadlines across all contracts in one place.' },
   { title: 'AI-Powered Extraction', desc: 'Upload a PDF and let AI find key dates, terms, and obligations automatically.' },
-  { title: 'Manual Review Tools', desc: 'Easily correct or add missing data with an intuitive editing interface.' },
+  
   { title: 'Email Alerts', desc: 'Customizable reminder schedules so you never miss a critical deadline.' },
   { title: 'Contract Health', desc: 'At-a-glance health badges show which contracts need your attention now.' },
   { title: 'Secure Storage', desc: 'All contracts stored securely with encryption at rest and in transit.' },
