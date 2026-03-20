@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight, Star } from 'lucide-react';
+import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight } from 'lucide-react';
 import PricingCards from '@/components/PricingCards';
 import WaitlistModal from '@/components/WaitlistModal';
 import EnterpriseInquiryModal from '@/components/EnterpriseInquiryModal';
@@ -22,11 +22,6 @@ const features = [
   { title: 'Secure Storage', desc: 'All contracts stored securely with encryption at rest and in transit.' },
 ];
 
-const testimonials = [
-  { name: 'Sarah Chen', role: 'COO, TechStart Inc.', text: 'ContractGuardAI saved us from a $50K auto-renewal we completely forgot about. Paid for itself on day one.', stars: 5 },
-  { name: 'Marcus Johnson', role: 'Freelance Consultant', text: 'I manage 30+ client contracts. This tool replaced my messy spreadsheet and actually works.', stars: 5 },
-  { name: 'Emily Rodriguez', role: 'Operations Lead, ScaleUp Agency', text: 'The AI extraction is surprisingly accurate. We onboarded 100 contracts in an afternoon.', stars: 5 },
-];
 
 export default function LandingPage() {
   const [waitlistOpen, setWaitlistOpen] = useState(false);
@@ -117,30 +112,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-20">
-        <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-12">Loved by Teams Everywhere</h2>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {testimonials.map((t, i) => (
-              <Card key={i}>
-                <CardContent className="pt-6 pb-5 px-6">
-                  <div className="flex gap-0.5 mb-3">
-                    {Array.from({ length: t.stars }).map((_, j) => (
-                      <Star key={j} className="h-4 w-4 fill-muted text-muted-foreground" />
-                    ))}
-                  </div>
-                  <p className="text-sm mb-4 text-foreground">"{t.text}"</p>
-                  <div>
-                    <p className="text-sm font-semibold">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{t.role}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* CTA */}
       <section className="border-t bg-muted py-20">
