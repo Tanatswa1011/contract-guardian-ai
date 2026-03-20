@@ -17,9 +17,31 @@ const PLAN_LIMITS: Record<PlanTier, {
   enterprise: { maxContracts: Infinity, maxUploads: Infinity, maxMembers: Infinity, maxNotificationEmails: Infinity, slackEnabled: true },
 };
 
+const DEV_BYPASS = import.meta.env.VITE_DISABLE_PLAN_LIMITS === 'true';
+
+const DEV_RETURN = {
+  plan: 'enterprise' as PlanTier,
+  limits: PLAN_LIMITS.enterprise,
+  contractCount: 0,
+  canUpload: true,
+  contractsRemaining: Infinity,
+  isPaid: true,
+  isSlackEnabled: true,
+  memberCount: 0,
+  pendingInviteCount: 0,
+  totalMemberSlots: 0,
+  canAddMember: true,
+  membersRemaining: Infinity,
+  notificationEmailCount: 0,
+  canAddNotificationEmail: true,
+  emailsRemaining: Infinity,
+};
+
 export function usePlanLimits() {
   const { user } = useAuth();
   const { currentWorkspaceId, isResolved } = useWorkspace();
+
+  if (DEV_BYPASS) return DEV_RETURN;
 
   const { data: plan = 'free' as PlanTier } = useQuery({
     queryKey: ['user-plan', user?.id],
