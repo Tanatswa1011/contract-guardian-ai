@@ -368,25 +368,40 @@ export default function WorkspaceSettings() {
             <CardTitle className="text-base">Invite Teammate</CardTitle>
             <CardDescription>Send an invitation to join your workspace.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex gap-3">
-              <Input
-                value={inviteEmail}
-                onChange={e => setInviteEmail(e.target.value)}
-                placeholder="colleague@company.com"
-                type="email"
-                className="max-w-sm"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => sendInvite.mutate()}
-                disabled={sendInvite.isPending || !inviteEmail.trim()}
-              >
-                {sendInvite.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Invite
-              </Button>
-            </div>
+          <CardContent className="space-y-3">
+            {!canAddMember ? (
+              <div className="flex items-center gap-3 rounded-md border border-border bg-muted/50 p-3">
+                <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Member limit reached</p>
+                  <p className="text-xs text-muted-foreground">
+                    You've reached your plan limit of {limits.maxMembers} team member{limits.maxMembers !== 1 ? 's' : ''}. Upgrade to add more.
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="default">
+                  <Link to="/app/billing">Upgrade</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <Input
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="colleague@company.com"
+                  type="email"
+                  className="max-w-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => sendInvite.mutate()}
+                  disabled={sendInvite.isPending || !inviteEmail.trim()}
+                >
+                  {sendInvite.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Invite
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
