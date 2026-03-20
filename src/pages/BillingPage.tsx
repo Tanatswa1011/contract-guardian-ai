@@ -134,7 +134,10 @@ export default function BillingPage() {
           <CardTitle className="text-base">Invoice History</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No invoices yet.</p>
+          <div className="py-4 text-center">
+            <p className="text-sm text-muted-foreground">No invoices yet.</p>
+            <p className="text-xs text-muted-foreground mt-1">Invoices will appear here once billing is active.</p>
+          </div>
         </CardContent>
       </Card>
 
