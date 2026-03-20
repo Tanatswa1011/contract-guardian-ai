@@ -1,5 +1,7 @@
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Shield, ArrowLeft } from "lucide-react";
 
 const NotFound = () => {
   const location = useLocation();
@@ -10,12 +12,20 @@ const NotFound = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="border bg-card px-8 py-10 text-center">
-        <h1 className="mb-4 text-4xl font-bold">404</h1>
-        <p className="mb-4 text-xl text-muted-foreground">Oops! Page not found</p>
-        <a href="/" className="text-foreground underline">
-          Return to Home
-        </a>
+      <div className="max-w-md text-center space-y-6">
+        <div className="mx-auto flex items-center justify-center gap-2 text-lg font-semibold">
+          <Shield className="h-5 w-5 text-foreground" />
+          ContractGuardAI
+        </div>
+        <div>
+          <p className="text-6xl font-bold tracking-tight tabular-nums">404</p>
+          <p className="mt-2 text-lg text-muted-foreground">This page doesn't exist or has been moved.</p>
+        </div>
+        <Link to="/">
+          <Button variant="outline" className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Back to Home
+          </Button>
+        </Link>
       </div>
     </div>
   );
