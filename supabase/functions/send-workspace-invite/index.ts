@@ -38,9 +38,12 @@ Deno.serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub;
-    const { email, workspace_id, app_url } = await req.json();
+    const { email, workspace_id } = await req.json();
 
-    if (!email || !workspace_id || !app_url) {
+    // Derive app_url from environment — never trust client-supplied URLs in emails
+    const app_url = Deno.env.get("APP_URL") ?? "https://app.contractguard.cloud";
+
+    if (!email || !workspace_id) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
