@@ -21,7 +21,7 @@ export default function CreateWorkspacePage() {
       setIsSubmitting(true);
       await createWorkspace(workspaceName);
       toast.success('Workspace created successfully.');
-      console.log('[WorkspaceDebug] CreateWorkspacePage redirecting to /app after workspace creation');
+      
       navigate('/app', { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to create workspace.';
@@ -32,10 +32,6 @@ export default function CreateWorkspacePage() {
   };
 
   if (!isResolved) {
-    console.log('[WorkspaceDebug] CreateWorkspacePage waiting for workspace resolution', {
-      membershipCount: memberships.length,
-      currentWorkspaceId,
-    });
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -44,10 +40,6 @@ export default function CreateWorkspacePage() {
   }
 
   if (hasWorkspace) {
-    console.log('[WorkspaceDebug] CreateWorkspacePage redirecting to /app because workspace already exists', {
-      membershipCount: memberships.length,
-      currentWorkspaceId,
-    });
     return <Navigate to="/app" replace />;
   }
 

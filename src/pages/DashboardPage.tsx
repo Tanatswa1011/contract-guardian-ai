@@ -5,7 +5,7 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@
 import { StatusBadge } from '@/components/StatusBadge';
 import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2, Trash2, Lock, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -80,14 +80,6 @@ export default function DashboardPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const dashboardQueryEnabled = !!user && isResolved && !!currentWorkspaceId;
 
-  useEffect(() => {
-    console.log('[WorkspaceDebug] DashboardPage gate', {
-      userId: user?.id ?? null,
-      isResolved,
-      currentWorkspaceId,
-      queryEnabled: dashboardQueryEnabled,
-    });
-  }, [currentWorkspaceId, dashboardQueryEnabled, isResolved, user?.id]);
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['contracts-dashboard', user?.id, currentWorkspaceId],

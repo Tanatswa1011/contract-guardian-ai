@@ -40,12 +40,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[AuthDebug] onAuthStateChange', {
-        event,
-        hasSession: !!session,
-        userId: session?.user?.id ?? null,
-        initialSessionResolved: initialSessionResolvedRef.current,
-      });
       setSession(session);
       setUser(session?.user ?? null);
       if (initialSessionResolvedRef.current) {
@@ -65,10 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[AuthDebug] getSession failed', error);
       }
 
-      console.log('[AuthDebug] getSession resolved', {
-        hasSession: !!session,
-        userId: session?.user?.id ?? null,
-      });
       setSession(session);
       setUser(session?.user ?? null);
       initialSessionResolvedRef.current = true;
@@ -78,13 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  useEffect(() => {
-    console.log('[AuthDebug] auth loading state', {
-      loading,
-      hasSession: !!session,
-      userId: user?.id ?? null,
-    });
-  }, [loading, session, user?.id]);
 
   const signUp = async (email: string, password: string, displayName: string, workspaceName?: string) => {
     const { error } = await supabase.auth.signUp({
