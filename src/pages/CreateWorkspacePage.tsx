@@ -21,7 +21,7 @@ export default function CreateWorkspacePage() {
       setIsSubmitting(true);
       await createWorkspace(workspaceName);
       toast.success('Workspace created successfully.');
-      console.log('[WorkspaceDebug] CreateWorkspacePage redirecting to /app after workspace creation');
+      
       navigate('/app', { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to create workspace.';
