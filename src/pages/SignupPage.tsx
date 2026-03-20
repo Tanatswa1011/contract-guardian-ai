@@ -8,6 +8,7 @@ import { Shield, Loader2, CheckCircle, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { validatePassword, PASSWORD_HINT } from '@/lib/passwordValidation';
 
 export default function SignupPage() {
   const [searchParams] = useSearchParams();
