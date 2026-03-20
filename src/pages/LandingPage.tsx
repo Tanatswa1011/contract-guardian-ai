@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import PricingCards from '@/components/PricingCards';
 import WaitlistModal from '@/components/WaitlistModal';
 import EnterpriseInquiryModal from '@/components/EnterpriseInquiryModal';
