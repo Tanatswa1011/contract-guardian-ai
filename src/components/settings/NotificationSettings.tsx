@@ -506,7 +506,7 @@ function ReminderTestCard() {
   };
 
   return (
-    <Card className="border-dashed border-yellow-500/50">
+    <Card className="border-dashed border-border">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
