@@ -2,8 +2,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
-import { Shield, Loader2, Mail } from 'lucide-react';
+import { Shield, Loader2, CheckCircle, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -16,13 +17,17 @@ export default function SignupPage() {
   const [name, setName] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
   const { signUp } = useAuth();
 
-  const [success, setSuccess] = useState(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters.');
+      return;
+    }
     setLoading(true);
     const { error } = await signUp(email, password, name, workspaceName.trim() || 'My Workspace');
     setLoading(false);
@@ -36,17 +41,19 @@ export default function SignupPage() {
   if (success) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
-        <Card className="mx-4 w-full max-w-md">
-          <CardContent className="pt-8 pb-6 text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <Shield className="h-6 w-6 text-primary" />
+        <Card className="mx-4 w-full max-w-md text-center">
+          <CardHeader>
+            <div className="mx-auto mb-2">
+              <CheckCircle className="h-12 w-12 text-foreground" />
             </div>
-            <h2 className="text-xl font-semibold">Check your email</h2>
-            <p className="text-sm text-muted-foreground">
-              We've sent a confirmation link to <strong>{email}</strong>. Please confirm your email address before signing in.
-            </p>
+            <CardTitle className="text-2xl">Check your email</CardTitle>
+            <CardDescription>
+              We've sent a verification link to <span className="font-medium text-foreground">{email}</span>. Click the link to activate your account.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <Link to="/login">
-              <Button variant="outline" className="mt-2">Go to Sign In</Button>
+              <Button variant="outline" className="w-full">Back to Sign In</Button>
             </Link>
           </CardContent>
         </Card>
@@ -63,7 +70,7 @@ export default function SignupPage() {
             ContractGuardAI
           </div>
           <CardTitle className="text-2xl font-semibold">Create your account</CardTitle>
-          <CardDescription>Start your free trial — no credit card required</CardDescription>
+          <CardDescription>Start tracking contract deadlines in minutes</CardDescription>
           {inviteEmail && (
             <div className="mt-2 flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
               <Mail className="h-4 w-4 shrink-0" />
@@ -75,26 +82,26 @@ export default function SignupPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" placeholder="John Doe" value={name} onChange={e => setName(e.target.value)} required disabled={loading} />
+              <Input id="name" placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} required disabled={loading} autoComplete="name" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Work Email</Label>
-              <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} autoComplete="email" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="Min 8 characters" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} disabled={loading} />
+              <PasswordInput id="password" placeholder="At least 6 characters" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} autoComplete="new-password" />
+              <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
             </div>
             {!inviteEmail && (
               <div className="space-y-2">
-                <Label htmlFor="workspace-name">Workspace Name</Label>
-                <Input id="workspace-name" placeholder="e.g., Acme Legal" value={workspaceName} onChange={e => setWorkspaceName(e.target.value)} disabled={loading} />
-                <p className="text-xs text-muted-foreground">Your team's shared space. You can change this later.</p>
+                <Label htmlFor="workspace">Workspace Name <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input id="workspace" placeholder="e.g., Acme Legal" value={workspaceName} onChange={e => setWorkspaceName(e.target.value)} disabled={loading} />
               </div>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Start Free Trial
+              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Create Account
             </Button>
           </form>
           <p className="text-center text-sm text-muted-foreground mt-6">
