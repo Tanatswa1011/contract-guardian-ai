@@ -40,26 +40,26 @@ export default function LandingPage() {
   return (
     <div>
       {/* Hero */}
-      <section className="py-20 md:py-32">
+      <section className="py-24 md:py-36">
         <div className="container text-center max-w-4xl mx-auto">
-          <div className="mb-6 inline-flex items-center gap-2 border bg-muted px-4 py-1.5 text-sm font-medium text-foreground">
+          <div className="mb-8 inline-flex items-center gap-2 border bg-muted px-4 py-1.5 text-sm font-medium text-muted-foreground">
             <Shield className="h-4 w-4" />
             AI-powered contract management
           </div>
-          <h1 className="mb-6 text-4xl font-semibold tracking-tight md:text-5xl">
+          <h1 className="mb-6 text-4xl font-extrabold tracking-tight leading-[1.1] md:text-6xl">
             Stop Losing Money on Missed Contract Deadlines
           </h1>
-          <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl">
+          <p className="mx-auto mb-12 max-w-2xl text-lg text-muted-foreground/80 leading-relaxed md:text-xl">
             Upload your contracts, let AI extract the critical dates, and get reminded before every renewal, notice period, and payment deadline.
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <Link to="/signup">
-              <Button size="lg" className="text-base px-8 gap-2">
+              <Button size="lg" className="text-base font-semibold px-8 gap-2">
                 Start Free <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <a href="#how-it-works">
-              <Button size="lg" variant="outline" className="text-base px-8">
+              <Button size="lg" variant="outline" className="text-base font-medium px-8">
                 See How It Works
               </Button>
             </a>
