@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { StatusBadge } from '@/components/StatusBadge';
 import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -287,7 +287,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -302,143 +302,155 @@ export default function DashboardPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Contract Command Center</h1>
-          <p className="text-muted-foreground text-sm">Track, manage, and protect your business contracts.</p>
+
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight leading-none">Command Center</h1>
+          <p className="text-muted-foreground text-sm">Track, manage, and protect your contracts.</p>
         </div>
         <Link to="/app/upload">
-          <Button className="gap-2"><Plus className="h-4 w-4" /> Upload Contract</Button>
+          <Button size="sm" className="gap-2 shadow-sm"><Plus className="h-3.5 w-3.5" /> Upload Contract</Button>
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {summaryCards.map(card => (
-          <Card key={card.label}>
-            <CardContent className="pt-5 pb-4 px-5">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</span>
-                <card.icon className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-2xl font-semibold">{card.value}</p>
-            </CardContent>
-          </Card>
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {summaryCards.map((card, i) => (
+          <div
+            key={card.label}
+            className="group relative border border-border bg-card p-5 transition-all duration-200 hover:border-foreground/20 hover:shadow-[0_2px_8px_-2px_hsl(var(--foreground)/0.08)]"
+            style={{ animationDelay: `${i * 60}ms` }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">{card.label}</span>
+              <card.icon className="h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-hover:text-foreground/40" />
+            </div>
+            <p className="text-3xl font-semibold tracking-tight tabular-nums">{card.value}</p>
+          </div>
         ))}
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Search + Filters row */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
           <Input
-            placeholder="Search by title or counterparty..."
-            className="pl-9"
+            placeholder="Search contracts…"
+            className="pl-9 h-8 text-sm bg-muted/40 border-transparent focus:border-border focus:bg-card transition-colors"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {filters.map((filter) => (
+            <button
+              key={filter.key}
+              onClick={() => setActiveFilter(filter.key)}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-all duration-150 border',
+                activeFilter === filter.key
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'
+              )}
+            >
+              {filter.label}
+              <span className={cn(
+                'tabular-nums text-[10px]',
+                activeFilter === filter.key ? 'text-background/60' : 'text-muted-foreground/50'
+              )}>
+                {filterCounts[filter.key]}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {filters.map((filter) => (
-          <Button
-            key={filter.key}
-            size="sm"
-            variant={activeFilter === filter.key ? 'default' : 'outline'}
-            onClick={() => setActiveFilter(filter.key)}
-            className="h-8"
-          >
-            {filter.label}
-            <span className="ml-2 text-xs opacity-70">{filterCounts[filter.key]}</span>
-          </Button>
-        ))}
-      </div>
-
+      {/* Content */}
       {filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border bg-muted">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-            </div>
-            {allContracts.length === 0 ? (
-              <>
-                <h3 className="font-semibold mb-1">No contracts yet</h3>
-                <p className="text-sm text-muted-foreground mb-4">Upload your first contract to get started.</p>
-                <Link to="/app/upload">
-                  <Button className="gap-2"><Plus className="h-4 w-4" /> Upload Contract</Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <h3 className="font-semibold mb-1">No contracts match your filters</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Try adjusting your search or switching to a different filter.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  {search ? (
-                    <Button variant="outline" onClick={() => setSearch('')}>
-                      Clear Search
-                    </Button>
-                  ) : null}
-                  {activeFilter !== 'all' ? (
-                    <Button variant="outline" onClick={() => setActiveFilter('all')}>
-                      Show All Contracts
-                    </Button>
-                  ) : null}
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <div className="border border-dashed border-border py-20 text-center">
+          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center border border-border bg-muted/50">
+            <FileText className="h-4 w-4 text-muted-foreground/60" />
+          </div>
+          {allContracts.length === 0 ? (
+            <>
+              <p className="text-sm font-medium mb-1">No contracts yet</p>
+              <p className="text-xs text-muted-foreground mb-5">Upload your first contract to get started.</p>
+              <Link to="/app/upload">
+                <Button size="sm" variant="outline" className="gap-2"><Plus className="h-3.5 w-3.5" /> Upload Contract</Button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium mb-1">No contracts match</p>
+              <p className="text-xs text-muted-foreground mb-5">Try adjusting your search or filter.</p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {search ? (
+                  <Button size="sm" variant="outline" onClick={() => setSearch('')}>Clear Search</Button>
+                ) : null}
+                {activeFilter !== 'all' ? (
+                  <Button size="sm" variant="outline" onClick={() => setActiveFilter('all')}>Show All</Button>
+                ) : null}
+              </div>
+            </>
+          )}
+        </div>
       ) : (
         <>
+          {/* Desktop table */}
           <div className="hidden md:block">
-            <Card className="overflow-hidden">
+            <div className="border border-border overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Contract Name</TableHead>
-                    <TableHead>Next Deadline</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Health</TableHead>
-                    <TableHead className="w-10" />
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-[10px] uppercase tracking-widest font-medium text-muted-foreground/70 h-9">Contract</TableHead>
+                    <TableHead className="text-[10px] uppercase tracking-widest font-medium text-muted-foreground/70 h-9">Deadline</TableHead>
+                    <TableHead className="text-[10px] uppercase tracking-widest font-medium text-muted-foreground/70 h-9">Type</TableHead>
+                    <TableHead className="text-[10px] uppercase tracking-widest font-medium text-muted-foreground/70 h-9">Status</TableHead>
+                    <TableHead className="text-[10px] uppercase tracking-widest font-medium text-muted-foreground/70 h-9">Health</TableHead>
+                    <TableHead className="w-10 h-9" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map(contract => (
-                    <TableRow key={contract.id} className="cursor-pointer group">
-                      <TableCell>
-                        <Link to={`/app/contracts/${contract.id}`} className="font-medium transition-colors hover:text-foreground/70">
+                  {filtered.map((contract, i) => (
+                    <TableRow
+                      key={contract.id}
+                      className="group cursor-pointer transition-colors hover:bg-muted/20"
+                      style={{ animationDelay: `${i * 30}ms` }}
+                    >
+                      <TableCell className="py-3">
+                        <Link to={`/app/contracts/${contract.id}`} className="text-sm font-medium transition-colors hover:text-foreground/70">
                           {contract.title}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-xs text-muted-foreground tabular-nums py-3">
                         {contract.next_deadline_date ? new Date(contract.next_deadline_date).toLocaleDateString() : '—'}
                       </TableCell>
-                      <TableCell className="text-sm capitalize">{contract.next_deadline_type || '—'}</TableCell>
-                      <TableCell><StatusBadge status={contract.status || 'draft'} /></TableCell>
-                      <TableCell>
-                        <Badge variant={healthVariant(contract.health_status)} className="normal-case text-xs capitalize tracking-normal">
+                      <TableCell className="text-xs text-muted-foreground capitalize py-3">{contract.next_deadline_type || '—'}</TableCell>
+                      <TableCell className="py-3"><StatusBadge status={contract.status || 'draft'} /></TableCell>
+                      <TableCell className="py-3">
+                        <Badge variant={healthVariant(contract.health_status)} className="normal-case text-[10px] capitalize tracking-normal font-medium">
                           {healthLabel(contract.health_status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-3">
                         <button
                           onClick={(e) => { e.stopPropagation(); setDeleteId(contract.id); }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground/50 hover:text-destructive"
                           title="Delete contract"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            </Card>
+            </div>
           </div>
 
-          <div className="md:hidden space-y-3">
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2">
             {filtered.map(contract => (
               <SwipeableContractCard
                 key={contract.id}
