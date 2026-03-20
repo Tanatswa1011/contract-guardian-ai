@@ -143,6 +143,8 @@ export default function ProfileSettings() {
           </Button>
         </CardContent>
       </Card>
+
+      <DeleteAccountSection />
     </div>
   );
 }
