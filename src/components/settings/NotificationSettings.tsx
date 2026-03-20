@@ -268,6 +268,7 @@ export default function NotificationSettings() {
 
 function SlackSettingsCard() {
   const { user } = useAuth();
+  const { isSlackEnabled: planAllowsSlack } = usePlanLimits();
   const queryClient = useQueryClient();
   const [webhookUrl, setWebhookUrl] = useState('');
   const [urlError, setUrlError] = useState('');
