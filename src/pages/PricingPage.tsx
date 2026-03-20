@@ -154,6 +154,12 @@ export default function PricingPage() {
         onOpenChange={setWaitlistOpen}
         source="pricing_page"
       />
+
+      <EnterpriseInquiryModal
+        open={enterpriseOpen}
+        onOpenChange={setEnterpriseOpen}
+        source="pricing_page"
+      />
     </div>
   );
 }
