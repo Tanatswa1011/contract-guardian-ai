@@ -378,7 +378,7 @@ export default function UploadPage() {
         </div>
       )}
 
-      {state === 'idle' && (
+      {state === 'idle' && canUpload && (
         <Card
           className="cursor-pointer border-2 border-dashed transition-colors hover:border-foreground/40"
           onDragOver={e => e.preventDefault()}
