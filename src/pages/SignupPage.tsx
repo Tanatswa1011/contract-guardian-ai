@@ -122,6 +122,7 @@ export default function SignupPage() {
             </div>
           </div>
 
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input id="name" placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} required disabled={loading} autoComplete="name" />
