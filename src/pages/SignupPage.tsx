@@ -19,9 +19,20 @@ export default function SignupPage() {
   const [name, setName] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
+
+  const handleGoogleSignUp = async () => {
+    if (googleLoading || loading) return;
+    setGoogleLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      setGoogleLoading(false);
+      toast.error('Could not connect to Google. Please try again.');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
