@@ -8,8 +8,8 @@ export default function SettingsPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground text-sm">Manage your account, notifications, and workspace.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground text-sm mt-1">Manage your account, notifications, and workspace.</p>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">

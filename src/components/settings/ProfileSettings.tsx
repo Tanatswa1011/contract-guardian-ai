@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProfileSettings() {
   const { user } = useAuth();
@@ -51,22 +52,35 @@ export default function ProfileSettings() {
     onError: () => toast.error('Failed to update profile'),
   });
 
+  const [resetLoading, setResetLoading] = useState(false);
+
   const handlePasswordReset = async () => {
-    if (!user?.email) return;
-    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-      redirectTo: window.location.origin,
-    });
-    if (error) {
-      toast.error('Failed to send password reset email');
-    } else {
-      toast.success('Password reset email sent. Check your inbox.');
+    if (!user?.email || resetLoading) return;
+    setResetLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: window.location.origin,
+      });
+      if (error) {
+        toast.error('Could not send reset email. Please try again.');
+      } else {
+        toast.success('Password reset email sent — check your inbox.');
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="rounded-md border p-6 space-y-4">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
       </div>
     );
   }
@@ -123,7 +137,8 @@ export default function ProfileSettings() {
           <CardDescription>Reset your password via email.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" size="sm" onClick={handlePasswordReset}>
+          <Button variant="outline" size="sm" onClick={handlePasswordReset} disabled={resetLoading}>
+            {resetLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             Send Password Reset Email
           </Button>
         </CardContent>

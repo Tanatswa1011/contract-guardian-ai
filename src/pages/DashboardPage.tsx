@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { StatusBadge } from '@/components/StatusBadge';
-import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2, Trash2, Lock } from 'lucide-react';
+import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2, Trash2, Lock, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type DashboardFilter = 'all' | 'needs_review' | 'expiring_soon' | 'active' | 'overdue';
 type DashboardContractRow = {
@@ -188,10 +189,31 @@ export default function DashboardPage() {
     },
   });
 
+  const { canUpload, contractCount, limits, plan, contractsRemaining } = usePlanLimits();
+
   if (!isResolved || isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-9 w-36" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="border border-border bg-card p-5">
+              <Skeleton className="h-3 w-20 mb-3" />
+              <Skeleton className="h-8 w-12" />
+            </div>
+          ))}
+        </div>
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -278,30 +300,30 @@ export default function DashboardPage() {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
       const { error } = await supabase.from('contracts').delete().eq('id', deleteId).eq('workspace_id', currentWorkspaceId);
       if (error) throw error;
-      toast.success('Contract deleted');
+      toast.success('Contract deleted successfully.');
       queryClient.invalidateQueries({ queryKey: ['contracts-dashboard'] });
     } catch {
-      toast.error('Failed to delete contract');
+      toast.error('Could not delete the contract. Please try again.');
     } finally {
       setIsDeleting(false);
       setDeleteId(null);
     }
   };
 
-  const { canUpload, contractCount, limits, plan, contractsRemaining } = usePlanLimits();
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6">
       <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete contract?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently delete the contract and all associated data. This action cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>Delete this contract?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently remove the contract along with its deadlines, files, and extraction data. This cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteContract} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {isDeleting ? 'Deleting…' : 'Delete'}
+              {isDeleting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting…</>
+              ) : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -341,11 +363,10 @@ export default function DashboardPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {summaryCards.map((card, i) => (
+        {summaryCards.map((card) => (
           <div
             key={card.label}
             className="group relative border border-border bg-card p-5 transition-all duration-200 hover:border-foreground/20 hover:shadow-[0_2px_8px_-2px_hsl(var(--foreground)/0.08)]"
-            style={{ animationDelay: `${i * 60}ms` }}
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">{card.label}</span>
@@ -394,21 +415,27 @@ export default function DashboardPage() {
       {/* Content */}
       {filtered.length === 0 ? (
         <div className="border border-dashed border-border py-20 text-center">
-          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center border border-border bg-muted/50">
-            <FileText className="h-4 w-4 text-muted-foreground/60" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md border border-border bg-muted/50">
+            {allContracts.length === 0 ? (
+              <Upload className="h-5 w-5 text-muted-foreground/60" />
+            ) : (
+              <FileText className="h-5 w-5 text-muted-foreground/60" />
+            )}
           </div>
           {allContracts.length === 0 ? (
             <>
               <p className="text-sm font-medium mb-1">No contracts yet</p>
-              <p className="text-xs text-muted-foreground mb-5">Upload your first contract to get started.</p>
+              <p className="text-xs text-muted-foreground mb-6 max-w-xs mx-auto">
+                Upload your first contract to start tracking deadlines, renewals, and important dates.
+              </p>
               <Link to="/app/upload">
-                <Button size="sm" variant="outline" className="gap-2"><Plus className="h-3.5 w-3.5" /> Upload Contract</Button>
+                <Button size="sm" className="gap-2"><Plus className="h-3.5 w-3.5" /> Upload Your First Contract</Button>
               </Link>
             </>
           ) : (
             <>
-              <p className="text-sm font-medium mb-1">No contracts match</p>
-              <p className="text-xs text-muted-foreground mb-5">Try adjusting your search or filter.</p>
+              <p className="text-sm font-medium mb-1">No contracts match your filters</p>
+              <p className="text-xs text-muted-foreground mb-5">Try adjusting your search or filter criteria.</p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {search ? (
                   <Button size="sm" variant="outline" onClick={() => setSearch('')}>Clear Search</Button>
@@ -437,16 +464,18 @@ export default function DashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((contract, i) => (
+                  {filtered.map((contract) => (
                     <TableRow
                       key={contract.id}
                       className="group cursor-pointer transition-colors hover:bg-muted/20"
-                      style={{ animationDelay: `${i * 30}ms` }}
                     >
                       <TableCell className="py-3">
                         <Link to={`/app/contracts/${contract.id}`} className="text-sm font-medium transition-colors hover:text-foreground/70">
                           {contract.title}
                         </Link>
+                        {contract.counterparty && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{contract.counterparty}</p>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground tabular-nums py-3">
                         {contract.next_deadline_date ? new Date(contract.next_deadline_date).toLocaleDateString() : '—'}
@@ -461,7 +490,7 @@ export default function DashboardPage() {
                       <TableCell className="py-3">
                         <button
                           onClick={(e) => { e.stopPropagation(); setDeleteId(contract.id); }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground/50 hover:text-destructive"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10"
                           title="Delete contract"
                         >
                           <Trash2 className="h-3.5 w-3.5" />

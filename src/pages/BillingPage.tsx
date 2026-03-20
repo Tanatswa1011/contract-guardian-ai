@@ -23,8 +23,8 @@ export default function BillingPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Billing</h1>
-        <p className="text-muted-foreground text-sm">Manage your subscription and view invoices.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
+        <p className="text-muted-foreground text-sm mt-1">Manage your subscription and usage.</p>
       </div>
 
       {/* Current Plan */}
@@ -134,7 +134,10 @@ export default function BillingPage() {
           <CardTitle className="text-base">Invoice History</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No invoices yet.</p>
+          <div className="py-4 text-center">
+            <p className="text-sm text-muted-foreground">No invoices yet.</p>
+            <p className="text-xs text-muted-foreground mt-1">Invoices will appear here once billing is active.</p>
+          </div>
         </CardContent>
       </Card>
 

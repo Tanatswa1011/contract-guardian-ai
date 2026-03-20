@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, UserPlus, Crown, User, Trash2, Lock } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePlanLimits } from '@/hooks/usePlanLimits';
@@ -159,8 +160,17 @@ export default function WorkspaceSettings() {
 
   if (workspaceLoading || !isHydrated || membersLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="rounded-md border p-6 space-y-4">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+        <div className="rounded-md border p-6 space-y-3">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
       </div>
     );
   }
