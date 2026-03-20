@@ -5,10 +5,16 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export type PlanTier = 'free' | 'pro' | 'enterprise';
 
-const PLAN_LIMITS: Record<PlanTier, { maxContracts: number; maxUploads: number; slackEnabled: boolean }> = {
-  free: { maxContracts: 5, maxUploads: 5, slackEnabled: false },
-  pro: { maxContracts: Infinity, maxUploads: Infinity, slackEnabled: true },
-  enterprise: { maxContracts: Infinity, maxUploads: Infinity, slackEnabled: true },
+const PLAN_LIMITS: Record<PlanTier, {
+  maxContracts: number;
+  maxUploads: number;
+  maxMembers: number;
+  maxNotificationEmails: number;
+  slackEnabled: boolean;
+}> = {
+  free: { maxContracts: 5, maxUploads: 5, maxMembers: 1, maxNotificationEmails: 1, slackEnabled: false },
+  pro: { maxContracts: Infinity, maxUploads: Infinity, maxMembers: 5, maxNotificationEmails: 2, slackEnabled: true },
+  enterprise: { maxContracts: Infinity, maxUploads: Infinity, maxMembers: Infinity, maxNotificationEmails: Infinity, slackEnabled: true },
 };
 
 export function usePlanLimits() {
@@ -45,10 +51,48 @@ export function usePlanLimits() {
     staleTime: 30_000,
   });
 
+  const { data: memberCount = 0 } = useQuery({
+    queryKey: ['member-count', currentWorkspaceId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('workspace_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', currentWorkspaceId!);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!user && isResolved && !!currentWorkspaceId,
+    staleTime: 30_000,
+  });
+
+  const { data: pendingInviteCount = 0 } = useQuery({
+    queryKey: ['pending-invite-count', currentWorkspaceId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('workspace_invites')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', currentWorkspaceId!)
+        .eq('status', 'pending');
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!user && isResolved && !!currentWorkspaceId,
+    staleTime: 30_000,
+  });
+
   const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
   const canUpload = contractCount < limits.maxContracts;
   const contractsRemaining = Math.max(0, limits.maxContracts - contractCount);
   const isPaid = plan !== 'free';
+
+  const totalMemberSlots = memberCount + pendingInviteCount;
+  const canAddMember = totalMemberSlots < limits.maxMembers;
+  const membersRemaining = Math.max(0, limits.maxMembers - totalMemberSlots);
+
+  // Notification emails: currently 1 per user profile; future-proof for multiple
+  const notificationEmailCount = 1; // profiles.notification_email is always 1
+  const canAddNotificationEmail = notificationEmailCount < limits.maxNotificationEmails;
+  const emailsRemaining = Math.max(0, limits.maxNotificationEmails - notificationEmailCount);
 
   return {
     plan,
@@ -58,5 +102,13 @@ export function usePlanLimits() {
     contractsRemaining,
     isPaid,
     isSlackEnabled: limits.slackEnabled,
+    memberCount,
+    pendingInviteCount,
+    totalMemberSlots,
+    canAddMember,
+    membersRemaining,
+    notificationEmailCount,
+    canAddNotificationEmail,
+    emailsRemaining,
   };
 }

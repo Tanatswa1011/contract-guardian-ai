@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { Mail, MessageSquare, Loader2, Play, Hash, Send, HelpCircle, ExternalLink, ChevronDown } from 'lucide-react';
+import { Mail, MessageSquare, Loader2, Play, Hash, Send, HelpCircle, ExternalLink, ChevronDown, Lock } from 'lucide-react';
+import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +23,7 @@ const DEFAULT_RULES = [
 export default function NotificationSettingsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { limits, notificationEmailCount } = usePlanLimits();
   const [notificationEmail, setNotificationEmail] = useState('');
   const [customDays, setCustomDays] = useState('');
   const [customError, setCustomError] = useState('');
@@ -224,6 +226,11 @@ export default function NotificationSettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {limits.maxNotificationEmails !== Infinity && (
+            <p className="text-xs text-muted-foreground">
+              {notificationEmailCount} of {limits.maxNotificationEmails} notification recipient{limits.maxNotificationEmails !== 1 ? 's' : ''} used
+            </p>
+          )}
           <div className="space-y-2">
             <Label>Notification Email</Label>
             <Input

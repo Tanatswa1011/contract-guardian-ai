@@ -3,9 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, UserPlus, Crown, User, Trash2 } from 'lucide-react';
+import { Loader2, UserPlus, Crown, User, Trash2, Lock } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { usePlanLimits } from '@/hooks/usePlanLimits';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -16,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 export default function WorkspaceSettings() {
   const { user } = useAuth();
   const { currentMembership, currentWorkspace, refreshMemberships, createWorkspace, isLoading: workspaceLoading, isHydrated } = useWorkspace();
+  const { canAddMember, totalMemberSlots, limits, plan } = usePlanLimits();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [inviteEmail, setInviteEmail] = useState('');
@@ -293,8 +296,17 @@ export default function WorkspaceSettings() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Members</CardTitle>
-          <CardDescription>People in your workspace.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Members</CardTitle>
+              <CardDescription>People in your workspace.</CardDescription>
+            </div>
+            {limits.maxMembers !== Infinity && (
+              <span className="text-xs text-muted-foreground">
+                {totalMemberSlots} of {limits.maxMembers} members used
+              </span>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -356,25 +368,40 @@ export default function WorkspaceSettings() {
             <CardTitle className="text-base">Invite Teammate</CardTitle>
             <CardDescription>Send an invitation to join your workspace.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex gap-3">
-              <Input
-                value={inviteEmail}
-                onChange={e => setInviteEmail(e.target.value)}
-                placeholder="colleague@company.com"
-                type="email"
-                className="max-w-sm"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => sendInvite.mutate()}
-                disabled={sendInvite.isPending || !inviteEmail.trim()}
-              >
-                {sendInvite.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Invite
-              </Button>
-            </div>
+          <CardContent className="space-y-3">
+            {!canAddMember ? (
+              <div className="flex items-center gap-3 rounded-md border border-border bg-muted/50 p-3">
+                <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Member limit reached</p>
+                  <p className="text-xs text-muted-foreground">
+                    You've reached your plan limit of {limits.maxMembers} team member{limits.maxMembers !== 1 ? 's' : ''}. Upgrade to add more.
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="default">
+                  <Link to="/app/billing">Upgrade</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <Input
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="colleague@company.com"
+                  type="email"
+                  className="max-w-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => sendInvite.mutate()}
+                  disabled={sendInvite.isPending || !inviteEmail.trim()}
+                >
+                  {sendInvite.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Invite
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
