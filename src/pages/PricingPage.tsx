@@ -138,12 +138,10 @@ export default function PricingPage() {
                     {plan.cta}
                   </Button>
                 ) : (
-                  <a href="mailto:hello@contractguardai.com">
-                    <Button className="w-full gap-2" variant="outline">
+                  <Button className="w-full gap-2" variant="outline" onClick={() => setEnterpriseOpen(true)}>
                       <Building2 className="h-4 w-4" />
                       {plan.cta}
                     </Button>
-                  </a>
                 )}
               </CardContent>
             </Card>
