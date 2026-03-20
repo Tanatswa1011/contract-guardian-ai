@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { validatePassword, PASSWORD_HINT } from '@/lib/passwordValidation';
+import { Separator } from '@/components/ui/separator';
 
 export default function SignupPage() {
   const [searchParams] = useSearchParams();
