@@ -59,10 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[AuthDebug] getSession failed', error);
       }
 
-      console.log('[AuthDebug] getSession resolved', {
-        hasSession: !!session,
-        userId: session?.user?.id ?? null,
-      });
       setSession(session);
       setUser(session?.user ?? null);
       initialSessionResolvedRef.current = true;
