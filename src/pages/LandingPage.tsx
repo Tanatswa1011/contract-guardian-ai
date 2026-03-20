@@ -91,10 +91,10 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section className="py-20">
+      <section className="py-24">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-4">Everything You Need</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Built for teams who take their contracts seriously.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-center mb-3">Everything You Need</h2>
+          <p className="text-center text-muted-foreground/80 mb-14 max-w-lg mx-auto">Built for teams who take their contracts seriously.</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {features.map((f, i) => (
               <Card key={i}>
@@ -103,7 +103,7 @@ export default function LandingPage() {
                     <CheckCircle className="h-5 w-5 text-foreground" />
                     <h3 className="font-semibold">{f.title}</h3>
                   </div>
-                  <p className="text-sm text-muted-foreground">{f.desc}</p>
+                  <p className="text-sm text-muted-foreground/80 leading-relaxed">{f.desc}</p>
                 </CardContent>
               </Card>
             ))}
