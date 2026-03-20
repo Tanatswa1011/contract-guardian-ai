@@ -4,13 +4,15 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MessageSquare, Loader2, Play, Hash, Send, HelpCircle, ExternalLink, ChevronDown } from 'lucide-react';
+import { MessageSquare, Loader2, Play, Hash, Send, HelpCircle, ExternalLink, ChevronDown, Lock } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 const DEFAULT_RULES = [
   { offset_value: 30, offset_unit: 'day', label: '30 days before deadline' },
@@ -266,6 +268,7 @@ export default function NotificationSettings() {
 
 function SlackSettingsCard() {
   const { user } = useAuth();
+  const { isSlackEnabled: planAllowsSlack } = usePlanLimits();
   const queryClient = useQueryClient();
   const [webhookUrl, setWebhookUrl] = useState('');
   const [urlError, setUrlError] = useState('');
@@ -385,12 +388,25 @@ function SlackSettingsCard() {
             <Switch
               checked={profile?.slack_enabled ?? false}
               onCheckedChange={checked => toggleSlack.mutate(checked)}
+              disabled={!planAllowsSlack}
             />
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
+        <CardContent className="space-y-4">
+          {!planAllowsSlack && (
+            <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-3">
+              <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Available on Pro plan</p>
+                <p className="text-xs text-muted-foreground">Upgrade to enable Slack notifications.</p>
+              </div>
+              <Link to="/app/billing">
+                <Button variant="outline" size="sm" className="text-xs">Upgrade</Button>
+              </Link>
+            </div>
+          )}
+        <div className={`space-y-2 ${!planAllowsSlack ? 'opacity-50 pointer-events-none' : ''}`}>
           <Label>Slack Webhook URL</Label>
           <Input
             value={webhookUrl}
@@ -399,10 +415,11 @@ function SlackSettingsCard() {
               setUrlError('');
             }}
             placeholder="https://hooks.slack.com/services/..."
+            disabled={!planAllowsSlack}
           />
           {urlError && <p className="text-xs text-destructive">{urlError}</p>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${!planAllowsSlack ? 'opacity-50 pointer-events-none' : ''}`}>
           <Button
             variant="outline"
             size="sm"

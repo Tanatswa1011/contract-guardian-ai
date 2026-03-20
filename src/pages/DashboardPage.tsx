@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { StatusBadge } from '@/components/StatusBadge';
-import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2, Trash2 } from 'lucide-react';
+import { CalendarClock, AlertTriangle, FileText, Search, Plus, Loader2, Trash2, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { SwipeableContractCard } from '@/components/SwipeableContractCard';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { usePlanLimits } from '@/hooks/usePlanLimits';
+import { Progress } from '@/components/ui/progress';
 
 type DashboardFilter = 'all' | 'needs_review' | 'expiring_soon' | 'active' | 'overdue';
 type DashboardContractRow = {
@@ -286,6 +288,8 @@ export default function DashboardPage() {
     }
   };
 
+  const { canUpload, contractCount, limits, plan, contractsRemaining } = usePlanLimits();
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
@@ -310,9 +314,30 @@ export default function DashboardPage() {
           <p className="text-muted-foreground text-sm">Track, manage, and protect your contracts.</p>
         </div>
         <Link to="/app/upload">
-          <Button size="sm" className="gap-2 shadow-sm"><Plus className="h-3.5 w-3.5" /> Upload Contract</Button>
+          <Button size="sm" className="gap-2 shadow-sm" disabled={!canUpload}>
+            {!canUpload && <Lock className="h-3.5 w-3.5" />}
+            <Plus className="h-3.5 w-3.5" /> Upload Contract
+          </Button>
         </Link>
       </div>
+
+      {/* Plan usage bar for free users */}
+      {plan === 'free' && limits.maxContracts !== Infinity && (
+        <div className="flex items-center gap-4 rounded-md border bg-muted/40 px-4 py-3">
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                {contractCount} / {limits.maxContracts} contracts used
+              </span>
+              <span className="text-muted-foreground">{contractsRemaining} remaining</span>
+            </div>
+            <Progress value={(contractCount / limits.maxContracts) * 100} className="h-1.5" />
+          </div>
+          <Link to="/app/billing">
+            <Button variant="outline" size="sm" className="text-xs shrink-0">Upgrade</Button>
+          </Link>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

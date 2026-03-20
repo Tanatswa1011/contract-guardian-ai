@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Upload, FileText, CheckCircle, AlertTriangle, Loader2, X } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Loader2, X, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { parseExtractionSuggestion, type SupportedExtractionField } from '@/lib/extraction';
 import { generateSuggestedDeadlines } from '@/lib/deadlineSuggestions';
+import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { toast } from 'sonner';
 
 type UploadState = 'idle' | 'selected' | 'uploading' | 'uploaded' | 'extracting' | 'preview' | 'saved' | 'failed';
@@ -345,6 +346,8 @@ export default function UploadPage() {
     );
   }
 
+  const { canUpload, contractsRemaining, limits, plan } = usePlanLimits();
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -352,7 +355,30 @@ export default function UploadPage() {
         <p className="text-muted-foreground text-sm">Upload a PDF contract to start tracking deadlines.</p>
       </div>
 
-      {state === 'idle' && (
+      {!canUpload && (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="py-6 text-center space-y-3">
+            <Lock className="h-8 w-8 text-destructive mx-auto" />
+            <h3 className="font-semibold text-lg">Upload limit reached</h3>
+            <p className="text-sm text-muted-foreground">
+              Your {plan === 'free' ? 'Starter' : plan} plan allows up to {limits.maxContracts} contracts.
+              Upgrade to upload more.
+            </p>
+            <Link to="/app/billing">
+              <Button size="sm" className="gap-2">Upgrade Plan</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {canUpload && plan === 'free' && (
+        <div className="flex items-center justify-between rounded-md border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
+          <span>{contractsRemaining} of {limits.maxContracts} uploads remaining on free plan</span>
+          <Link to="/app/billing" className="underline underline-offset-2 hover:text-foreground">Upgrade</Link>
+        </div>
+      )}
+
+      {state === 'idle' && canUpload && (
         <Card
           className="cursor-pointer border-2 border-dashed transition-colors hover:border-foreground/40"
           onDragOver={e => e.preventDefault()}
