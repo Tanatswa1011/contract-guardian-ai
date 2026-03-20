@@ -49,19 +49,61 @@ Deno.serve(async (req) => {
       });
     }
 
+    // SECURITY: Prevent email relay abuse — only allow sending to the authenticated user's own email
+    // or their configured notification email
+    const userEmail = user.email?.toLowerCase();
+    const recipientEmail = to.trim().toLowerCase();
+
+    // Fetch user's notification email from profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("notification_email")
+      .eq("user_id", user.id)
+      .single();
+
+    const notificationEmail = profile?.notification_email?.toLowerCase();
+    const allowedEmails = new Set(
+      [userEmail, notificationEmail].filter(Boolean) as string[]
+    );
+
+    if (!allowedEmails.has(recipientEmail)) {
+      return new Response(
+        JSON.stringify({ error: "You can only send notifications to your own email address." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Input validation
+    if (typeof to !== "string" || to.length > 255) {
+      return new Response(JSON.stringify({ error: "Invalid email address" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (subject && (typeof subject !== "string" || subject.length > 500)) {
+      return new Response(JSON.stringify({ error: "Subject too long" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (message && (typeof message !== "string" || message.length > 5000)) {
+      return new Response(JSON.stringify({ error: "Message too long" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     let result;
 
     if (type === "support") {
       result = await sendSupportAcknowledgementEmail({
-        to,
+        to: recipientEmail,
         subject,
         message,
         ticketId,
       });
     } else {
-      // Default: general notification
       result = await sendGeneralNotificationEmail({
-        to,
+        to: recipientEmail,
         subject: subject || "Notification from ContractGuard",
         message: message || "",
         actionLink,
@@ -70,19 +112,18 @@ Deno.serve(async (req) => {
     }
 
     if (!result.success) {
-      return new Response(JSON.stringify({ error: result.error }), {
+      return new Response(JSON.stringify({ error: "Failed to send notification" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ success: true, id: result.id }), {
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("Exception:", msg);
-    return new Response(JSON.stringify({ error: msg }), {
+    console.error("send-notification-email failed:", e instanceof Error ? e.message : String(e));
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
