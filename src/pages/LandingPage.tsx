@@ -34,7 +34,7 @@ export default function LandingPage() {
         <div className="container text-center max-w-4xl mx-auto">
           <div className="mb-6 inline-flex items-center gap-2 border bg-muted px-4 py-1.5 text-sm font-medium text-foreground">
             <Shield className="h-4 w-4" />
-            Trusted by 500+ businesses
+            AI-powered contract management
           </div>
           <h1 className="mb-6 text-4xl font-semibold tracking-tight md:text-5xl">
             Stop Losing Money on Missed Contract Deadlines
