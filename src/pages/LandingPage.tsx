@@ -22,11 +22,6 @@ const features = [
   { title: 'Secure Storage', desc: 'All contracts stored securely with encryption at rest and in transit.' },
 ];
 
-const testimonials = [
-  { name: 'Sarah Chen', role: 'COO, TechStart Inc.', text: 'ContractGuardAI saved us from a $50K auto-renewal we completely forgot about. Paid for itself on day one.', stars: 5 },
-  { name: 'Marcus Johnson', role: 'Freelance Consultant', text: 'I manage 30+ client contracts. This tool replaced my messy spreadsheet and actually works.', stars: 5 },
-  { name: 'Emily Rodriguez', role: 'Operations Lead, ScaleUp Agency', text: 'The AI extraction is surprisingly accurate. We onboarded 100 contracts in an afternoon.', stars: 5 },
-];
 
 export default function LandingPage() {
   const [waitlistOpen, setWaitlistOpen] = useState(false);
