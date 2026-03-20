@@ -137,7 +137,8 @@ export default function ProfileSettings() {
           <CardDescription>Reset your password via email.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" size="sm" onClick={handlePasswordReset}>
+          <Button variant="outline" size="sm" onClick={handlePasswordReset} disabled={resetLoading}>
+            {resetLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             Send Password Reset Email
           </Button>
         </CardContent>
