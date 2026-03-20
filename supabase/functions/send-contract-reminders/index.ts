@@ -7,6 +7,45 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+async function sendSlackNotification(
+  webhookUrl: string,
+  contractName: string,
+  dueDate: string,
+  offsetValue: number,
+  offsetUnit: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const timing = offsetValue === 0
+      ? "on deadline day"
+      : `${offsetValue} ${offsetUnit}${offsetValue !== 1 ? "s" : ""} before`;
+
+    const res = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: `📄 Contract Reminder: ${contractName}`,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*📄 Contract Reminder*\n\n*Contract:* ${contractName}\n*Deadline:* ${dueDate}\n*Reminder:* ${timing}`,
+            },
+          },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      return { success: false, error: `Slack ${res.status}: ${body}` };
+    }
+    return { success: true };
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -27,9 +66,25 @@ Deno.serve(async (req) => {
   }
 
   if (!reminders || reminders.length === 0) {
-    return new Response(JSON.stringify({ sent: 0, message: "No reminders due today" }), {
+    return new Response(JSON.stringify({ sent: 0, skipped: 0, message: "No reminders due today" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+
+  // Pre-fetch Slack settings for all unique users
+  const userIds = [...new Set(reminders.map((r: any) => r.user_id))];
+  const { data: slackProfiles } = await supabase
+    .from("profiles")
+    .select("user_id, slack_enabled, slack_webhook_url")
+    .in("user_id", userIds);
+
+  const slackMap = new Map<string, { enabled: boolean; url: string }>();
+  if (slackProfiles) {
+    for (const p of slackProfiles) {
+      if (p.slack_enabled && p.slack_webhook_url) {
+        slackMap.set(p.user_id, { enabled: true, url: p.slack_webhook_url });
+      }
+    }
   }
 
   let sent = 0;
@@ -46,6 +101,7 @@ Deno.serve(async (req) => {
     const subject = r.subject || `Contract Reminder: ${r.title}`;
 
     try {
+      // Send email
       const result = await sendContractReminderEmail({
         to: sendTo,
         contractName: r.title,
@@ -72,22 +128,36 @@ Deno.serve(async (req) => {
           p_status: "failed",
           p_error: result.error || "Unknown error",
         });
-        continue;
+        // Don't skip Slack — email failure shouldn't block Slack
+      } else {
+        await supabase.rpc("log_notification", {
+          p_user_id: r.user_id,
+          p_contract_id: r.contract_id,
+          p_contract_date_id: r.contract_date_id,
+          p_channel: r.channel || "email",
+          p_fire_on_date: r.fire_on_date,
+          p_sent_to: sendTo,
+          p_subject: subject,
+          p_dedupe_key: r.dedupe_key,
+          p_status: "sent",
+        });
+        sent++;
       }
 
-      await supabase.rpc("log_notification", {
-        p_user_id: r.user_id,
-        p_contract_id: r.contract_id,
-        p_contract_date_id: r.contract_date_id,
-        p_channel: r.channel || "email",
-        p_fire_on_date: r.fire_on_date,
-        p_sent_to: sendTo,
-        p_subject: subject,
-        p_dedupe_key: r.dedupe_key,
-        p_status: "sent",
-      });
-
-      sent++;
+      // Send Slack notification (error-safe, never blocks)
+      const slackInfo = slackMap.get(r.user_id);
+      if (slackInfo) {
+        const slackResult = await sendSlackNotification(
+          slackInfo.url,
+          r.title,
+          r.due_date,
+          r.offset_value,
+          r.offset_unit
+        );
+        if (!slackResult.success) {
+          console.error(`Slack notification failed for ${r.user_id}: ${slackResult.error}`);
+        }
+      }
     } catch (e: unknown) {
       const errMsg = `Exception sending to ${sendTo}: ${e instanceof Error ? e.message : String(e)}`;
       console.error(errMsg);
