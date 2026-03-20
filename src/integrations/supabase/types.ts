@@ -499,6 +499,30 @@ export type Database = {
           },
         ]
       }
+      pro_waitlist: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          source: string
+          workspace_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          source?: string
+          workspace_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          source?: string
+          workspace_name?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
