@@ -12,9 +12,10 @@ const PLAN_DISPLAY: Record<string, { label: string; badge: string }> = {
 };
 
 export default function BillingPage() {
-  const { plan, contractCount, limits } = usePlanLimits();
+  const { plan, contractCount, limits, totalMemberSlots } = usePlanLimits();
   const display = PLAN_DISPLAY[plan] ?? PLAN_DISPLAY.free;
   const usagePercent = limits.maxContracts === Infinity ? 0 : (contractCount / limits.maxContracts) * 100;
+  const memberPercent = limits.maxMembers === Infinity ? 0 : (totalMemberSlots / limits.maxMembers) * 100;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
