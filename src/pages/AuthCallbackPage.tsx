@@ -12,7 +12,13 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
-        setStatus('confirmed');
+        // For OAuth flows, redirect straight to the app
+        const isOAuth = window.location.hash.includes('access_token') || window.location.search.includes('code=');
+        if (isOAuth) {
+          navigate('/app', { replace: true });
+        } else {
+          setStatus('confirmed');
+        }
       } else if (event === 'PASSWORD_RECOVERY') {
         navigate('/reset-password', { replace: true });
       }
