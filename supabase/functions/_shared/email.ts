@@ -120,8 +120,8 @@ export async function sendInviteEmail(params: {
   workspaceName?: string;
   inviterName?: string;
 }): Promise<EmailResult> {
-  const ws = params.workspaceName || "a workspace";
-  const inviter = params.inviterName || "A teammate";
+  const ws = escapeHtml(params.workspaceName || "a workspace");
+  const inviter = escapeHtml(params.inviterName || "A teammate");
 
   const html = layout(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">You've been invited</h2>
