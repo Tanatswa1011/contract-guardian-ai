@@ -38,14 +38,21 @@ export default function BillingPage() {
         <CardContent className="space-y-4">
           <ul className="space-y-2">
             {plan === 'free' ? (
-              ['5 contracts', 'AI extraction', 'Email notifications', 'Basic deadline tracking'].map(f => (
+              ['5 contracts', '1 team member', 'Email notifications', 'AI extraction', 'Basic deadline tracking'].map(f => (
+                <li key={f} className="flex items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 text-foreground" />
+                  {f}
+                </li>
+              ))
+            ) : plan === 'pro' ? (
+              ['Unlimited contracts', '5 team members', 'Email + Slack notifications', 'AI extraction', 'Priority support'].map(f => (
                 <li key={f} className="flex items-center gap-2 text-sm">
                   <Check className="h-4 w-4 text-foreground" />
                   {f}
                 </li>
               ))
             ) : (
-              ['Unlimited contracts', 'AI extraction', 'Email + Slack notifications', 'Advanced deadline tracking', 'Priority support'].map(f => (
+              ['Unlimited contracts', 'Unlimited team members', 'All notification channels', 'AI extraction', 'Dedicated support'].map(f => (
                 <li key={f} className="flex items-center gap-2 text-sm">
                   <Check className="h-4 w-4 text-foreground" />
                   {f}
