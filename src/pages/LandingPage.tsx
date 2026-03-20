@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import PricingCards from '@/components/PricingCards';
 import WaitlistModal from '@/components/WaitlistModal';
 import EnterpriseInquiryModal from '@/components/EnterpriseInquiryModal';
@@ -16,11 +17,19 @@ const steps = [
 const features = [
   { title: 'Deadline Tracking', desc: 'Track renewal, notice, and payment deadlines across all contracts in one place.' },
   { title: 'AI-Powered Extraction', desc: 'Upload a PDF and let AI find key dates, terms, and obligations automatically.' },
-  
   { title: 'Email Alerts', desc: 'Customizable reminder schedules so you never miss a critical deadline.' },
   { title: 'Contract Health', desc: 'At-a-glance health badges show which contracts need your attention now.' },
   { title: 'Secure Storage', desc: 'All contracts stored securely with encryption at rest and in transit.' },
   { title: 'GDPR Compliant', desc: 'Your data stays yours. Built with privacy by design and full GDPR compliance.' },
+];
+
+const faqs = [
+  { q: 'What does ContractGuardAI do?', a: 'ContractGuardAI helps you track important contract deadlines like renewals, notice periods, and payments so you never lose money on missed dates.' },
+  { q: 'Is there a free plan?', a: 'Yes, you can start with a free plan to track a limited number of contracts.' },
+  { q: 'How accurate is the AI extraction?', a: 'Our AI is designed to extract key contract dates and terms with high accuracy, and you can always review and edit the results.' },
+  { q: 'Is my data secure?', a: 'Yes. Your data is encrypted in transit and at rest, and access is strictly controlled. We are GDPR compliant.' },
+  { q: 'Can I cancel anytime?', a: 'Yes, there are no long-term commitments. You can stop using the service at any time.' },
+  { q: 'What happens if I delete my account?', a: 'All your data, including contracts and reminders, will be permanently deleted and cannot be recovered.' },
 ];
 
 
@@ -114,6 +123,28 @@ export default function LandingPage() {
         </div>
       </section>
 
+
+      {/* FAQ */}
+      <section id="faq" className="py-20">
+        <div className="container max-w-3xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-4">Frequently Asked Questions</h2>
+          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Everything you need to know before getting started.</p>
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((faq, i) => (
+              <AccordionItem key={i} value={`faq-${i}`}>
+                <AccordionTrigger className="text-left">{faq.q}</AccordionTrigger>
+                <AccordionContent>{faq.a}</AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+          <p className="text-center text-sm text-muted-foreground mt-10">
+            Still have questions?{' '}
+            <a href="mailto:support@contractguard.cloud" className="underline underline-offset-4 hover:text-foreground transition-colors">
+              Contact support
+            </a>
+          </p>
+        </div>
+      </section>
 
       {/* CTA */}
       <section className="border-t bg-muted py-20">
