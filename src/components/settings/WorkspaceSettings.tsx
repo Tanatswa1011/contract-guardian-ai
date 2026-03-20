@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 export default function WorkspaceSettings() {
   const { user } = useAuth();
   const { currentMembership, currentWorkspace, refreshMemberships, createWorkspace, isLoading: workspaceLoading, isHydrated } = useWorkspace();
+  const { canAddMember, totalMemberSlots, limits, plan } = usePlanLimits();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [inviteEmail, setInviteEmail] = useState('');
