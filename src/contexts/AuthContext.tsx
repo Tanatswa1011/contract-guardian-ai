@@ -68,13 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  useEffect(() => {
-    console.log('[AuthDebug] auth loading state', {
-      loading,
-      hasSession: !!session,
-      userId: user?.id ?? null,
-    });
-  }, [loading, session, user?.id]);
 
   const signUp = async (email: string, password: string, displayName: string, workspaceName?: string) => {
     const { error } = await supabase.auth.signUp({

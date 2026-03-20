@@ -29,13 +29,6 @@ export default function WorkspaceSwitcher({ className, onSelect }: WorkspaceSwit
     setCurrentWorkspaceId,
   } = useWorkspace();
 
-  useEffect(() => {
-    console.log('[WorkspaceDebug] WorkspaceSwitcher state', {
-      membershipCount: memberships.length,
-      currentWorkspaceId,
-      activeWorkspaceId: currentWorkspace?.id ?? null,
-    });
-  }, [currentWorkspace?.id, currentWorkspaceId, memberships.length]);
 
   if (memberships.length === 0) {
     return null;

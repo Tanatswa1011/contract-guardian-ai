@@ -40,10 +40,6 @@ export default function CreateWorkspacePage() {
   }
 
   if (hasWorkspace) {
-    console.log('[WorkspaceDebug] CreateWorkspacePage redirecting to /app because workspace already exists', {
-      membershipCount: memberships.length,
-      currentWorkspaceId,
-    });
     return <Navigate to="/app" replace />;
   }
 

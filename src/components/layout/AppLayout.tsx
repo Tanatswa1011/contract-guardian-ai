@@ -21,13 +21,6 @@ export default function AppLayout() {
   const { signOut } = useAuth();
   const { currentWorkspaceId, isResolved: isWorkspaceResolved } = useWorkspace();
 
-  useEffect(() => {
-    console.log('[WorkspaceDebug] AppLayout workspace gate', {
-      pathname: location.pathname,
-      isWorkspaceResolved,
-      currentWorkspaceId,
-    });
-  }, [currentWorkspaceId, isWorkspaceResolved, location.pathname]);
 
   const handleSignOut = async () => {
     await signOut();
