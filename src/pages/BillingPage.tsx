@@ -1,14 +1,16 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, CreditCard } from 'lucide-react';
+import { Check, CreditCard, Sparkles } from 'lucide-react';
 import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { Progress } from '@/components/ui/progress';
+import WaitlistModal from '@/components/WaitlistModal';
 
 const PLAN_DISPLAY: Record<string, { label: string; badge: string }> = {
   free: { label: 'Starter', badge: 'Free' },
-  pro: { label: 'Professional', badge: '$19/mo' },
-  enterprise: { label: 'Enterprise', badge: '$49/mo' },
+  pro: { label: 'Professional', badge: '€15/mo' },
+  enterprise: { label: 'Enterprise', badge: 'Custom' },
 };
 
 export default function BillingPage() {
@@ -16,6 +18,7 @@ export default function BillingPage() {
   const display = PLAN_DISPLAY[plan] ?? PLAN_DISPLAY.free;
   const usagePercent = limits.maxContracts === Infinity ? 0 : (contractCount / limits.maxContracts) * 100;
   const memberPercent = limits.maxMembers === Infinity ? 0 : (totalMemberSlots / limits.maxMembers) * 100;
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -38,21 +41,21 @@ export default function BillingPage() {
         <CardContent className="space-y-4">
           <ul className="space-y-2">
             {plan === 'free' ? (
-              ['5 contracts', '1 team member', 'Email notifications', 'AI extraction', 'Basic deadline tracking'].map(f => (
+              ['Up to 5 contracts', '1 team member', '1 notification email', 'Email reminders', 'AI extraction'].map(f => (
                 <li key={f} className="flex items-center gap-2 text-sm">
                   <Check className="h-4 w-4 text-foreground" />
                   {f}
                 </li>
               ))
             ) : plan === 'pro' ? (
-              ['Unlimited contracts', '5 team members', 'Email + Slack notifications', 'AI extraction', 'Priority support'].map(f => (
+              ['Unlimited contracts', 'Up to 5 team members', 'Slack notifications', 'Custom reminders', 'Priority support'].map(f => (
                 <li key={f} className="flex items-center gap-2 text-sm">
                   <Check className="h-4 w-4 text-foreground" />
                   {f}
                 </li>
               ))
             ) : (
-              ['Unlimited contracts', 'Unlimited team members', 'All notification channels', 'AI extraction', 'Dedicated support'].map(f => (
+              ['Unlimited everything', 'Advanced integrations', 'Dedicated support'].map(f => (
                 <li key={f} className="flex items-center gap-2 text-sm">
                   <Check className="h-4 w-4 text-foreground" />
                   {f}
@@ -83,29 +86,46 @@ export default function BillingPage() {
         </CardContent>
       </Card>
 
-      {/* Upgrade */}
+      {/* Upgrade CTA */}
       {plan === 'free' && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Upgrade to Professional</CardTitle>
-            <CardDescription>Unlock unlimited contracts and advanced features</CardDescription>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-foreground" />
+              <div>
+                <CardTitle className="text-base">Upgrade to Professional</CardTitle>
+                <CardDescription>Unlock unlimited contracts, Slack notifications, and team collaboration.</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-baseline gap-1 mb-4">
-              <span className="text-3xl font-bold">$19</span>
+            <div className="flex items-baseline gap-1 mb-1">
+              <span className="text-3xl font-bold">€15</span>
               <span className="text-muted-foreground">/month</span>
             </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Get 50% off your first month · Early access
+            </p>
             <ul className="space-y-2 mb-6">
-              {['Unlimited contracts', 'Slack notifications', 'Advanced deadline tracking', 'Priority support'].map(f => (
+              {['Unlimited contracts', 'Slack notifications', 'Up to 5 team members', 'Custom reminder timing'].map(f => (
                 <li key={f} className="flex items-center gap-2 text-sm">
                   <Check className="h-4 w-4 text-foreground" />
                   {f}
                 </li>
               ))}
             </ul>
-            <Button className="w-full gap-2"><CreditCard className="h-4 w-4" /> Upgrade Now</Button>
+            <Button className="w-full gap-2" onClick={() => setWaitlistOpen(true)}>
+              <CreditCard className="h-4 w-4" /> Get 50% off your first month
+            </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* Manage / Portal placeholder */}
+      {plan !== 'free' && (
+        <Button variant="outline" className="w-full" disabled>
+          Manage Billing (coming soon)
+        </Button>
       )}
 
       {/* Invoice History */}
@@ -118,7 +138,11 @@ export default function BillingPage() {
         </CardContent>
       </Card>
 
-      <Button variant="outline" className="w-full">Open Billing Portal</Button>
+      <WaitlistModal
+        open={waitlistOpen}
+        onOpenChange={setWaitlistOpen}
+        source="billing_page"
+      />
     </div>
   );
 }
