@@ -177,10 +177,13 @@ export async function sendContractReminderEmail(params: {
   offsetValue?: number;
   offsetUnit?: string;
 }): Promise<EmailResult> {
-  const deadlineLabel = params.dateType || "deadline";
+  const contractName = escapeHtml(params.contractName);
+  const expiryDate = escapeHtml(params.expiryDate);
+  const deadlineLabel = escapeHtml(params.dateType || "deadline");
   const offsetText = params.offsetValue && params.offsetUnit
-    ? `${params.offsetValue} ${params.offsetUnit}(s) before`
+    ? `${params.offsetValue} ${escapeHtml(params.offsetUnit)}(s) before`
     : "";
+  const workspaceName = params.workspaceName ? escapeHtml(params.workspaceName) : undefined;
 
   let ctaHtml = "";
   if (params.contractLink) {
@@ -191,22 +194,22 @@ export async function sendContractReminderEmail(params: {
     <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">Contract Reminder</h2>
     <table cellpadding="0" cellspacing="0" style="margin:0 0 16px;width:100%">
       <tr><td style="padding:8px 0;font-size:14px;color:#71717a;width:120px">Contract</td>
-          <td style="padding:8px 0;font-size:14px;color:#18181b;font-weight:600">${params.contractName}</td></tr>
+          <td style="padding:8px 0;font-size:14px;color:#18181b;font-weight:600">${contractName}</td></tr>
       <tr><td style="padding:8px 0;font-size:14px;color:#71717a">Deadline type</td>
           <td style="padding:8px 0;font-size:14px;color:#18181b">${deadlineLabel}</td></tr>
       <tr><td style="padding:8px 0;font-size:14px;color:#71717a">Due date</td>
-          <td style="padding:8px 0;font-size:14px;color:#18181b">${params.expiryDate}</td></tr>
+          <td style="padding:8px 0;font-size:14px;color:#18181b">${expiryDate}</td></tr>
       ${offsetText ? `<tr><td style="padding:8px 0;font-size:14px;color:#71717a">Reminder</td>
           <td style="padding:8px 0;font-size:14px;color:#18181b">${offsetText}</td></tr>` : ""}
     </table>
     ${ctaHtml}
-  `, params.workspaceName
-    ? `This reminder was sent by ContractGuard for workspace "${params.workspaceName}".`
+  `, workspaceName
+    ? `This reminder was sent by ContractGuard for workspace "${workspaceName}".`
     : undefined);
 
   return sendEmail({
     to: params.to,
-    subject: `Reminder: ${params.contractName} — ${deadlineLabel} due ${params.expiryDate}`,
+    subject: `Reminder: ${contractName} — ${deadlineLabel} due ${expiryDate}`,
     html,
     from: SENDERS.notifications,
   });
