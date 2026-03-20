@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight, Star } from 'lucide-react';
+import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight } from 'lucide-react';
 import PricingCards from '@/components/PricingCards';
 import WaitlistModal from '@/components/WaitlistModal';
 import EnterpriseInquiryModal from '@/components/EnterpriseInquiryModal';
