@@ -51,15 +51,22 @@ export default function ProfileSettings() {
     onError: () => toast.error('Failed to update profile'),
   });
 
+  const [resetLoading, setResetLoading] = useState(false);
+
   const handlePasswordReset = async () => {
-    if (!user?.email) return;
-    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-      redirectTo: window.location.origin,
-    });
-    if (error) {
-      toast.error('Failed to send password reset email');
-    } else {
-      toast.success('Password reset email sent. Check your inbox.');
+    if (!user?.email || resetLoading) return;
+    setResetLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: window.location.origin,
+      });
+      if (error) {
+        toast.error('Could not send reset email. Please try again.');
+      } else {
+        toast.success('Password reset email sent — check your inbox.');
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
