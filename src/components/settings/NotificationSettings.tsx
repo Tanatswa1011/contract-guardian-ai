@@ -165,8 +165,19 @@ export default function NotificationSettings() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="rounded-md border p-6 space-y-4">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-64" />
+          <div className="space-y-3 pt-2">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="flex items-center justify-between py-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-5 w-9 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
