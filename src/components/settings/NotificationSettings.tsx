@@ -392,7 +392,19 @@ function SlackSettingsCard() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+        <CardContent className="space-y-4">
+          {!planAllowsSlack && (
+            <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-3">
+              <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Available on Pro plan</p>
+                <p className="text-xs text-muted-foreground">Upgrade to enable Slack notifications.</p>
+              </div>
+              <Link to="/app/billing">
+                <Button variant="outline" size="sm" className="text-xs">Upgrade</Button>
+              </Link>
+            </div>
+          )}
         <div className="space-y-2">
           <Label>Slack Webhook URL</Label>
           <Input
