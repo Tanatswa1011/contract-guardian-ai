@@ -23,6 +23,7 @@ const DEFAULT_RULES = [
 export default function NotificationSettingsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { limits, notificationEmailCount } = usePlanLimits();
   const [notificationEmail, setNotificationEmail] = useState('');
   const [customDays, setCustomDays] = useState('');
   const [customError, setCustomError] = useState('');
