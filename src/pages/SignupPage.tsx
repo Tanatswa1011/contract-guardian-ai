@@ -92,8 +92,8 @@ export default function SignupPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <PasswordInput id="password" placeholder="At least 6 characters" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} autoComplete="new-password" />
-              <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
+              <PasswordInput id="password" placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} autoComplete="new-password" />
+              <p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
             </div>
             {!inviteEmail && (
               <div className="space-y-2">
