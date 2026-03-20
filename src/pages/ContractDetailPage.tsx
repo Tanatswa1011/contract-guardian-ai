@@ -520,13 +520,29 @@ export default function ContractDetailPage() {
   }, [dates]);
 
   if (!isResolved || contractLoading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-5 w-5" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-7 w-64" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+        </div>
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
   }
 
   if (!contract) {
     return (
-      <div className="text-center py-16">
-        <h2 className="text-xl font-semibold mb-2">Contract not found</h2>
+      <div className="text-center py-20">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md border bg-muted/50">
+          <FileText className="h-5 w-5 text-muted-foreground/60" />
+        </div>
+        <h2 className="text-lg font-semibold mb-1">Contract not found</h2>
+        <p className="text-sm text-muted-foreground mb-6">This contract may have been deleted or you don't have access.</p>
         <Link to="/app"><Button variant="outline">Back to Dashboard</Button></Link>
       </div>
     );
