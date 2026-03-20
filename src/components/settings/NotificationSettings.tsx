@@ -405,7 +405,7 @@ function SlackSettingsCard() {
               </Link>
             </div>
           )}
-        <div className="space-y-2">
+        <div className={`space-y-2 ${!planAllowsSlack ? 'opacity-50 pointer-events-none' : ''}`}>
           <Label>Slack Webhook URL</Label>
           <Input
             value={webhookUrl}
@@ -414,6 +414,7 @@ function SlackSettingsCard() {
               setUrlError('');
             }}
             placeholder="https://hooks.slack.com/services/..."
+            disabled={!planAllowsSlack}
           />
           {urlError && <p className="text-xs text-destructive">{urlError}</p>}
         </div>
