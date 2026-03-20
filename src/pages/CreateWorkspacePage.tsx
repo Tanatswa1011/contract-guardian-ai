@@ -32,10 +32,6 @@ export default function CreateWorkspacePage() {
   };
 
   if (!isResolved) {
-    console.log('[WorkspaceDebug] CreateWorkspacePage waiting for workspace resolution', {
-      membershipCount: memberships.length,
-      currentWorkspaceId,
-    });
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
