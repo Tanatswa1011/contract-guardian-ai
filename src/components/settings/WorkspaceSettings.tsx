@@ -296,8 +296,17 @@ export default function WorkspaceSettings() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Members</CardTitle>
-          <CardDescription>People in your workspace.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Members</CardTitle>
+              <CardDescription>People in your workspace.</CardDescription>
+            </div>
+            {limits.maxMembers !== Infinity && (
+              <span className="text-xs text-muted-foreground">
+                {totalMemberSlots} of {limits.maxMembers} members used
+              </span>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
