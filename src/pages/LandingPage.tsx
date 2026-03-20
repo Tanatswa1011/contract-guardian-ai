@@ -147,12 +147,12 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="border-t bg-muted py-20">
+      <section className="border-t bg-muted py-24">
         <div className="container text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">Ready to Protect Your Contracts?</h2>
-          <p className="text-muted-foreground mb-8">Start tracking your contracts and never miss a deadline again.</p>
+          <h2 className="text-3xl font-bold tracking-tight mb-4">Ready to Protect Your Contracts?</h2>
+          <p className="text-muted-foreground/80 mb-10 leading-relaxed">Start tracking your contracts and never miss a deadline again.</p>
           <Link to="/signup">
-            <Button size="lg" className="text-base px-8 gap-2">
+            <Button size="lg" className="text-base font-semibold px-8 gap-2">
               Start Free <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
