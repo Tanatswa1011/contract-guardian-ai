@@ -346,12 +346,37 @@ export default function UploadPage() {
     );
   }
 
+  const { canUpload, contractsRemaining, limits, plan } = usePlanLimits();
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Upload Contract</h1>
         <p className="text-muted-foreground text-sm">Upload a PDF contract to start tracking deadlines.</p>
       </div>
+
+      {!canUpload && (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="py-6 text-center space-y-3">
+            <Lock className="h-8 w-8 text-destructive mx-auto" />
+            <h3 className="font-semibold text-lg">Upload limit reached</h3>
+            <p className="text-sm text-muted-foreground">
+              Your {plan === 'free' ? 'Starter' : plan} plan allows up to {limits.maxContracts} contracts.
+              Upgrade to upload more.
+            </p>
+            <Link to="/app/billing">
+              <Button size="sm" className="gap-2">Upgrade Plan</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {canUpload && plan === 'free' && (
+        <div className="flex items-center justify-between rounded-md border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
+          <span>{contractsRemaining} of {limits.maxContracts} uploads remaining on free plan</span>
+          <Link to="/app/billing" className="underline underline-offset-2 hover:text-foreground">Upgrade</Link>
+        </div>
+      )}
 
       {state === 'idle' && (
         <Card
