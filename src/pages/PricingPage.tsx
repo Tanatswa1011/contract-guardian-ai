@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Check, Sparkles, Building2 } from 'lucide-react';
 import WaitlistModal from '@/components/WaitlistModal';
+import EnterpriseInquiryModal from '@/components/EnterpriseInquiryModal';
 
 const plans = [
   {
