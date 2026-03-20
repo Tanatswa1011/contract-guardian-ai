@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight } from 'lucide-react';
-import dashboardPreview from '@/assets/dashboard-preview.png';
+import PricingCards from '@/components/PricingCards';
 import PricingCards from '@/components/PricingCards';
 import WaitlistModal from '@/components/WaitlistModal';
 import EnterpriseInquiryModal from '@/components/EnterpriseInquiryModal';
