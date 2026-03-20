@@ -9,6 +9,95 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useNavigate } from 'react-router-dom';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+
+function DeleteAccountSection() {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (confirmText !== 'DELETE') return;
+    setDeleting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to delete your account.');
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke('delete-user-account', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error || 'Failed to delete account. Please try again.');
+        return;
+      }
+      await signOut();
+      toast.success('Your account has been permanently deleted.');
+      navigate('/', { replace: true });
+    } catch {
+      toast.error('An unexpected error occurred. Please try again.');
+    } finally {
+      setDeleting(false);
+      setOpen(false);
+      setConfirmText('');
+    }
+  };
+
+  return (
+    <Card className="border-destructive/30">
+      <CardHeader>
+        <CardTitle className="text-base text-destructive">Delete Account</CardTitle>
+        <CardDescription>Permanently delete your account and all associated data.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
+          Delete Account
+        </Button>
+
+        <AlertDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setConfirmText(''); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete your account permanently?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. All your contracts, reminders, and data will be permanently deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-2 py-2">
+              <Label htmlFor="confirm-delete">
+                Type <span className="font-semibold">DELETE</span> to confirm
+              </Label>
+              <Input
+                id="confirm-delete"
+                value={confirmText}
+                onChange={e => setConfirmText(e.target.value)}
+                placeholder="DELETE"
+                autoComplete="off"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={confirmText !== 'DELETE' || deleting}
+              >
+                {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Delete my account
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ProfileSettings() {
   const { user } = useAuth();
