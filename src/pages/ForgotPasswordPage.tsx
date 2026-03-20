@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield, Loader2, ArrowLeft } from 'lucide-react';
+import { Shield, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -15,9 +15,9 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     const redirectUrl = `${window.location.origin}/reset-password`;
-    console.log('[ForgotPassword] redirectTo:', redirectUrl);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
     });
@@ -40,12 +40,13 @@ export default function ForgotPasswordPage() {
           </div>
           <CardTitle className="text-2xl font-semibold">Reset your password</CardTitle>
           <CardDescription>
-            {sent ? 'Check your email for a reset link.' : 'Enter your email and we\'ll send you a reset link.'}
+            {sent ? 'Check your email for a reset link.' : "Enter your email and we'll send you a reset link."}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {sent ? (
             <div className="space-y-4 text-center">
+              <CheckCircle className="h-10 w-10 text-foreground mx-auto" />
               <p className="text-sm text-muted-foreground">
                 If an account exists for <span className="font-medium text-foreground">{email}</span>, you'll receive a password reset email shortly.
               </p>
@@ -60,10 +61,10 @@ export default function ForgotPasswordPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} />
+                  <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} autoComplete="email" />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   Send Reset Link
                 </Button>
               </form>
