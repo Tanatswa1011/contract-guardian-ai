@@ -40,26 +40,26 @@ export default function LandingPage() {
   return (
     <div>
       {/* Hero */}
-      <section className="py-20 md:py-32">
+      <section className="py-24 md:py-36">
         <div className="container text-center max-w-4xl mx-auto">
-          <div className="mb-6 inline-flex items-center gap-2 border bg-muted px-4 py-1.5 text-sm font-medium text-foreground">
+          <div className="mb-8 inline-flex items-center gap-2 border bg-muted px-4 py-1.5 text-sm font-medium text-muted-foreground">
             <Shield className="h-4 w-4" />
             AI-powered contract management
           </div>
-          <h1 className="mb-6 text-4xl font-semibold tracking-tight md:text-5xl">
+          <h1 className="mb-6 text-4xl font-extrabold tracking-tight leading-[1.1] md:text-6xl">
             Stop Losing Money on Missed Contract Deadlines
           </h1>
-          <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl">
+          <p className="mx-auto mb-12 max-w-2xl text-lg text-muted-foreground/80 leading-relaxed md:text-xl">
             Upload your contracts, let AI extract the critical dates, and get reminded before every renewal, notice period, and payment deadline.
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <Link to="/signup">
-              <Button size="lg" className="text-base px-8 gap-2">
+              <Button size="lg" className="text-base font-semibold px-8 gap-2">
                 Start Free <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <a href="#how-it-works">
-              <Button size="lg" variant="outline" className="text-base px-8">
+              <Button size="lg" variant="outline" className="text-base font-medium px-8">
                 See How It Works
               </Button>
             </a>
@@ -69,10 +69,10 @@ export default function LandingPage() {
 
 
       {/* How it works */}
-      <section id="how-it-works" className="border-y bg-muted py-20">
+      <section id="how-it-works" className="border-y bg-muted py-24">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-4">How It Works</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Three simple steps to never miss a contract deadline again.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-center mb-3">How It Works</h2>
+          <p className="text-center text-muted-foreground/80 mb-14 max-w-lg mx-auto">Three simple steps to never miss a contract deadline again.</p>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {steps.map((step, i) => (
               <Card key={i} className="text-center">
@@ -80,9 +80,9 @@ export default function LandingPage() {
                   <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center border bg-muted">
                     <step.icon className="h-6 w-6 text-foreground" />
                   </div>
-                  <div className="mb-2 text-xs font-semibold text-muted-foreground">STEP {i + 1}</div>
-                  <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground">{step.desc}</p>
+                  <div className="mb-2 text-xs font-semibold text-muted-foreground/60 tracking-widest">STEP {i + 1}</div>
+                  <h3 className="text-lg font-semibold mb-3">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground/80 leading-relaxed">{step.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -91,10 +91,10 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section className="py-20">
+      <section className="py-24">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-4">Everything You Need</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Built for teams who take their contracts seriously.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-center mb-3">Everything You Need</h2>
+          <p className="text-center text-muted-foreground/80 mb-14 max-w-lg mx-auto">Built for teams who take their contracts seriously.</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {features.map((f, i) => (
               <Card key={i}>
@@ -103,7 +103,7 @@ export default function LandingPage() {
                     <CheckCircle className="h-5 w-5 text-foreground" />
                     <h3 className="font-semibold">{f.title}</h3>
                   </div>
-                  <p className="text-sm text-muted-foreground">{f.desc}</p>
+                  <p className="text-sm text-muted-foreground/80 leading-relaxed">{f.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -112,10 +112,10 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="border-y bg-muted py-20">
+      <section id="pricing" className="border-y bg-muted py-24">
         <div className="container max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">Pricing</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Simple plans for growing teams.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-center mb-3">Pricing</h2>
+          <p className="text-center text-muted-foreground/80 mb-14 max-w-lg mx-auto">Simple plans for growing teams.</p>
           <PricingCards
             onWaitlistClick={() => setWaitlistOpen(true)}
             onEnterpriseClick={() => setEnterpriseOpen(true)}
@@ -125,19 +125,19 @@ export default function LandingPage() {
 
 
       {/* FAQ */}
-      <section id="faq" className="py-20">
+      <section id="faq" className="py-24">
         <div className="container max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">Frequently Asked Questions</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">Everything you need to know before getting started.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-center mb-3">Frequently Asked Questions</h2>
+          <p className="text-center text-muted-foreground/80 mb-14 max-w-lg mx-auto">Everything you need to know before getting started.</p>
           <Accordion type="single" collapsible className="w-full">
             {faqs.map((faq, i) => (
               <AccordionItem key={i} value={`faq-${i}`}>
-                <AccordionTrigger className="text-left">{faq.q}</AccordionTrigger>
-                <AccordionContent>{faq.a}</AccordionContent>
+                <AccordionTrigger className="text-left font-medium">{faq.q}</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground/80 leading-relaxed">{faq.a}</AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
-          <p className="text-center text-sm text-muted-foreground mt-10">
+          <p className="text-center text-sm text-muted-foreground mt-12">
             Still have questions?{' '}
             <a href="mailto:support@contractguard.cloud" className="underline underline-offset-4 hover:text-foreground transition-colors">
               Contact support
@@ -147,12 +147,12 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="border-t bg-muted py-20">
+      <section className="border-t bg-muted py-24">
         <div className="container text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">Ready to Protect Your Contracts?</h2>
-          <p className="text-muted-foreground mb-8">Start tracking your contracts and never miss a deadline again.</p>
+          <h2 className="text-3xl font-bold tracking-tight mb-4">Ready to Protect Your Contracts?</h2>
+          <p className="text-muted-foreground/80 mb-10 leading-relaxed">Start tracking your contracts and never miss a deadline again.</p>
           <Link to="/signup">
-            <Button size="lg" className="text-base px-8 gap-2">
+            <Button size="lg" className="text-base font-semibold px-8 gap-2">
               Start Free <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
