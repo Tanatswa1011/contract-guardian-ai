@@ -57,20 +57,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Product Preview */}
-      <section className="pb-20 pt-0 md:pb-28">
-        <div className="container max-w-5xl mx-auto text-center">
-          <h2 className="text-lg font-medium text-foreground mb-2">Portfolio view for every renewal, risk, and notice</h2>
-          <p className="text-sm text-muted-foreground mb-8">Track deadlines, risks, and renewals in one place</p>
-          <div className="mx-auto rounded-xl border bg-muted/30 p-2 shadow-lg">
-            <img
-              src={dashboardPreview}
-              alt="ContractGuardAI dashboard showing contract tracking with deadlines, status badges, and renewal dates"
-              className="w-full rounded-lg"
-            />
-          </div>
-        </div>
-      </section>
 
       {/* How it works */}
       <section id="how-it-works" className="border-y bg-muted py-20">
