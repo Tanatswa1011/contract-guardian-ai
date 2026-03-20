@@ -67,6 +67,16 @@ export async function sendEmail(params: SendEmailParams): Promise<EmailResult> {
   }
 }
 
+// ── HTML escaping ───────────────────────────────────────────────────
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ── Shared HTML helpers ─────────────────────────────────────────────
 function layout(content: string, footer?: string): string {
   return `<!DOCTYPE html>
