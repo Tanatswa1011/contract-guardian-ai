@@ -67,6 +67,16 @@ export async function sendEmail(params: SendEmailParams): Promise<EmailResult> {
   }
 }
 
+// ── HTML escaping ───────────────────────────────────────────────────
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ── Shared HTML helpers ─────────────────────────────────────────────
 function layout(content: string, footer?: string): string {
   return `<!DOCTYPE html>
@@ -110,8 +120,8 @@ export async function sendInviteEmail(params: {
   workspaceName?: string;
   inviterName?: string;
 }): Promise<EmailResult> {
-  const ws = params.workspaceName || "a workspace";
-  const inviter = params.inviterName || "A teammate";
+  const ws = escapeHtml(params.workspaceName || "a workspace");
+  const inviter = escapeHtml(params.inviterName || "A teammate");
 
   const html = layout(`
     <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">You've been invited</h2>
@@ -167,10 +177,13 @@ export async function sendContractReminderEmail(params: {
   offsetValue?: number;
   offsetUnit?: string;
 }): Promise<EmailResult> {
-  const deadlineLabel = params.dateType || "deadline";
+  const contractName = escapeHtml(params.contractName);
+  const expiryDate = escapeHtml(params.expiryDate);
+  const deadlineLabel = escapeHtml(params.dateType || "deadline");
   const offsetText = params.offsetValue && params.offsetUnit
-    ? `${params.offsetValue} ${params.offsetUnit}(s) before`
+    ? `${params.offsetValue} ${escapeHtml(params.offsetUnit)}(s) before`
     : "";
+  const workspaceName = params.workspaceName ? escapeHtml(params.workspaceName) : undefined;
 
   let ctaHtml = "";
   if (params.contractLink) {
@@ -181,22 +194,22 @@ export async function sendContractReminderEmail(params: {
     <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">Contract Reminder</h2>
     <table cellpadding="0" cellspacing="0" style="margin:0 0 16px;width:100%">
       <tr><td style="padding:8px 0;font-size:14px;color:#71717a;width:120px">Contract</td>
-          <td style="padding:8px 0;font-size:14px;color:#18181b;font-weight:600">${params.contractName}</td></tr>
+          <td style="padding:8px 0;font-size:14px;color:#18181b;font-weight:600">${contractName}</td></tr>
       <tr><td style="padding:8px 0;font-size:14px;color:#71717a">Deadline type</td>
           <td style="padding:8px 0;font-size:14px;color:#18181b">${deadlineLabel}</td></tr>
       <tr><td style="padding:8px 0;font-size:14px;color:#71717a">Due date</td>
-          <td style="padding:8px 0;font-size:14px;color:#18181b">${params.expiryDate}</td></tr>
+          <td style="padding:8px 0;font-size:14px;color:#18181b">${expiryDate}</td></tr>
       ${offsetText ? `<tr><td style="padding:8px 0;font-size:14px;color:#71717a">Reminder</td>
           <td style="padding:8px 0;font-size:14px;color:#18181b">${offsetText}</td></tr>` : ""}
     </table>
     ${ctaHtml}
-  `, params.workspaceName
-    ? `This reminder was sent by ContractGuard for workspace "${params.workspaceName}".`
+  `, workspaceName
+    ? `This reminder was sent by ContractGuard for workspace "${workspaceName}".`
     : undefined);
 
   return sendEmail({
     to: params.to,
-    subject: `Reminder: ${params.contractName} — ${deadlineLabel} due ${params.expiryDate}`,
+    subject: `Reminder: ${contractName} — ${deadlineLabel} due ${expiryDate}`,
     html,
     from: SENDERS.notifications,
   });
@@ -209,14 +222,17 @@ export async function sendGeneralNotificationEmail(params: {
   actionLink?: string;
   actionText?: string;
 }): Promise<EmailResult> {
+  const subject = escapeHtml(params.subject);
+  const message = escapeHtml(params.message);
+
   let ctaHtml = "";
   if (params.actionLink) {
     ctaHtml = ctaButton(params.actionLink, params.actionText || "View Details");
   }
 
   const html = layout(`
-    <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">${params.subject}</h2>
-    <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6">${params.message}</p>
+    <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">${subject}</h2>
+    <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6">${message}</p>
     ${ctaHtml}
   `);
 
