@@ -69,7 +69,7 @@ export default function AuthCallbackPage() {
             </div>
             <h2 className="text-xl font-semibold">Verification failed</h2>
             <p className="text-sm text-muted-foreground">
-              We could not verify your email automatically. Please try signing in or request a new confirmation email.
+              {errorMessage || 'We could not verify your email automatically. Please try signing in or request a new confirmation email.'}
             </p>
             <Link to="/login">
               <Button variant="outline" className="mt-2">Go to Sign In</Button>
