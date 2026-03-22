@@ -8,11 +8,23 @@ import { supabase } from '@/integrations/supabase/client';
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'confirmed' | 'error'>('loading');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check for error in URL hash (e.g. expired OTP link)
+    const hash = window.location.hash.substring(1);
+    const hashParams = new URLSearchParams(hash);
+    const error = hashParams.get('error');
+    const errorDescription = hashParams.get('error_description');
+
+    if (error) {
+      setStatus('error');
+      setErrorMessage(errorDescription?.replace(/\+/g, ' ') || 'Verification failed. Please try again.');
+      return;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
-        // For OAuth flows, redirect straight to the app
         const isOAuth = window.location.hash.includes('access_token') || window.location.search.includes('code=');
         if (isOAuth) {
           navigate('/app', { replace: true });
@@ -24,7 +36,6 @@ export default function AuthCallbackPage() {
       }
     });
 
-    // If no auth event fires within 10s, show error (not fake success)
     const timeout = setTimeout(() => {
       setStatus((prev) => (prev === 'loading' ? 'error' : prev));
     }, 10000);
@@ -58,7 +69,7 @@ export default function AuthCallbackPage() {
             </div>
             <h2 className="text-xl font-semibold">Verification failed</h2>
             <p className="text-sm text-muted-foreground">
-              We could not verify your email automatically. Please try signing in or request a new confirmation email.
+              {errorMessage || 'We could not verify your email automatically. Please try signing in or request a new confirmation email.'}
             </p>
             <Link to="/login">
               <Button variant="outline" className="mt-2">Go to Sign In</Button>
