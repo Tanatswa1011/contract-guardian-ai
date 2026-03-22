@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'confirmed' | 'error'>('loading');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
