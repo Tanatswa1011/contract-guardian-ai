@@ -16,21 +16,21 @@ export default function LogoFull({ className, variant = 'black', iconSize, size 
   const textColor = variant === 'white' ? 'text-white' : 'text-foreground';
 
   const sizeMap = {
-    sm: { icon: 'h-6 w-6', title: 'text-sm', subtitle: 'text-[9px]' },
-    md: { icon: 'h-7 w-7', title: 'text-base', subtitle: 'text-[10px]' },
-    lg: { icon: 'h-10 w-10', title: 'text-xl', subtitle: 'text-xs' },
+    sm: { icon: 'h-6 w-6', title: 'text-[13px]', subtitle: 'text-[9px]', gap: 'gap-2' },
+    md: { icon: 'h-7 w-7', title: 'text-[15px]', subtitle: 'text-[10px]', gap: 'gap-2.5' },
+    lg: { icon: 'h-10 w-10', title: 'text-lg', subtitle: 'text-[11px]', gap: 'gap-3' },
   };
 
   const s = sizeMap[size];
 
   return (
-    <span className={cn('inline-flex items-center gap-2.5', className)}>
+    <span className={cn('inline-flex items-center', s.gap, className)}>
       <LogoIcon className={iconSize || s.icon} variant={variant} />
       <span className={cn('flex flex-col leading-none', textColor)}>
-        <span className={cn(s.title, 'font-extrabold uppercase tracking-wide leading-none')}>
+        <span className={cn(s.title, 'font-bold uppercase tracking-[0.08em] leading-none')}>
           ContractGuard
         </span>
-        <span className={cn(s.subtitle, 'font-medium uppercase tracking-[0.2em] leading-none mt-0.5 opacity-50')}>
+        <span className={cn(s.subtitle, 'font-medium uppercase tracking-[0.25em] leading-none mt-0.5 opacity-40')}>
           AI
         </span>
       </span>
