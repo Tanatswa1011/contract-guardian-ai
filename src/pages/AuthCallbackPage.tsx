@@ -12,7 +12,7 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      // Check for error in URL hash (e.g. expired OTP link)
+      // 1. Check for error in URL hash (e.g. expired OTP link)
       const hash = window.location.hash.substring(1);
       const hashParams = new URLSearchParams(hash);
       const hashError = hashParams.get('error');
@@ -24,7 +24,7 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      // PKCE flow: exchange code for session
+      // 2. PKCE flow: exchange code for session
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
 
@@ -36,27 +36,39 @@ export default function AuthCallbackPage() {
           setErrorMessage(error.message);
           return;
         }
-        // Clean URL and redirect to app
         window.history.replaceState({}, '', '/auth/callback');
         navigate('/app', { replace: true });
         return;
       }
 
-      // Implicit flow / email confirmation fallback
+      // 3. Implicit flow: token is in the hash — Supabase client auto-detects it.
+      //    Wait for the session to be established, then redirect.
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (session) {
+        navigate('/app', { replace: true });
+        return;
+      }
+
+      // 4. If no session yet, listen for auth state changes (e.g. email confirmation)
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
         if (event === 'SIGNED_IN') {
-          if (window.location.hash.includes('access_token')) {
-            navigate('/app', { replace: true });
-          } else {
-            setStatus('confirmed');
-          }
+          navigate('/app', { replace: true });
         } else if (event === 'PASSWORD_RECOVERY') {
           navigate('/reset-password', { replace: true });
         }
       });
 
+      // 5. Timeout fallback — if nothing happens after 10s, show confirmation or error
       const timeout = setTimeout(() => {
-        setStatus((prev) => (prev === 'loading' ? 'error' : prev));
+        setStatus((prev) => {
+          if (prev !== 'loading') return prev;
+          // If hash had access_token params but no session, it was likely email confirmation
+          if (hash.includes('type=signup') || hash.includes('type=email')) {
+            return 'confirmed';
+          }
+          return 'error';
+        });
       }, 10000);
 
       return () => {
@@ -74,7 +86,7 @@ export default function AuthCallbackPage() {
         <Card className="mx-4 w-full max-w-md">
           <CardContent className="pt-8 pb-6 text-center space-y-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-            <p className="text-sm text-muted-foreground">Verifying your email…</p>
+            <p className="text-sm text-muted-foreground">Verifying your account…</p>
           </CardContent>
         </Card>
       </div>
@@ -91,7 +103,7 @@ export default function AuthCallbackPage() {
             </div>
             <h2 className="text-xl font-semibold">Verification failed</h2>
             <p className="text-sm text-muted-foreground">
-              {errorMessage || 'We could not verify your email automatically. Please try signing in or request a new confirmation email.'}
+              {errorMessage || 'We could not verify your account. Please try signing in or request a new confirmation email.'}
             </p>
             <Link to="/login">
               <Button variant="outline" className="mt-2">Go to Sign In</Button>
