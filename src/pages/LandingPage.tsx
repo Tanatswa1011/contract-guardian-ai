@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Shield, Upload, Brain, Bell, CheckCircle, ArrowRight } from 'lucide-react';
+import { Shield, Upload, Brain, Bell, CalendarClock, Sparkles, Mail, HeartPulse, Lock, Scale, ArrowRight } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import PricingCards from '@/components/PricingCards';
 import WaitlistModal from '@/components/WaitlistModal';
@@ -15,12 +15,12 @@ const steps = [
 ];
 
 const features = [
-  { title: 'Deadline Tracking', desc: 'Track renewal, notice, and payment deadlines across all contracts in one place.' },
-  { title: 'AI-Powered Extraction', desc: 'Upload a PDF and let AI find key dates, terms, and obligations automatically.' },
-  { title: 'Email Alerts', desc: 'Customizable reminder schedules so you never miss a critical deadline.' },
-  { title: 'Contract Health', desc: 'At-a-glance health badges show which contracts need your attention now.' },
-  { title: 'Secure Storage', desc: 'All contracts stored securely with encryption at rest and in transit.' },
-  { title: 'GDPR Compliant', desc: 'Your data stays yours. Built with privacy by design and full GDPR compliance.' },
+  { icon: CalendarClock, title: 'Deadline Tracking', desc: 'Track renewal, notice, and payment deadlines across all contracts in one place.' },
+  { icon: Sparkles, title: 'AI-Powered Extraction', desc: 'Upload a PDF and let AI find key dates, terms, and obligations automatically.' },
+  { icon: Mail, title: 'Email Alerts', desc: 'Customizable reminder schedules so you never miss a critical deadline.' },
+  { icon: HeartPulse, title: 'Contract Health', desc: 'At-a-glance health badges show which contracts need your attention now.' },
+  { icon: Lock, title: 'Secure Storage', desc: 'All contracts stored securely with encryption at rest and in transit.' },
+  { icon: Scale, title: 'GDPR Compliant', desc: 'Your data stays yours. Built with privacy by design and full GDPR compliance.' },
 ];
 
 const faqs = [
@@ -99,10 +99,10 @@ export default function LandingPage() {
             {features.map((f, i) => (
               <Card key={i}>
                 <CardContent className="pt-6 pb-5 px-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="h-5 w-5 text-foreground" />
-                    <h3 className="font-semibold">{f.title}</h3>
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center border bg-muted">
+                    <f.icon className="h-5 w-5 text-foreground" />
                   </div>
+                  <h3 className="font-semibold mb-2">{f.title}</h3>
                   <p className="text-sm text-muted-foreground/80 leading-relaxed">{f.desc}</p>
                 </CardContent>
               </Card>
