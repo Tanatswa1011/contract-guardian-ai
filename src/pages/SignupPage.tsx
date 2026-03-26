@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
-import { Shield, Loader2, CheckCircle, Mail } from 'lucide-react';
+import { Loader2, CheckCircle, Mail } from 'lucide-react';
+import LogoFull from '@/components/logos/LogoFull';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -67,9 +68,8 @@ export default function SignupPage() {
     <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] py-12">
       <Card className="mx-4 w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex items-center gap-2 text-xl font-semibold">
-            <Shield className="h-6 w-6 text-foreground" />
-            ContractGuardAI
+          <div className="mx-auto mb-6">
+            <LogoFull size="lg" />
           </div>
           <CardTitle className="text-2xl font-semibold">Create your account</CardTitle>
           <CardDescription>Start tracking contract deadlines in minutes</CardDescription>
