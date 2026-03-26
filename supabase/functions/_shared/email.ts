@@ -370,16 +370,37 @@ export async function sendSupportAcknowledgementEmail(params: {
 
 // ── Waitlist confirmation ───────────────────────────────────────────
 export function waitlistEmailHtml(): string {
+  const featureList = [
+    "Unlimited contracts — no cap on what you can track",
+    "Slack notifications — get alerts where your team already works",
+    "Up to 5 team members — collaborate across your organization",
+    "Multiple notification emails — route alerts to the right people",
+    "Custom reminder timing — set reminders that match your workflow",
+    "Priority support — get help when you need it",
+  ];
+
+  const featuresHtml = featureList
+    .map(
+      (f) =>
+        `<tr><td style="padding:6px 0;font-size:14px;color:${BRAND.muted};line-height:1.5">
+          <span style="color:${BRAND.text};margin-right:8px">✓</span> ${f}
+        </td></tr>`
+    )
+    .join("");
+
   return layout(
-    heading("You're on the Pro waitlist") +
-    bodyText("Thanks for joining the ContractGuard AI Pro waitlist. We'll notify you as soon as Pro is ready.") +
+    heading("You're on the Professional waitlist") +
+    bodyText("Thanks for joining the ContractGuard AI Professional early access list. You've secured your spot — we'll notify you the moment it's ready.") +
     infoBox([
-      { label: "Early access", value: "Priority access to Pro" },
-      { label: "Launch discount", value: "<strong>50% off</strong> your first month" },
-      { label: "Updates", value: "Notified when Pro launches" },
+      { label: "Your perks", value: "Priority access + <strong>50% off</strong> your first month" },
+      { label: "Price", value: "€15/month <span style='color:" + BRAND.dim + "'>(€7.50 with your discount)</span>" },
     ]) +
     divider() +
-    bodyText("No more missed deadlines. No more surprise renewals. Just clarity, control, and peace of mind.") +
-    `<p style="margin:16px 0 0;font-size:14px;color:${BRAND.muted}">— ContractGuard AI</p>`
+    `<h2 style="margin:0 0 16px;font-size:17px;font-weight:600;color:${BRAND.text}">What you'll unlock with Professional</h2>` +
+    `<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px">${featuresHtml}</table>` +
+    divider() +
+    bodyText("Contract management shouldn't be stressful. No more missed deadlines. No more surprise renewals. No more scrambling to find details buried in PDFs.") +
+    bodyText("Professional gives you the tools to stay in control — with clarity, automation, and peace of mind.") +
+    `<p style="margin:20px 0 0;font-size:14px;color:${BRAND.muted}">— The ContractGuard AI Team</p>`
   );
 }
