@@ -1,0 +1,1 @@
+DELETE FROM pro_waitlist WHERE email = 'tanamuganga16@gmail.com';
