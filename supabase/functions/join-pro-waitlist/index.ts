@@ -4,8 +4,10 @@ import { sendEmail, SENDERS, waitlistEmailHtml } from "../_shared/email.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -13,58 +15,47 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Require authentication to prevent email relay abuse
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    // Use getClaims for reliable JWT validation in edge functions
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const user = { id: claimsData.claims.sub, email: claimsData.claims.email as string };
-
     const { email, workspace_name, source } = await req.json();
 
-    if (!email || typeof email !== "string") {
+    if (!email || typeof email !== "string" || !EMAIL_RE.test(email)) {
       return new Response(
-        JSON.stringify({ error: "Email is required" }),
+        JSON.stringify({ error: "A valid email is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Ensure submitted email matches authenticated user to prevent relay
-    if (email.trim().toLowerCase() !== user.email?.toLowerCase()) {
-      return new Response(
-        JSON.stringify({ error: "Email must match your account" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const normalizedEmail = email.trim().toLowerCase();
+
+    // If authenticated, verify email matches the user (prevent relay abuse)
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData } = await supabaseUser.auth.getClaims(token);
+
+      // If we got valid user claims, enforce email match
+      if (claimsData?.claims?.sub) {
+        const userEmail = (claimsData.claims.email as string)?.toLowerCase();
+        if (userEmail && normalizedEmail !== userEmail) {
+          return new Response(
+            JSON.stringify({ error: "Email must match your account" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+      // If claims fail (anon key), allow through — user is unauthenticated
+    }
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Try insert — unique constraint will reject duplicates
     const { error: insertError } = await supabaseAdmin
       .from("pro_waitlist")
       .insert({
@@ -74,7 +65,6 @@ Deno.serve(async (req) => {
       });
 
     if (insertError) {
-      // Duplicate email (unique violation)
       if (insertError.code === "23505") {
         return new Response(
           JSON.stringify({ success: true, already_exists: true }),
@@ -88,17 +78,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // New signup — send confirmation email (fire-and-forget, don't block success)
+    // Send confirmation email (fire-and-forget)
     try {
       await sendEmail({
         to: normalizedEmail,
-        subject: "ContractGuardAI Pro waitlist confirmed 🎉",
+        subject: "ContractGuardAI Pro waitlist confirmed",
         html: waitlistEmailHtml(),
         from: SENDERS.default,
       });
     } catch (emailErr) {
       console.error("[waitlist] Email send failed:", emailErr);
-      // Don't fail the request — signup succeeded
     }
 
     return new Response(
