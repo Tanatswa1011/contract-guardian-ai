@@ -1,6 +1,8 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Shield, LayoutDashboard, Upload, Settings, CreditCard, LogOut, Menu, X, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Upload, Settings, CreditCard, LogOut, Menu, X, Loader2 } from 'lucide-react';
+import LogoFull from '@/components/logos/LogoFull';
+import LogoIcon from '@/components/logos/LogoIcon';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
