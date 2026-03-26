@@ -1,11 +1,31 @@
-// Centralized Resend email service for ContractGuard
-// All edge functions should use this module for sending emails.
+// ContractGuard AI — Premium transactional email system
+// Dark theme, enterprise-grade, Stripe/Linear inspired
 
-// ── Sender Identities ──────────────────────────────────────────────
+// ── Brand Constants ─────────────────────────────────────────────────
+const BRAND = {
+  bg: "#0B0B0C",
+  card: "#111111",
+  surface: "#161616",
+  border: "#1A1A1A",
+  text: "#FFFFFF",
+  muted: "#A1A1AA",
+  dim: "#6B7280",
+  ctaBg: "#FFFFFF",
+  ctaText: "#000000",
+  radius: "12px",
+  maxWidth: "540px",
+  fontStack:
+    "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
+} as const;
+
+// ── Sender Identities ───────────────────────────────────────────────
 export const SENDERS = {
-  default: "ContractGuard <noreply@mail.contractguard.cloud>",
-  notifications: "ContractGuard Notifications <notifications@mail.contractguard.cloud>",
-  support: "ContractGuard Support <support@mail.contractguard.cloud>",
+  default:
+    "ContractGuard <noreply@mail.contractguard.cloud>",
+  notifications:
+    "ContractGuard <notifications@mail.contractguard.cloud>",
+  support:
+    "ContractGuard Support <support@mail.contractguard.cloud>",
 } as const;
 
 export type SenderKey = keyof typeof SENDERS;
@@ -25,8 +45,10 @@ interface SendEmailParams {
   replyTo?: string;
 }
 
-// ── Core sender (internal) ──────────────────────────────────────────
-export async function sendEmail(params: SendEmailParams): Promise<EmailResult> {
+// ── Core sender ─────────────────────────────────────────────────────
+export async function sendEmail(
+  params: SendEmailParams
+): Promise<EmailResult> {
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   if (!resendApiKey) {
     console.error("[email] RESEND_API_KEY is not set");
@@ -68,7 +90,7 @@ export async function sendEmail(params: SendEmailParams): Promise<EmailResult> {
 }
 
 // ── HTML escaping ───────────────────────────────────────────────────
-function escapeHtml(s: string): string {
+function esc(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -77,42 +99,110 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-// ── Shared HTML helpers ─────────────────────────────────────────────
+// ── Shield logo SVG (inline, white) ─────────────────────────────────
+function logoSvg(): string {
+  return `<svg viewBox="0 0 64 64" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M32 3L7 15.5v17.5c0 15.2 10.6 29.2 25 33 14.4-3.8 25-17.8 25-33V15.5L32 3Z" fill="#fff"/>
+    <path d="M26 28v-4a6 6 0 0 1 12 0v4" stroke="#111" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <rect x="23" y="28" width="18" height="14" rx="2.5" fill="#111"/>
+    <circle cx="32" cy="33.5" r="2.5" fill="#fff"/>
+    <path d="M32 35.5v3" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>`;
+}
+
+// ── Layout ──────────────────────────────────────────────────────────
 function layout(content: string, footer?: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 0">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <style>
+    body,table,td{font-family:${BRAND.fontStack}}
+    @media(max-width:600px){
+      .email-card{border-radius:0!important}
+      .cta-btn{display:block!important;width:100%!important;text-align:center!important}
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:${BRAND.bg};color:${BRAND.text};-webkit-text-size-adjust:100%">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.bg};padding:48px 16px">
     <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08)">
+      <table class="email-card" width="100%" cellpadding="0" cellspacing="0" style="max-width:${BRAND.maxWidth};background:${BRAND.card};border-radius:${BRAND.radius};border:1px solid ${BRAND.border};overflow:hidden">
         <!-- Header -->
-        <tr><td style="padding:28px 32px 20px;border-bottom:1px solid #e4e4e7">
-          <span style="font-size:18px;font-weight:700;color:#18181b">🛡️ ContractGuard</span>
+        <tr><td style="padding:28px 32px 24px;border-bottom:1px solid ${BRAND.border}">
+          <table cellpadding="0" cellspacing="0"><tr>
+            <td style="vertical-align:middle;padding-right:12px">${logoSvg()}</td>
+            <td style="vertical-align:middle">
+              <span style="font-size:14px;font-weight:700;letter-spacing:0.06em;color:${BRAND.text};text-transform:uppercase">ContractGuard</span>
+              <span style="display:block;font-size:9px;font-weight:500;letter-spacing:0.2em;color:${BRAND.dim};text-transform:uppercase;margin-top:1px">AI</span>
+            </td>
+          </tr></table>
         </td></tr>
         <!-- Body -->
-        <tr><td style="padding:28px 32px">${content}</td></tr>
+        <tr><td style="padding:32px">${content}</td></tr>
         <!-- Footer -->
-        <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #e4e4e7">
-          <p style="margin:0;font-size:12px;color:#a1a1aa;line-height:1.6">
-            ${footer || "This is an automated message from ContractGuard. Please do not reply to this email."}
+        <tr><td style="padding:24px 32px;border-top:1px solid ${BRAND.border}">
+          <p style="margin:0;font-size:12px;color:${BRAND.dim};line-height:1.6">
+            ${footer || "This is an automated message from ContractGuard. Please do not reply."}
           </p>
         </td></tr>
       </table>
+      <!-- Sub-footer -->
+      <p style="margin:24px 0 0;font-size:11px;color:${BRAND.dim};text-align:center">
+        &copy; ${new Date().getFullYear()} ContractGuard AI. All rights reserved.
+      </p>
     </td></tr>
   </table>
 </body>
 </html>`;
 }
 
-function ctaButton(url: string, label: string): string {
-  return `<table cellpadding="0" cellspacing="0" style="margin:24px 0"><tr><td>
-    <a href="${url}" style="display:inline-block;padding:12px 28px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px">${label}</a>
-  </td></tr></table>
-  <p style="margin:0;font-size:12px;color:#a1a1aa">Or copy this link: <a href="${url}" style="color:#2563eb;word-break:break-all">${url}</a></p>`;
+// ── Heading ─────────────────────────────────────────────────────────
+function heading(text: string): string {
+  return `<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:${BRAND.text};line-height:1.3;letter-spacing:-0.01em">${text}</h1>`;
 }
 
-// ── Template Functions ──────────────────────────────────────────────
+// ── Body text ───────────────────────────────────────────────────────
+function bodyText(text: string): string {
+  return `<p style="margin:0 0 16px;font-size:15px;color:${BRAND.muted};line-height:1.65">${text}</p>`;
+}
+
+// ── CTA button ──────────────────────────────────────────────────────
+function ctaButton(url: string, label: string): string {
+  return `<table cellpadding="0" cellspacing="0" style="margin:28px 0 12px"><tr><td>
+  <a class="cta-btn" href="${url}" style="display:inline-block;padding:13px 32px;background:${BRAND.ctaBg};color:${BRAND.ctaText};text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;letter-spacing:0.01em">${label}</a>
+</td></tr></table>
+<p style="margin:0;font-size:12px;color:${BRAND.dim}">Or copy this link:<br><a href="${url}" style="color:${BRAND.muted};word-break:break-all;text-decoration:underline">${url}</a></p>`;
+}
+
+// ── Info box (highlighted detail card) ──────────────────────────────
+function infoBox(rows: Array<{ label: string; value: string }>): string {
+  const rowsHtml = rows
+    .map(
+      (r) =>
+        `<tr>
+          <td style="padding:8px 12px;font-size:13px;color:${BRAND.dim};white-space:nowrap;vertical-align:top">${r.label}</td>
+          <td style="padding:8px 12px;font-size:14px;color:${BRAND.text};font-weight:500">${r.value}</td>
+        </tr>`
+    )
+    .join("");
+
+  return `<table cellpadding="0" cellspacing="0" style="width:100%;background:${BRAND.surface};border:1px solid ${BRAND.border};border-radius:8px;margin:20px 0">
+    ${rowsHtml}
+  </table>`;
+}
+
+// ── Divider ─────────────────────────────────────────────────────────
+function divider(): string {
+  return `<hr style="border:none;border-top:1px solid ${BRAND.border};margin:24px 0"/>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TEMPLATE FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
 
 export async function sendInviteEmail(params: {
   to: string;
@@ -120,19 +210,15 @@ export async function sendInviteEmail(params: {
   workspaceName?: string;
   inviterName?: string;
 }): Promise<EmailResult> {
-  const ws = escapeHtml(params.workspaceName || "a workspace");
-  const inviter = escapeHtml(params.inviterName || "A teammate");
+  const ws = esc(params.workspaceName || "a workspace");
+  const inviter = esc(params.inviterName || "A teammate");
 
-  const html = layout(`
-    <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">You've been invited</h2>
-    <p style="margin:0 0 8px;font-size:15px;color:#3f3f46;line-height:1.6">
-      <strong>${inviter}</strong> has invited you to join <strong>${ws}</strong> on ContractGuard.
-    </p>
-    <p style="margin:0 0 4px;font-size:15px;color:#3f3f46;line-height:1.6">
-      Click the button below to create your account and get started.
-    </p>
-    ${ctaButton(params.inviteLink, "Accept Invitation")}
-  `);
+  const html = layout(
+    heading("You've been invited") +
+    bodyText(`<strong style="color:${BRAND.text}">${inviter}</strong> has invited you to join <strong style="color:${BRAND.text}">${ws}</strong> on ContractGuard.`) +
+    bodyText("Click below to create your account and get started.") +
+    ctaButton(params.inviteLink, "Accept Invitation")
+  );
 
   return sendEmail({
     to: params.to,
@@ -147,17 +233,17 @@ export async function sendPasswordResetEmail(params: {
   resetLink: string;
   userName?: string;
 }): Promise<EmailResult> {
-  const greeting = params.userName ? `Hi ${params.userName},` : "Hi,";
+  const greeting = params.userName
+    ? `Hi ${esc(params.userName)},`
+    : "Hi,";
 
-  const html = layout(`
-    <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">Reset your password</h2>
-    <p style="margin:0 0 8px;font-size:15px;color:#3f3f46;line-height:1.6">${greeting}</p>
-    <p style="margin:0 0 4px;font-size:15px;color:#3f3f46;line-height:1.6">
-      We received a request to reset your ContractGuard password. Click the button below to set a new one.
-    </p>
-    ${ctaButton(params.resetLink, "Reset Password")}
-    <p style="margin:16px 0 0;font-size:13px;color:#71717a">If you didn't request this, you can safely ignore this email.</p>
-  `);
+  const html = layout(
+    heading("Reset your password") +
+    bodyText(greeting) +
+    bodyText("We received a request to reset your ContractGuard password. Click below to set a new one.") +
+    ctaButton(params.resetLink, "Reset Password") +
+    `<p style="margin:20px 0 0;font-size:13px;color:${BRAND.dim}">If you didn't request this, you can safely ignore this email.</p>`
+  );
 
   return sendEmail({
     to: params.to,
@@ -177,35 +263,40 @@ export async function sendContractReminderEmail(params: {
   offsetValue?: number;
   offsetUnit?: string;
 }): Promise<EmailResult> {
-  const contractName = escapeHtml(params.contractName);
-  const expiryDate = escapeHtml(params.expiryDate);
-  const deadlineLabel = escapeHtml(params.dateType || "deadline");
-  const offsetText = params.offsetValue && params.offsetUnit
-    ? `${params.offsetValue} ${escapeHtml(params.offsetUnit)}(s) before`
-    : "";
-  const workspaceName = params.workspaceName ? escapeHtml(params.workspaceName) : undefined;
+  const contractName = esc(params.contractName);
+  const expiryDate = esc(params.expiryDate);
+  const deadlineLabel = esc(params.dateType || "deadline");
+  const offsetText =
+    params.offsetValue && params.offsetUnit
+      ? `${params.offsetValue} ${esc(params.offsetUnit)}(s) before`
+      : "";
+  const workspaceName = params.workspaceName
+    ? esc(params.workspaceName)
+    : undefined;
+
+  const infoRows: Array<{ label: string; value: string }> = [
+    { label: "Contract", value: contractName },
+    { label: "Deadline type", value: deadlineLabel },
+    { label: "Due date", value: `<strong>${expiryDate}</strong>` },
+  ];
+  if (offsetText) {
+    infoRows.push({ label: "Reminder", value: offsetText });
+  }
 
   let ctaHtml = "";
   if (params.contractLink) {
     ctaHtml = ctaButton(params.contractLink, "View Contract");
   }
 
-  const html = layout(`
-    <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">Contract Reminder</h2>
-    <table cellpadding="0" cellspacing="0" style="margin:0 0 16px;width:100%">
-      <tr><td style="padding:8px 0;font-size:14px;color:#71717a;width:120px">Contract</td>
-          <td style="padding:8px 0;font-size:14px;color:#18181b;font-weight:600">${contractName}</td></tr>
-      <tr><td style="padding:8px 0;font-size:14px;color:#71717a">Deadline type</td>
-          <td style="padding:8px 0;font-size:14px;color:#18181b">${deadlineLabel}</td></tr>
-      <tr><td style="padding:8px 0;font-size:14px;color:#71717a">Due date</td>
-          <td style="padding:8px 0;font-size:14px;color:#18181b">${expiryDate}</td></tr>
-      ${offsetText ? `<tr><td style="padding:8px 0;font-size:14px;color:#71717a">Reminder</td>
-          <td style="padding:8px 0;font-size:14px;color:#18181b">${offsetText}</td></tr>` : ""}
-    </table>
-    ${ctaHtml}
-  `, workspaceName
-    ? `This reminder was sent by ContractGuard for workspace "${workspaceName}".`
-    : undefined);
+  const html = layout(
+    heading("Contract Reminder") +
+    bodyText("A deadline for one of your contracts is approaching.") +
+    infoBox(infoRows) +
+    ctaHtml,
+    workspaceName
+      ? `Sent by ContractGuard for workspace "${workspaceName}".`
+      : undefined
+  );
 
   return sendEmail({
     to: params.to,
@@ -222,19 +313,22 @@ export async function sendGeneralNotificationEmail(params: {
   actionLink?: string;
   actionText?: string;
 }): Promise<EmailResult> {
-  const subject = escapeHtml(params.subject);
-  const message = escapeHtml(params.message);
+  const subject = esc(params.subject);
+  const message = esc(params.message);
 
   let ctaHtml = "";
   if (params.actionLink) {
-    ctaHtml = ctaButton(params.actionLink, params.actionText || "View Details");
+    ctaHtml = ctaButton(
+      params.actionLink,
+      params.actionText || "View Details"
+    );
   }
 
-  const html = layout(`
-    <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">${subject}</h2>
-    <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6">${message}</p>
-    ${ctaHtml}
-  `);
+  const html = layout(
+    heading(subject) +
+    bodyText(message) +
+    ctaHtml
+  );
 
   return sendEmail({
     to: params.to,
@@ -252,16 +346,18 @@ export async function sendSupportAcknowledgementEmail(params: {
 }): Promise<EmailResult> {
   const subj = params.subject || "We received your request";
   const ticketLine = params.ticketId
-    ? `<p style="margin:0 0 8px;font-size:13px;color:#71717a">Reference: <strong>${params.ticketId}</strong></p>`
+    ? `<p style="margin:0 0 12px;font-size:13px;color:${BRAND.dim}">Reference: <strong style="color:${BRAND.muted}">${esc(params.ticketId)}</strong></p>`
     : "";
 
-  const html = layout(`
-    <h2 style="margin:0 0 12px;font-size:20px;color:#18181b">${subj}</h2>
-    ${ticketLine}
-    <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6">
-      ${params.message || "Thank you for reaching out. Our team has received your request and will get back to you shortly."}
-    </p>
-  `, "This email was sent by ContractGuard Support. If you need further help, reply to this email.");
+  const html = layout(
+    heading(subj) +
+    ticketLine +
+    bodyText(
+      params.message ||
+        "Thank you for reaching out. Our team has received your request and will get back to you shortly."
+    ),
+    "This email was sent by ContractGuard Support. If you need further help, reply to this email."
+  );
 
   return sendEmail({
     to: params.to,
@@ -270,4 +366,20 @@ export async function sendSupportAcknowledgementEmail(params: {
     from: SENDERS.support,
     replyTo: "support@mail.contractguard.cloud",
   });
+}
+
+// ── Waitlist confirmation ───────────────────────────────────────────
+export function waitlistEmailHtml(): string {
+  return layout(
+    heading("You're on the Pro waitlist") +
+    bodyText("Thanks for joining the ContractGuard AI Pro waitlist. We'll notify you as soon as Pro is ready.") +
+    infoBox([
+      { label: "Early access", value: "Priority access to Pro" },
+      { label: "Launch discount", value: "<strong>50% off</strong> your first month" },
+      { label: "Updates", value: "Notified when Pro launches" },
+    ]) +
+    divider() +
+    bodyText("No more missed deadlines. No more surprise renewals. Just clarity, control, and peace of mind.") +
+    `<p style="margin:16px 0 0;font-size:14px;color:${BRAND.muted}">— ContractGuard AI</p>`
+  );
 }
