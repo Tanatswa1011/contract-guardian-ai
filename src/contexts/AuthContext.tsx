@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://app.contractguard.cloud/auth/callback',
+        redirectTo: 'https://app.contractguard.cloud/app',
       },
     });
     return { error: error as Error | null };
