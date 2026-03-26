@@ -6,11 +6,12 @@ interface LogoIconProps {
 }
 
 /**
- * ContractGuard AI — Icon only (shield with lock, document fold, chevron lines)
- * Matches brand reference. Works at 16px–512px. Pure geometric, no gradients.
+ * ContractGuard AI — Refined shield + lock mark.
+ * Clean, premium, works 16–512 px. No gradients.
  */
 export default function LogoIcon({ className, variant = 'black' }: LogoIconProps) {
-  const fill = variant === 'white' ? '#ffffff' : '#0a0a0a';
+  const fg = variant === 'white' ? '#ffffff' : '#0a0a0a';
+  const bg = variant === 'white' ? '#0a0a0a' : '#ffffff';
 
   return (
     <svg
@@ -20,38 +21,32 @@ export default function LogoIcon({ className, variant = 'black' }: LogoIconProps
       className={cn('shrink-0', className)}
       aria-label="ContractGuard AI icon"
     >
-      {/* Shield body */}
+      {/* Solid shield */}
       <path
-        d="M32 2L6 14v18c0 16 11 30.5 26 34 15-3.5 26-18 26-34V14L32 2Z"
-        fill={fill}
-      />
-      {/* Inner shield cutout */}
-      <path
-        d="M32 6L10 16.5v15.5c0 13.6 9.5 26.2 22 29.5 12.5-3.3 22-15.9 22-29.5V16.5L32 6Z"
-        fill={variant === 'white' ? '#0a0a0a' : '#ffffff'}
+        d="M32 3L7 15.5v17.5c0 15.2 10.6 29.2 25 33 14.4-3.8 25-17.8 25-33V15.5L32 3Z"
+        fill={fg}
       />
 
-      {/* Document with corner fold */}
-      <rect x="22" y="14" width="22" height="26" rx="1" fill="none" stroke={fill} strokeWidth="2" />
-      <path d="M36 14h8v8l-8-8Z" fill={fill} />
+      {/* Lock shackle (arc) */}
+      <path
+        d="M26 28v-4a6 6 0 0 1 12 0v4"
+        stroke={bg}
+        strokeWidth="3"
+        strokeLinecap="round"
+        fill="none"
+      />
 
       {/* Lock body */}
-      <rect x="27" y="26" width="10" height="8" rx="1.5" fill={fill} />
-      {/* Lock shackle */}
-      <path
-        d="M29.5 26v-3.5a2.5 2.5 0 0 1 5 0V26"
-        fill="none"
-        stroke={fill}
-        strokeWidth="2"
-      />
-      {/* Keyhole */}
-      <circle cx="32" cy="29.5" r="1.5" fill={variant === 'white' ? '#0a0a0a' : '#ffffff'} />
-      <rect x="31.25" y="30" width="1.5" height="2.5" rx="0.5" fill={variant === 'white' ? '#0a0a0a' : '#ffffff'} />
+      <rect x="23" y="28" width="18" height="14" rx="2.5" fill={bg} />
 
-      {/* Chevron contract lines at bottom */}
-      <path d="M20 48l12 5 12-5" fill="none" stroke={fill} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M22 53l10 4 10-4" fill="none" stroke={fill} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M24 57.5l8 3 8-3" fill="none" stroke={fill} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Keyhole */}
+      <circle cx="32" cy="33.5" r="2.5" fill={fg} />
+      <path
+        d="M32 35.5v3"
+        stroke={fg}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
