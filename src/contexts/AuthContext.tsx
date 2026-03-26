@@ -24,19 +24,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) {
-          console.error('Code exchange failed:', error.message);
-        }
-        const url = new URL(window.location.href);
-        url.searchParams.delete('code');
-        window.history.replaceState({}, '', url.pathname + url.search);
-      });
-    }
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);

@@ -11,39 +11,61 @@ export default function AuthCallbackPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check for error in URL hash (e.g. expired OTP link)
-    const hash = window.location.hash.substring(1);
-    const hashParams = new URLSearchParams(hash);
-    const error = hashParams.get('error');
-    const errorDescription = hashParams.get('error_description');
+    const handleCallback = async () => {
+      // Check for error in URL hash (e.g. expired OTP link)
+      const hash = window.location.hash.substring(1);
+      const hashParams = new URLSearchParams(hash);
+      const hashError = hashParams.get('error');
+      const hashErrorDesc = hashParams.get('error_description');
 
-    if (error) {
-      setStatus('error');
-      setErrorMessage(errorDescription?.replace(/\+/g, ' ') || 'Verification failed. Please try again.');
-      return;
-    }
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') {
-        const isOAuth = window.location.hash.includes('access_token') || window.location.search.includes('code=');
-        if (isOAuth) {
-          navigate('/app', { replace: true });
-        } else {
-          setStatus('confirmed');
-        }
-      } else if (event === 'PASSWORD_RECOVERY') {
-        navigate('/reset-password', { replace: true });
+      if (hashError) {
+        setStatus('error');
+        setErrorMessage(hashErrorDesc?.replace(/\+/g, ' ') || 'Verification failed. Please try again.');
+        return;
       }
-    });
 
-    const timeout = setTimeout(() => {
-      setStatus((prev) => (prev === 'loading' ? 'error' : prev));
-    }, 10000);
+      // PKCE flow: exchange code for session
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
 
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.error('Code exchange failed:', error.message);
+          setStatus('error');
+          setErrorMessage(error.message);
+          return;
+        }
+        // Clean URL and redirect to app
+        window.history.replaceState({}, '', '/auth/callback');
+        navigate('/app', { replace: true });
+        return;
+      }
+
+      // Implicit flow / email confirmation fallback
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_IN') {
+          if (window.location.hash.includes('access_token')) {
+            navigate('/app', { replace: true });
+          } else {
+            setStatus('confirmed');
+          }
+        } else if (event === 'PASSWORD_RECOVERY') {
+          navigate('/reset-password', { replace: true });
+        }
+      });
+
+      const timeout = setTimeout(() => {
+        setStatus((prev) => (prev === 'loading' ? 'error' : prev));
+      }, 10000);
+
+      return () => {
+        subscription.unsubscribe();
+        clearTimeout(timeout);
+      };
     };
+
+    handleCallback();
   }, [navigate]);
 
   if (status === 'loading') {
