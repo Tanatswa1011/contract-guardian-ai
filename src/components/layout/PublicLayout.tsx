@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Shield } from 'lucide-react';
+import { LogoFull } from '@/components/Logo';
 
 export default function PublicLayout() {
   const location = useLocation();
@@ -10,9 +10,8 @@ export default function PublicLayout() {
     <div className="min-h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="container flex h-14 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-base font-semibold tracking-wide">
-            <Shield className="h-5 w-5 text-foreground" />
-            <span>ContractGuardAI</span>
+          <Link to="/">
+            <LogoFull />
           </Link>
           {!isAuthPage && (
             <nav className="flex items-center gap-4">
