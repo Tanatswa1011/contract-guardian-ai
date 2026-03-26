@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Shield, LayoutDashboard, Upload, Settings, CreditCard, LogOut, Menu, X, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Upload, Settings, CreditCard, LogOut, Menu, X, Loader2 } from 'lucide-react';
+import { LogoFull } from '@/components/Logo';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,9 +33,8 @@ export default function AppLayout() {
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 z-30 hidden w-64 flex-col border-r bg-sidebar lg:flex">
         <div className="space-y-4 border-b px-6 py-5">
-          <Link to="/app" className="flex items-center gap-2 text-sm font-semibold tracking-wide">
-            <Shield className="h-4 w-4 text-foreground" />
-            ContractGuardAI
+          <Link to="/app">
+            <LogoFull iconClassName="h-4 w-4" />
           </Link>
           <WorkspaceSwitcher />
         </div>
@@ -66,9 +66,8 @@ export default function AppLayout() {
       {/* Mobile header */}
       <div className="fixed inset-x-0 top-0 z-40 border-b bg-background lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
-          <Link to="/app" className="flex items-center gap-2 text-sm font-semibold tracking-wide">
-            <Shield className="h-4 w-4 text-foreground" />
-            ContractGuardAI
+          <Link to="/app">
+            <LogoFull iconClassName="h-4 w-4" />
           </Link>
           <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

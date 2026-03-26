@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Shield, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { LogoFull } from "@/components/Logo";
 
 const NotFound = () => {
   const location = useLocation();
@@ -13,9 +14,8 @@ const NotFound = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center space-y-6">
-        <div className="mx-auto flex items-center justify-center gap-2 text-lg font-semibold">
-          <Shield className="h-5 w-5 text-foreground" />
-          ContractGuardAI
+        <div className="mx-auto flex items-center justify-center">
+          <LogoFull iconClassName="h-5 w-5" />
         </div>
         <div>
           <p className="text-6xl font-bold tracking-tight tabular-nums">404</p>
