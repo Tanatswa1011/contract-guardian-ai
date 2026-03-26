@@ -15,7 +15,7 @@ const NotFound = () => {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center space-y-6">
         <div className="mx-auto flex items-center justify-center">
-          <LogoFull iconClassName="h-5 w-5" />
+          <LogoFull />
         </div>
         <div>
           <p className="text-6xl font-bold tracking-tight tabular-nums">404</p>
