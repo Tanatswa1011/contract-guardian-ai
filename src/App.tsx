@@ -25,6 +25,7 @@ import ContractDetailPage from "@/pages/ContractDetailPage";
 import SettingsPage from "@/pages/SettingsPage";
 import BillingPage from "@/pages/BillingPage";
 import NotFound from "@/pages/NotFound";
+import DemoPage from "@/pages/DemoPage";
 
 const queryClient = new QueryClient();
 

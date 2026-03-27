@@ -14,7 +14,8 @@ export default function DemoDashboard() {
     return days <= 30 && days > 0;
   }).length;
   const highRisk = contracts.filter(c => c.risk_level === 'high').length;
-  const autoRenewals = contracts.filter(c => c.auto_renew && {
+  const autoRenewals = contracts.filter(c => {
+    if (!c.auto_renew) return false;
     const days = Math.ceil((new Date(c.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     return days <= 90;
   }).length;
