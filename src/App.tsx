@@ -62,6 +62,7 @@ const App = () => (
                   </Route>
                 </Route>
 
+                <Route path="/demo" element={<DemoPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </WorkspaceProvider>
