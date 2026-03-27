@@ -25,6 +25,7 @@ import ContractDetailPage from "@/pages/ContractDetailPage";
 import SettingsPage from "@/pages/SettingsPage";
 import BillingPage from "@/pages/BillingPage";
 import NotFound from "@/pages/NotFound";
+import DemoPage from "@/pages/DemoPage";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
                   </Route>
                 </Route>
 
+                <Route path="/demo" element={<DemoPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </WorkspaceProvider>
