@@ -1,73 +1,72 @@
-# Welcome to your Lovable project
+# ContractGuard AI
 
-## Project info
+**Never miss a contract deadline again.**
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Small teams sign SaaS subscriptions, agency retainers and supplier agreements, then lose track of them. A contract renews automatically because nobody noticed the notice window closed 30 days before the renewal date. ContractGuard is a B2B SaaS MVP that reads the contract, works out the deadlines that matter, and reminds the right people in time.
 
-## How can I edit this code?
+> **Status:** MVP, not publicly launched. No paying customers. The hosted backend is currently paused, so run it locally against your own Supabase project.
 
-There are several ways of editing your application.
+## How it works
 
-**Use Lovable**
+1. **Upload** a contract PDF.
+2. **AI extraction.** A Supabase Edge Function pulls the text out of the PDF and asks an OpenAI model (default `gpt-4.1-mini`) for exactly six fields: counterparty, start date, end date, renewal date, notice date and notice period in days.
+3. **No guessing.** The model must return `null` for anything that isn't explicitly in the contract. Any missing or uncertain field sets `needs_review`, and the contract is flagged for a person to check.
+4. **Deadlines.** If the contract states a renewal date and a notice period but no notice date, ContractGuard computes it. Each date is labelled `extracted` or `computed`, so you can always tell what came from the document.
+5. **Reminders.** A scheduled function sends reminder emails before each deadline, and Slack messages for workspaces that connect a webhook. Every send is logged.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Features
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Team workspaces:** create a workspace, invite colleagues by email, switch between workspaces. Data is scoped per workspace with Postgres row-level security.
+- **Dashboard:** every contract with a status and health badge. On mobile, cards are swipeable.
+- **Contract detail:** extracted fields, suggested deadlines, extraction history (every run is stored with its model and raw output) and the original file.
+- **Notification settings:** reminder recipients and Slack webhook, with a test message.
+- **Plans:** Starter (free, 5 contracts), Professional (€15/month, early-access waitlist) and Enterprise (contact form). Plan limits are enforced in the app.
+- **Interactive demo** at `/demo`, with a sample dashboard, contract and reminder email preview. No sign-up needed.
+- **Account deletion** removes the user and their data.
 
-**Use your preferred IDE**
+## Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+| Layer | Tech |
+|---|---|
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui, TanStack Query |
+| Backend | Supabase: Postgres with row-level security, Auth, Storage, Edge Functions (Deno) |
+| AI | OpenAI API (model configurable via `OPENAI_MODEL`) |
+| Notifications | Email via Resend, Slack incoming webhooks |
+| Tests | Vitest (extraction and deadline logic) |
+| Hosting | Vercel |
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Run it locally
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+npm install
+npm run dev     # http://localhost:8080
+npm test
 ```
 
-**Edit a file directly in GitHub**
+The committed `.env` points at the original Supabase project, which is paused. To use your own:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Create a Supabase project and apply `supabase/migrations/`.
+2. Put your project URL and publishable (anon) key in `.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`).
+3. Deploy the functions in `supabase/functions/` and set their secrets (`OPENAI_API_KEY`, `RESEND_API_KEY`, `APP_URL`) in the Supabase dashboard. Never commit them.
 
-**Use GitHub Codespaces**
+`/demo` works without any backend.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Repo layout
 
-## What technologies are used for this project?
+```
+src/
+  pages/            landing, pricing, auth, dashboard, upload, contract detail, settings, billing, demo
+  components/       app layout, workspace switcher, pricing cards, settings panels, demo views
+  lib/              extraction helpers, deadline suggestions, password rules
+  config/plans.ts   plan definitions and limits
+supabase/
+  functions/        extract-contract-fields, send-contract-reminders, send-workspace-invite,
+                    send-notification-email, send-slack-test, join-pro-waitlist, delete-user-account
+  migrations/       workspaces, members, invites, waitlist, RLS policies
+```
 
-This project is built with:
+## How it was built
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+I defined the product: the problem, who it's for, the extraction rules ("return null, never guess"), the deadline logic, the reminder flow and the pricing. I built it with AI coding tools: Lovable for the first versions, then Cursor. That's why most commits are by `gpt-engineer-app[bot]` and `cursoragent`. I reviewed and tested what they produced and steered each iteration.
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Built by [Tanatswa Phil Muganga](https://www.linkedin.com/in/tanatswaphilmuganga16) · [tanaphil.com](https://tanaphil.com)
